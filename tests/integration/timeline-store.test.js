@@ -11,7 +11,7 @@ import {
   createStore,
   defaultState,
 } from '../../src/lib/store.js';
-import { buildGrid } from '../../src/lib/grid.js';
+import { buildGrid, todayAnchor } from '../../src/lib/grid.js';
 import { createHomeTracker } from '../../src/lib/home.js';
 
 /** Storage double with the same contract as window.localStorage. */
@@ -102,6 +102,7 @@ describe('store persistence across sessions', () => {
 
 describe('store -> grid', () => {
   const now = new Date('2026-06-15T13:20:00Z'); // Monday: London BST, New York EDT
+  const anchor = todayAnchor({ kind: 'iana', tz: 'Europe/London' }, now);
 
   it('builds the home row first, then every stored zone in order, aligned in home columns', () => {
     const store = createStore({ storage: new MemoryStorage() });
@@ -113,7 +114,7 @@ describe('store -> grid', () => {
     const grid = buildGrid({
       homeZone: { kind: 'iana', tz: 'Europe/London' },
       zones,
-      now,
+      anchor,
       weekendsUnavailable: settings.weekendsUnavailable,
     });
 
@@ -149,7 +150,7 @@ describe('store -> grid', () => {
       buildGrid({
         homeZone: { kind: 'iana', tz: 'Europe/London' },
         zones: store.getState().zones,
-        now,
+        anchor,
         weekendsUnavailable,
       }).everyone.find((seg) => seg.start <= sunday && sunday < seg.end)?.rating;
     assert.equal(store.getState().settings.weekendsUnavailable, true);
@@ -180,7 +181,7 @@ describe('travel: home tracker + store + grid', () => {
       buildGrid({
         homeZone: { kind: 'iana', tz },
         zones: store.getState().zones,
-        now,
+        anchor: todayAnchor({ kind: 'iana', tz }, now),
         weekendsUnavailable: true,
       });
 
