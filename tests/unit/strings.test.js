@@ -12,6 +12,7 @@ const callers = [
   'ui/components.js',
   'ui/settings.js',
   'ui/add-city.js',
+  'ui/install.js',
 ];
 
 /** @typedef {Record<string, unknown>} Tree */

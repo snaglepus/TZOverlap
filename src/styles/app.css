@@ -132,10 +132,53 @@
   font-size: var(--font-size-sm);
 }
 
-.settings__actions {
+.settings__actions,
+.install__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* ---------- Install guidance (Settings, hint card, iOS sheet) ---------- */
+.install {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.install__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Same type as the Appearance legend, its sibling in Settings. */
+.install__heading {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
+.install__group-title {
+  margin: var(--space-0);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.install__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-0);
+  padding-inline-start: var(--space-5);
+  max-width: var(--measure);
+}
+
+.icon.install__illustration {
+  width: var(--control-height);
+  height: var(--control-height);
 }
 
 /* ---------- Legend ---------- */

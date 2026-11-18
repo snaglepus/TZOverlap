@@ -1,4 +1,4 @@
-// The Settings sheet: Appearance, Time format, Treat weekends as unavailable and Reset all data. Built from the shared
+// The Settings sheet: Appearance, Time format, Treat weekends as unavailable, Install and Reset all data. Built from the shared
 // components in ./components.js; page styles in src/styles/app.css.
 
 import { button, radioGroup, sheet, switchControl } from './components.js';
@@ -11,6 +11,7 @@ import { strings } from './strings.js';
  * @typedef {ReturnType<typeof import('./components.js').createToaster>} Toaster
  * @typedef {import('./theme.js').ThemeSetting} ThemeSetting
  * @typedef {import('../lib/time-format.js').HourCycleSetting} HourCycleSetting
+ * @typedef {ReturnType<typeof import('./install.js').installController>} InstallController
  */
 
 /** @type {readonly ThemeSetting[]} */
@@ -19,9 +20,14 @@ const THEMES = ['system', 'light', 'dark'];
 const HOUR_CYCLES = ['auto', 'h12', 'h23'];
 
 /**
- * @param {{ store: Store, theme: ThemeController, toaster: Toaster }} deps
+ * @param {{
+ *   store: Store,
+ *   theme: ThemeController,
+ *   toaster: Toaster,
+ *   install: InstallController,
+ * }} deps
  */
-export function settingsSheet({ store, theme, toaster }) {
+export function settingsSheet({ store, theme, toaster, install }) {
   const appearance = radioGroup({
     legend: strings.settings.appearance,
     name: 'theme',
@@ -104,6 +110,7 @@ export function settingsSheet({ store, theme, toaster }) {
         appearance.root,
         timeFormat.root,
         h('div', { class: 'settings__section' }, [weekends.root]),
+        install.section,
         h('div', { class: 'settings__section' }, [
           h('p', { class: 'settings__help', text: strings.settings.resetHelp }),
           resetButton,
