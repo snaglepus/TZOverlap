@@ -88,7 +88,6 @@ describe('strings', () => {
       'You can compare up to 8 zones. Remove one to add another.',
     );
     assert.equal(strings.addZone.help(7), 'Use an IANA name. You can add 7 more.');
-    assert.equal(strings.timelines.you('London'), 'London (you)');
     assert.equal(strings.timelines.everyone, 'Everyone');
     assert.equal(strings.timelines.noDst, 'No DST');
     assert.equal(strings.timelines.repeatTitle, 'Clocks go back — this hour repeats');

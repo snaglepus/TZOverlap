@@ -38,7 +38,8 @@ test('first visit: shows your zone, an empty state, and loads nothing third-part
 
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'TZ Overlap' })).toBeVisible();
-  await expect(page.getByRole('row', { name: /London \(you\)/ })).toBeVisible();
+  await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('London');
+  await expect(row(page, 'Europe/London').getByRole('rowheader')).not.toContainText('(you)');
   // Home and Everyone rows only; the header shows the live time and offset.
   expect(await rowZones(page)).toEqual(['Europe/London', 'everyone']);
   await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('14:30');
@@ -293,7 +294,7 @@ test('type scale: phone-first sizes at 390px (17px body, 13px secondary, 11px fl
     return {
       body: getComputedStyle(document.body).fontSize,
       slots: sizesOf('[role="row"]:not([data-zone="everyone"]) [role="gridcell"]'),
-      secondary: sizesOf('.grid__meta'),
+      secondary: sizesOf('.grid__meta, .grid__clock'),
       visibleText,
     };
   });
@@ -662,9 +663,10 @@ test.describe('grid', () => {
     await addZone(page, 'Asia/Kolkata');
     await expect(grid(page)).toBeVisible();
     const home = row(page, 'Australia/Sydney').getByRole('rowheader');
-    await expect(home).toContainText('Sydney (you)');
+    await expect(home).toContainText('Sydney');
+    await expect(home).not.toContainText('(you)');
     await expect(home).toContainText('12:00');
-    await expect(home).toContainText('UTC+11');
+    await expect(home).toContainText('AEDT · UTC+11');
     const kolkata = row(page, 'Asia/Kolkata').getByRole('rowheader');
     await expect(kolkata).toContainText('06:30');
     await expect(kolkata).toContainText('UTC+5:30');
@@ -677,7 +679,7 @@ test.describe('grid clock', () => {
   test('header times tick on the minute without rebuilding cells', async ({ page }) => {
     await page.clock.install({ time: new Date('2026-11-18T01:00:30Z') });
     await page.goto('/');
-    const time = row(page, 'Australia/Sydney').locator('.grid__time');
+    const time = row(page, 'Australia/Sydney').locator('.grid__details .grid__time');
     await expect(time).toHaveText('12:00');
     const selector = '[data-zone="Australia/Sydney"] [data-start="2026-11-18T01:00:00.000Z"]';
     const before = await page.locator(selector).elementHandle();
@@ -691,4 +693,246 @@ test.describe('grid clock', () => {
     await page.clock.runFor(60_000);
     await expect(time).toHaveText('12:02');
   });
+});
+
+// --- Row headers (TZO-12): device in Sydney -------------------------------------
+
+/** Tuesday 17 Nov 2026, 21:30:30 in Sydney: Kiritimati Wed 00:30, Pago Pago Mon 23:30. */
+const SYDNEY_EVENING = new Date('2026-11-17T10:30:30Z');
+/** 30 characters. */
+const LONG_LABEL = 'Our very long regional office!';
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} zone
+ */
+const header = (page, zone) => row(page, zone).getByRole('rowheader');
+
+/** Zone rowheaders (not Everyone). @param {import('@playwright/test').Page} page */
+const zoneHeaders = (page) =>
+  page.locator('[role="row"]:not([data-zone="everyone"]) [role="rowheader"]');
+
+test.describe('row headers', () => {
+  test.use({ timezoneId: 'Australia/Sydney' });
+
+  test('home row: plain city name, a labelled location symbol, no row controls', async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(SYDNEY_EVENING);
+    await seedZones(page, [{ id: 't', kind: 'iana', tz: 'Asia/Tokyo', label: 'Tokyo' }]);
+    await page.goto('/');
+    const first = page.locator('[role="row"]').first();
+    await expect(first).toHaveAttribute('data-zone', 'Australia/Sydney');
+    const home = first.getByRole('rowheader');
+    await expect(home.locator('.grid__details .grid__name')).toHaveText('Sydney');
+    await expect(home).not.toContainText('(you)');
+    const symbol = home.getByRole('img');
+    await expect(symbol).toHaveCount(1);
+    await expect(symbol).toHaveAccessibleName('Your location');
+    await expect(first.getByRole('button', { name: /Remove|Edit|Delete/ })).toHaveCount(0);
+    await expect(first.locator('[draggable="true"]')).toHaveCount(0);
+    await expect(
+      row(page, 'Asia/Tokyo').getByRole('button', { name: 'Remove Tokyo' }),
+    ).toBeVisible();
+  });
+
+  test('wide header: time, short date, offset line and day difference', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.clock.setFixedTime(new Date('2026-06-15T20:00:00Z'));
+    await seedZones(page, [{ id: 'l', kind: 'iana', tz: 'Europe/London', label: 'London' }]);
+    await page.goto('/');
+    const london = header(page, 'Europe/London');
+    for (const text of ['21:00', 'Mon 15 Jun', 'BST · UTC+1', 'Yesterday']) {
+      await expect(london).toContainText(text, { useInnerText: true });
+    }
+    const sydney = header(page, 'Australia/Sydney');
+    for (const text of ['06:00', 'Tue 16 Jun', 'AEST · UTC+10']) {
+      await expect(sydney).toContainText(text, { useInnerText: true });
+    }
+    await expect(sydney).not.toContainText(/Yesterday|Tomorrow|days/, { useInnerText: true });
+
+    await page.clock.setFixedTime(new Date('2026-01-15T01:00:00Z'));
+    await page.reload();
+    await expect(london).toContainText('GMT · UTC+0', { useInnerText: true });
+  });
+
+  test('day differences, and every header ticks without rebuilding cells', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.clock.install({ time: SYDNEY_EVENING });
+    await seedZones(page, [
+      { id: 'k', kind: 'iana', tz: 'Pacific/Kiritimati', label: 'Kiritimati' },
+      { id: 'p', kind: 'iana', tz: 'Pacific/Pago_Pago', label: 'Pago Pago' },
+    ]);
+    await page.goto('/');
+    const kiritimati = header(page, 'Pacific/Kiritimati');
+    await expect(kiritimati).toContainText('Tomorrow', { useInnerText: true });
+    await expect(kiritimati).toContainText('Wed 18 Nov', { useInnerText: true });
+    const pago = header(page, 'Pacific/Pago_Pago');
+    await expect(pago).toContainText('Yesterday', { useInnerText: true });
+    await expect(pago).toContainText('Mon 16 Nov', { useInnerText: true });
+
+    const times = () => page.locator('.grid__details .grid__time').allTextContents();
+    expect(await times()).toEqual(['21:30', '00:30', '23:30']);
+    const selector = '[data-zone="Australia/Sydney"] [data-start="2026-11-17T10:00:00.000Z"]';
+    const before = await page.locator(selector).elementHandle();
+    await page.clock.runFor(31_000);
+    await expect.poll(times).toEqual(['21:31', '00:31', '23:31']);
+    const same = await page.evaluate(
+      ([el, sel]) => /** @type {Element} */ (el).isConnected && document.querySelector(sel) === el,
+      /** @type {const} */ ([before, selector]),
+    );
+    expect(same).toBe(true);
+  });
+
+  test('phone: a two-line header button opens one details popover', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.clock.setFixedTime(SYDNEY_EVENING);
+    await seedZones(page, [
+      { id: 'k', kind: 'iana', tz: 'Pacific/Kiritimati', label: 'Kiritimati' },
+      { id: 'o', kind: 'iana', tz: 'Europe/London', label: LONG_LABEL },
+    ]);
+    await page.goto('/');
+    await expect(zoneHeaders(page)).toHaveCount(3);
+
+    for (const box of await zoneHeaders(page).evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().width),
+    )) {
+      expect(Math.abs(box - 112)).toBeLessThanOrEqual(2);
+    }
+
+    // Two one-line rows of text in each button; date and offset stay in the popover.
+    const lines = await page.locator('.grid__trigger').evaluateAll((buttons) =>
+      buttons.map((button) =>
+        ['.grid__name', '.grid__clock'].map((sel) => {
+          const el = /** @type {HTMLElement} */ (button.querySelector(sel));
+          const style = getComputedStyle(el);
+          return el.getBoundingClientRect().height / parseFloat(style.lineHeight);
+        }),
+      ),
+    );
+    expect(lines).toHaveLength(3);
+    for (const ratios of lines) for (const ratio of ratios) expect(ratio).toBeLessThan(1.5);
+    for (const zone of ['Australia/Sydney', 'Pacific/Kiritimati', 'Europe/London']) {
+      await expect(row(page, zone).locator('.grid__details')).toBeHidden();
+    }
+    await expect(header(page, 'Australia/Sydney')).not.toContainText('Tue 17 Nov', {
+      useInnerText: true,
+    });
+
+    const kiritimati = row(page, 'Pacific/Kiritimati').locator('.grid__trigger');
+    await expect(kiritimati.locator('.grid__badge')).toBeVisible();
+    await expect(kiritimati.locator('.grid__badge')).toHaveText('+1');
+    await expect(kiritimati).toHaveAccessibleName('Kiritimati 00:30 Tomorrow');
+
+    // The remove button sits beside the time, never over it.
+    const clockRight = await kiritimati
+      .locator('.grid__clock')
+      .evaluate((el) => el.getBoundingClientRect().right);
+    const remove = await row(page, 'Pacific/Kiritimati')
+      .getByRole('button', { name: 'Remove Kiritimati' })
+      .boundingBox();
+    expect(clockRight).toBeLessThanOrEqual(/** @type {{ x: number }} */ (remove).x);
+    const badgeClipped = await kiritimati
+      .locator('.grid__clock')
+      .evaluate((el) => el.scrollWidth > el.clientWidth);
+    expect(badgeClipped).toBe(false);
+
+    const office = row(page, 'Europe/London').locator('.grid__trigger');
+    const name = await office.locator('.grid__name').evaluate((el) => ({
+      cut: el.scrollWidth > el.clientWidth,
+      overflow: getComputedStyle(el).textOverflow,
+    }));
+    expect(name).toEqual({ cut: true, overflow: 'ellipsis' });
+    await expect(office).toHaveAccessibleName(`${LONG_LABEL} 10:30`);
+
+    const details = page.getByRole('group', { name: 'Time zone details' });
+    await expect(details).toBeHidden();
+    await office.click();
+    await expect(office).toHaveAttribute('aria-expanded', 'true');
+    await expect(details).toBeVisible();
+    await expect(details).toContainText(LONG_LABEL);
+    await expect(details).toContainText('Tuesday 17 November 2026');
+    await expect(details).toContainText('GMT · UTC+0');
+    await expect(details).toBeInViewport({ ratio: 1 });
+
+    await page.keyboard.press('Escape');
+    await expect(details).toBeHidden();
+    await expect(office).toBeFocused();
+    await expect(office).toHaveAttribute('aria-expanded', 'false');
+
+    // Another header refills the same popover.
+    await kiritimati.click();
+    await expect(details).toContainText('Wednesday 18 November 2026');
+    await expect(details).toContainText('Tomorrow');
+    await expect(page.locator('.popover')).toHaveCount(1);
+
+    // Tapping outside closes it; so does tapping the same header again.
+    await page.getByRole('heading', { level: 1 }).click();
+    await expect(details).toBeHidden();
+    await expect(kiritimati).toHaveAttribute('aria-expanded', 'false');
+    await kiritimati.click();
+    await expect(details).toBeVisible();
+    await kiritimati.click();
+    await expect(details).toBeHidden();
+  });
+
+  for (const [width, height, headerWidth, rowHeight] of /** @type {const} */ ([
+    [390, 844, 112, 56],
+    [820, 1180, 180, 64],
+    [1440, 900, 220, 64],
+  ])) {
+    test(`sizes at ${width}px: ${headerWidth}px headers, rows at least ${rowHeight}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await page.clock.setFixedTime(SYDNEY_EVENING);
+      await seedZones(page, [
+        { id: 'k', kind: 'iana', tz: 'Pacific/Kiritimati', label: 'Kiritimati' },
+        { id: 'f', kind: 'fixed', minutes: 330, label: 'UTC+5:30' },
+      ]);
+      await page.goto('/');
+      await expect(zoneHeaders(page)).toHaveCount(3);
+      const sizes = await page
+        .locator('[role="row"]:not([data-zone="everyone"])')
+        .evaluateAll((rows) =>
+          rows.map((el) => ({
+            header: /** @type {Element} */ (
+              el.querySelector('[role="rowheader"]')
+            ).getBoundingClientRect().width,
+            row: el.getBoundingClientRect().height,
+          })),
+        );
+      for (const size of sizes) {
+        expect(Math.abs(size.header - headerWidth)).toBeLessThanOrEqual(2);
+        expect(size.row).toBeGreaterThanOrEqual(rowHeight);
+      }
+      if (width < 640) return;
+      await expect(page.locator('[role="rowheader"] [aria-expanded]:visible')).toHaveCount(0);
+      for (const text of ['Tue 17 Nov', 'AEDT · UTC+11']) {
+        await expect(header(page, 'Australia/Sydney')).toContainText(text, {
+          useInnerText: true,
+        });
+      }
+      await expect(header(page, 'fixed:330')).toContainText('No DST', { useInnerText: true });
+    });
+  }
+
+  for (const scheme of /** @type {const} */ (['light', 'dark'])) {
+    test(`accessibility: headers and the popover pass axe in ${scheme} theme`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.clock.setFixedTime(SYDNEY_EVENING);
+      await seedZones(page, [
+        { id: 'k', kind: 'iana', tz: 'Pacific/Kiritimati', label: 'Kiritimati' },
+        { id: 'p', kind: 'iana', tz: 'Pacific/Pago_Pago', label: 'Pago Pago' },
+      ]);
+      await page.goto('/');
+      await expect(header(page, 'Pacific/Kiritimati')).toContainText('Tomorrow');
+      await expectNoA11yViolations(page);
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      await row(page, 'Pacific/Pago_Pago').locator('.grid__trigger').click();
+      await expect(page.getByRole('group', { name: 'Time zone details' })).toBeVisible();
+      await expectNoA11yViolations(page);
+    });
+  }
 });

@@ -6,18 +6,20 @@ import { strings } from './strings.js';
 
 /** @typedef {import('./dom.js').Child} Child */
 
-/** @typedef {'gear'} IconName */
+/** @typedef {'gear' | 'location'} IconName */
 
 /** SVG path data per icon, on a 24×24 grid. */
 const ICONS = /** @type {Record<IconName, string>} */ ({
   gear: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.47.47 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z',
+  location:
+    'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z',
 });
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
  * Decorative inline icon in `currentColor`, sized by --icon-size. The control
- * that holds it carries the accessible name.
+ * (or the labelled role="img" wrapper) that holds it carries the accessible name.
  * @param {IconName} name
  */
 export function icon(name) {
@@ -258,6 +260,98 @@ export function sheet({ title, children = [] }) {
       opener = from ?? null;
       root.showModal();
       focusables()[0]?.focus();
+    },
+    close,
+  };
+}
+
+/**
+ * Popover: one non-modal panel (native `popover="auto"`) anchored below or
+ * above the element passed to open(), kept inside the viewport. Esc and a
+ * click outside close it; Esc returns focus to the anchor. Fill `body` before
+ * opening. The anchor gets `aria-expanded`; give it `aria-controls: root.id`.
+ * In the anchor's click handler, close() when isOpenFor(anchor), else open().
+ * @param {{ label: string, onClose?: () => void }} options
+ */
+export function popover({ label, onClose }) {
+  const body = h('div', { class: 'popover__body' });
+  const root = h(
+    'div',
+    {
+      class: 'popover',
+      attrs: { id: uid('popover'), popover: 'auto', role: 'group', 'aria-label': label },
+    },
+    [body],
+  );
+
+  /** @type {HTMLElement | null} */
+  let anchor = null;
+  /** The anchor of a popover that closed in the current task (light dismiss). */
+  /** @type {HTMLElement | null} */
+  let justClosed = null;
+
+  const isOpen = () => root.matches(':popover-open');
+
+  function place() {
+    if (!anchor) return;
+    const a = anchor.getBoundingClientRect();
+    const { width, height } = root.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const left = Math.max(0, Math.min(a.left, vw - width));
+    const below = a.bottom + height <= vh || a.top < height;
+    const top = below ? Math.min(a.bottom, Math.max(0, vh - height)) : a.top - height;
+    root.style.setProperty('--popover-left', String(Math.round(left)));
+    root.style.setProperty('--popover-top', String(Math.round(top)));
+  }
+
+  /** @param {Event} event */
+  function onKeydown(event) {
+    if (!(event instanceof KeyboardEvent) || event.key !== 'Escape' || !anchor) return;
+    const target = anchor;
+    close();
+    target.focus();
+  }
+
+  function close() {
+    if (isOpen()) root.hidePopover();
+  }
+
+  root.addEventListener('beforetoggle', (event) => {
+    if (!(event instanceof ToggleEvent) || event.newState !== 'closed') return;
+    anchor?.setAttribute('aria-expanded', 'false');
+    justClosed = anchor;
+    setTimeout(() => {
+      justClosed = null;
+    }, 0);
+    anchor = null;
+    document.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('scroll', place, true);
+    window.removeEventListener('resize', place);
+    onClose?.();
+  });
+
+  return {
+    root,
+    body,
+    /**
+     * Whether the popover is open for `from`, or was until a light dismiss in
+     * this same click: the anchor's click handler should then leave it closed.
+     * @param {HTMLElement} from
+     */
+    isOpenFor(from) {
+      return anchor === from || justClosed === from;
+    },
+    /** @param {HTMLElement} from anchor */
+    open(from) {
+      close();
+      anchor = from;
+      from.setAttribute('aria-expanded', 'true');
+      root.showPopover({ source: from });
+      place();
+      document.addEventListener('keydown', onKeydown);
+      window.addEventListener('scroll', place, true);
+      window.addEventListener('resize', place);
     },
     close,
   };

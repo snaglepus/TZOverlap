@@ -1,6 +1,7 @@
 // The main page: app shell, add-zone card, timelines card. Built only from the
 // shared components in ./components.js and the tokens in src/styles/.
 
+import { cityDataIfLoaded } from '../lib/city-data.js';
 import { buildGrid } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
@@ -113,8 +114,9 @@ export function mountApp(
     const remaining = MAX_EXTRA_ZONES - zones.length;
     zoneField.setHelp(remaining > 0 ? strings.addZone.help(remaining) : strings.addZone.full);
 
-    // A stored copy of the home zone stays hidden.
-    const shown = zones.filter((z) => z.kind !== 'iana' || z.tz !== homeZone);
+    // A stored copy of the home zone stays hidden; its label names the home row.
+    const isHome = (/** @type {StoredZone} */ z) => z.kind === 'iana' && z.tz === homeZone;
+    const shown = zones.filter((z) => !isHome(z));
     const current = now();
     const grid = buildGrid({
       homeZone: { kind: 'iana', tz: homeZone },
@@ -122,8 +124,15 @@ export function mountApp(
       now: current,
       weekendsUnavailable: settings.weekendsUnavailable,
     });
-    view = timelineGrid({ grid, zones: shown, now: current, onRemove: (zone) => remove(zone) });
-    const body = [view.root];
+    view = timelineGrid({
+      grid,
+      zones: shown,
+      now: current,
+      onRemove: (zone) => remove(zone),
+      homeLabel: zones.find(isHome)?.label,
+      cities: cityDataIfLoaded()?.cities,
+    });
+    const body = [view.root, view.popover];
     if (zones.length === 0) {
       body.push(
         emptyState({

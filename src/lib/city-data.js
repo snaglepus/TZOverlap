@@ -5,6 +5,8 @@
 
 /** @type {Promise<CityData> | null} */
 let pending = null;
+/** @type {CityData | null} */
+let loaded = null;
 
 /**
  * The city and abbreviation data, imported once and cached.
@@ -16,6 +18,18 @@ export function loadCityData() {
       cities,
       abbreviations,
     }));
+    pending.then((data) => {
+      loaded = data;
+    });
   }
   return pending;
+}
+
+/**
+ * The city data if loadCityData() has already resolved, otherwise null. Never
+ * starts a load.
+ * @returns {CityData | null}
+ */
+export function cityDataIfLoaded() {
+  return loaded;
 }

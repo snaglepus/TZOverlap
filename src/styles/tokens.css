@@ -84,9 +84,11 @@
   --control-height: 2.75rem;
   --control-height-sm: 2rem;
   --slot-width: 3rem;
-  --slot-height: 2.75rem;
-  --row-header-width: 12rem;
-  --row-header-width-compact: 7.5rem;
+  --slot-height: 3.5rem;
+  --slot-height-wide: 4rem;
+  --row-header-width: 11.25rem;
+  --row-header-width-compact: 7rem;
+  --row-header-width-wide: 13.75rem;
   --icon-size: 1.25rem;
   --sheet-max-width: 32rem;
   --toolbar-height: 3.75rem;

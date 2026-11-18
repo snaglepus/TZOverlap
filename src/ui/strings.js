@@ -72,9 +72,26 @@ export const strings = /** @satisfies {Strings} */ ({
     cardTitle: 'Timelines',
     legend: 'Legend',
     gridLabel: 'Hours in each time zone, aligned on the same moment. Scroll sideways for more.',
-    /** @param {string} city */
-    you: (city) => `${city} (you)`,
     everyone: 'Everyone',
+    location: 'Your location',
+    /** Day difference from home: `long` inline and in details, `short` as the phone badge. */
+    days: {
+      tomorrow: { long: 'Tomorrow', short: '+1' },
+      yesterday: { long: 'Yesterday', short: '−1' },
+      ahead: {
+        /** @param {number} n */
+        long: (n) => `+${n} days`,
+        /** @param {number} n */
+        short: (n) => `+${n}`,
+      },
+      behind: {
+        /** @param {number} n */
+        long: (n) => `−${n} days`,
+        /** @param {number} n */
+        short: (n) => `−${n}`,
+      },
+    },
+    details: 'Time zone details',
     noDst: 'No DST',
     removeLabel: '×',
     /** @param {string} city */
