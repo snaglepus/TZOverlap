@@ -74,6 +74,8 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-heat-ink`                              | Text on every Good step                         | `#3D2600`             | `#FFF1D8`             |
 | `--color-heat-hatch`                            | Diagonal hatch over Good cells and segments     | `#C4AE7C`             | `#75653F`             |
 | `--color-unsuitable` / `--color-unsuitable-ink` | Unsuitable hours (20–06, weekends): dimmed grey | `#E4E2EA` / `#57555F` | `#24232A` / `#9F9CAA` |
+| `--color-weekend`                               | Weekend Unsuitable hour cells: a deeper grey    | `#D2CFDB`             | `#34313F`             |
+| `--color-weekend-band`                          | Solid top band on weekend hour cells (≥ 3:1)    | `#4A4656`             | `#D4D1DE`             |
 | `--color-backdrop`                              | Translucent ink behind an open sheet            | `rgb(29 27 24 / 0.4)` | `rgb(0 0 0 / 0.6)`    |
 
 **Heat scale.** Ratings come from `src/lib/suitability.js` (Best, Good,
@@ -92,7 +94,13 @@ Best cells are bold, Everyone Best segments (which have no text) carry a solid
 inner edge in `--color-best-ink` (`--best-edge-width`), Unsuitable cells are
 dimmed with muted text and have neither, legend swatches have a
 `--color-border-strong` outline (≥ 3:1 against the card), and every
-cell and segment has an `aria-label` naming its rating.
+cell and segment has an `aria-label` naming its rating. Weekend hour cells
+(`data-weekend="true"`, per zone from `src/lib/weekends.js`) carry a solid top
+band in `--color-weekend-band` (`--weekend-band-width`, ≥ 3:1 against every cell
+background), Unsuitable ones use `--color-weekend` instead of
+`--color-unsuitable`, and their `aria-label` ends with ", weekend". The
+Everyone row gets no weekend styling; it shows weekends only through its
+ratings.
 
 ### 3.2 Typography
 
@@ -159,6 +167,8 @@ from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
 toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
 safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
+`--weekend-band-width` 4px (top band on weekend hour cells) ·
+`--day-divider-width` 2px (midnight divider line) ·
 `--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
@@ -198,6 +208,9 @@ in px, multiplied by `--hairline` in CSS.
   default" follows the OS live, with no reload; "Light" and "Dark" are saved to
   `settings.theme` and hold under any OS setting. Reset all data returns to
   System default.
+- Settings also holds the "Treat weekends as unavailable" switch
+  (`settings.weekendsUnavailable`, on by default). Off, weekend cells keep
+  their band but are rated by hour only. Reset all data turns it back on.
 - `color-scheme` is set per theme so native controls and scrollbars match.
 
 ## 5. Typography rules
@@ -321,6 +334,14 @@ its `<label>` row of at least `--control-height`, with `accent-color` from
 silently. Use for a choice of a few mutually exclusive settings, e.g.
 Appearance.
 
+### Switch — `switchControl()` · `.switch`
+
+A native `<input type="checkbox" role="switch">` inside its `<label>` row of at
+least `--control-height`, with `accent-color` from `--color-accent` and the
+standard focus ring. `onChange(checked)` fires on user change; `setChecked()`
+updates it silently. Use for a single on/off setting, e.g. "Treat weekends as
+unavailable".
+
 ### Empty state — `emptyState()` · `.empty-state`
 
 Sunken, dashed-border panel with a title, one sentence of guidance and an
@@ -388,8 +409,14 @@ offset line, day difference and "No DST". From `--bp-md` every detail is
 inline and there is no button. Each row's track is window hours × `--slot-width` wide and clips
 cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
-(clocks going back) gets a second cell with a small "2" and a tooltip. The page
-itself never scrolls sideways.
+(clocks going back) gets a second cell with a small "2" and a tooltip. Each zone
+row (not Everyone) draws a divider at every local midnight in the window: a
+full-height `--day-divider-width` line in `--color-text`, placed by absolute
+time like cells, with a "Wed 18" chip (`--font-size-xs`, `--color-text` on
+`--color-surface`) at its top-right. Dividers are `aria-hidden` and paint over
+cells but under the sticky row header; the day's first cell names the date
+instead ("00:00, Wed 18, Unsuitable"). Weekend cells are shaded as in §3.1. The
+page itself never scrolls sideways.
 
 Scrolling: touch and trackpad scrolling are native; the grid sets
 `overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never

@@ -95,6 +95,20 @@ describe('strings', () => {
     assert.equal(strings.timelines.cell('09', 'Best'), '09:00, Best');
     assert.equal(strings.timelines.cell('01', 'Unsuitable', true), '01:00 (repeated), Unsuitable');
     assert.equal(
+      strings.timelines.cell('00', 'Unsuitable', false, true, 'Sat 13'),
+      '00:00, Sat 13, Unsuitable, weekend',
+    );
+    assert.equal(strings.timelines.cell('10', 'Best', false, true), '10:00, Best, weekend');
+    assert.equal(
+      strings.timelines.cell('00', 'Best', false, false, 'Mon 15'),
+      '00:00, Mon 15, Best',
+    );
+    assert.equal(
+      strings.timelines.cell('01', 'Good', true, true),
+      '01:00 (repeated), Good, weekend',
+    );
+    assert.equal(strings.settings.weekends, 'Treat weekends as unavailable');
+    assert.equal(
       strings.timelines.segment('14:30', '17:00', 'Best'),
       '14:30 to 17:00 your time, Best for everyone',
     );

@@ -30,6 +30,7 @@ export const strings = /** @satisfies {Strings} */ ({
       light: 'Light',
       dark: 'Dark',
     },
+    weekends: 'Treat weekends as unavailable',
     resetHelp: 'Remove your time zones and settings from this device.',
     reset: 'Reset all data',
     resetConfirm: 'This removes your time zones and settings from this device. It can’t be undone.',
@@ -96,8 +97,13 @@ export const strings = /** @satisfies {Strings} */ ({
     remove: (city) => `Remove ${city}`,
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
-    /** @param {string} hour "09" @param {string} rating @param {boolean} [repeat] */
-    cell: (hour, rating, repeat = false) => `${hour}:00${repeat ? ' (repeated)' : ''}, ${rating}`,
+    /**
+     * "00:00, Sat 13, Unsuitable, weekend"
+     * @param {string} hour "09" @param {string} rating @param {boolean} [repeat]
+     * @param {boolean} [weekend] @param {string} [day] "Sat 13", on a day's first hour
+     */
+    cell: (hour, rating, repeat = false, weekend = false, day = '') =>
+      `${hour}:00${repeat ? ' (repeated)' : ''}${day ? `, ${day}` : ''}, ${rating}${weekend ? ', weekend' : ''}`,
     /** @param {string} from "14:30" @param {string} to @param {string} rating */
     segment: (from, to, rating) => `${from} to ${to} your time, ${rating} for everyone`,
   },
