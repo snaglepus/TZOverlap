@@ -12,6 +12,9 @@ const DOM_DELTA_PAGE = 2;
 const STEP = 1;
 const SHIFT_STEP = 6;
 
+/** A mouse press that moves further than this many CSS px sideways is a drag, not a click. */
+export const CLICK_SLOP_PX = 4;
+
 /**
  * Hours from `windowStart` to `instant`, fractional.
  * @param {Date} windowStart
@@ -19,6 +22,15 @@ const SHIFT_STEP = 6;
  */
 export function columnsAt(windowStart, instant) {
   return (instant.getTime() - windowStart.getTime()) / HOUR;
+}
+
+/**
+ * The instant `columns` hours after `windowStart` (the inverse of columnsAt).
+ * @param {Date} windowStart
+ * @param {number} columns
+ */
+export function instantAt(windowStart, columns) {
+  return new Date(windowStart.getTime() + columns * HOUR);
 }
 
 /**
