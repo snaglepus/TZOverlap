@@ -74,43 +74,46 @@
   border: var(--border-width) solid var(--color-border);
 }
 
-/* ---------- Timeline ---------- */
-.timeline {
-  /* Containing block for visually-hidden text inside cells, so it can't widen the page. */
-  position: relative;
+/* ---------- Timeline grid ---------- */
+/* Positions come from JS as unitless custom properties in home columns:
+   --grid-hours on .grid, --cell-left / --cell-width on each cell. */
+.grid {
   overflow-x: auto;
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
-}
-
-.timeline__table {
-  border-collapse: separate;
-  border-spacing: var(--space-1);
   font-size: var(--font-size-sm);
 }
 
-.timeline__zone {
+.grid__row {
+  display: flex;
+  width: max-content;
+  min-height: var(--slot-height);
+}
+
+.grid__row--everyone {
+  border-block: var(--border-width) solid var(--color-border-strong);
+}
+
+.grid__header {
   position: sticky;
   left: var(--space-0);
   z-index: 1;
-  min-width: var(--row-header-width-compact);
-  max-width: var(--row-header-width-compact);
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface-sunken);
-  text-align: left;
-  font-weight: var(--font-weight-regular);
-  vertical-align: middle;
-}
-
-.timeline__zone-inner {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
+  width: var(--row-header-width-compact);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-sunken);
 }
 
-.timeline__city {
+.grid__label {
+  min-width: var(--space-0);
+}
+
+.grid__name {
   display: block;
   font-weight: var(--font-weight-bold);
   overflow: hidden;
@@ -118,74 +121,92 @@
   white-space: nowrap;
 }
 
-.timeline__meta {
-  display: block;
+.grid__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-0) var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-.timeline__row--overlap .timeline__zone {
-  border-top: var(--border-width) solid var(--color-border-strong);
+.grid__track {
+  position: relative;
+  flex: none;
+  width: calc(var(--grid-hours) * var(--slot-width));
+  overflow: hidden;
 }
 
-.slot {
-  min-width: var(--slot-width);
-  height: var(--slot-height);
-  padding: var(--space-0);
-  border-radius: var(--radius-sm);
-  text-align: center;
-  vertical-align: middle;
+.grid__cell {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--cell-left) * var(--slot-width));
+  width: calc(var(--cell-width) * var(--slot-width));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-inline-end: var(--hairline) solid var(--color-surface-sunken);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   line-height: var(--line-height-tight);
 }
 
-.slot__day {
-  display: block;
+.grid__repeat {
   font-size: var(--font-size-xs);
 }
 
-.slot--now {
-  outline: var(--focus-ring-width) solid var(--color-accent);
-  outline-offset: calc(var(--hairline) * -1);
-}
-
-.heat-4 {
-  background: var(--color-heat-4);
-  color: var(--color-heat-ink-4);
+/* ---------- Heat: Best, Good (three steps, hatched), Unsuitable ---------- */
+.heat[data-rating='best'] {
+  background-color: var(--color-best);
+  color: var(--color-best-ink);
   font-weight: var(--font-weight-bold);
 }
 
-.heat-3 {
-  background: var(--color-heat-3);
-  color: var(--color-heat-ink-3);
-}
-
-.heat-2 {
-  background: var(--color-heat-2);
-  color: var(--color-heat-ink-2);
-}
-
-.heat-1 {
-  background: var(--color-heat-1);
-  color: var(--color-heat-ink-1);
-}
-
-.heat-0 {
-  background-color: var(--color-heat-0);
+.heat[data-rating='good'] {
   background-image: repeating-linear-gradient(
     135deg,
     var(--color-heat-hatch) 0 var(--hairline),
     transparent var(--hairline) var(--hatch-size)
   );
-  color: var(--color-heat-ink-0);
+  color: var(--color-heat-ink);
+}
+
+.heat[data-heat='0'] {
+  background-color: color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) 0%);
+}
+
+.heat[data-heat='1'] {
+  background-color: color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) 50%);
+}
+
+.heat[data-heat='2'] {
+  background-color: color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) 100%);
+}
+
+/* No color-mix(): one token per step. A var() declaration can't fall back on its own. */
+@supports not (color: color-mix(in oklch, currentcolor, currentcolor)) {
+  .heat[data-heat='0'] {
+    background-color: var(--color-heat-near);
+  }
+
+  .heat[data-heat='1'] {
+    background-color: var(--color-heat-mid);
+  }
+
+  .heat[data-heat='2'] {
+    background-color: var(--color-heat-far);
+  }
+}
+
+.heat[data-rating='unsuitable'] {
+  background-color: var(--color-unsuitable);
+  color: var(--color-unsuitable-ink);
 }
 
 @media (min-width: 40rem) {
-  .timeline__zone {
-    min-width: var(--row-header-width);
-    max-width: var(--row-header-width);
+  .grid__header {
+    width: var(--row-header-width);
   }
 }

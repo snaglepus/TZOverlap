@@ -56,12 +56,13 @@ const PAIRS = /** @type {const} */ ([
   ['--color-focus', '--color-bg', 3],
   ['--color-focus', '--color-surface', 3],
   ['--color-focus', '--color-surface-sunken', 3],
-  ['--color-heat-ink-4', '--color-heat-4', 4.5],
-  ['--color-heat-ink-3', '--color-heat-3', 4.5],
-  ['--color-heat-ink-2', '--color-heat-2', 4.5],
-  ['--color-heat-ink-1', '--color-heat-1', 4.5],
-  ['--color-heat-ink-0', '--color-heat-0', 4.5],
-  ['--color-heat-ink-0', '--color-heat-hatch', 4.5],
+  ['--color-best-ink', '--color-best', 4.5],
+  // Good: greenest step, reddest step, the no-color-mix middle step and the hatch.
+  ['--color-heat-ink', '--color-heat-near', 4.5],
+  ['--color-heat-ink', '--color-heat-far', 4.5],
+  ['--color-heat-ink', '--color-heat-mid', 4.5],
+  ['--color-heat-ink', '--color-heat-hatch', 4.5],
+  ['--color-unsuitable-ink', '--color-unsuitable', 4.5],
 ]);
 
 const themes = {
