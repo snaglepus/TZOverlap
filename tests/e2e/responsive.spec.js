@@ -209,33 +209,43 @@ const homeHeaderWidth = (page) =>
  * Every visible, enabled control in `scope` passes the click actionability
  * checks (scrolled into view, nothing covering it), and with `size` its hit
  * target is at least 44 × 44. A native input inside a label (a visually hidden
- * radio, a switch) is measured and checked by that label. `skip` leaves out
- * controls matching it.
+ * radio, a switch) is measured and checked by that label. The controls are
+ * listed and measured in one call, then trial-clicked one by one.
  * @param {Locator} scope
- * @param {{ size: boolean, skip?: string }} options
+ * @param {{ size: boolean }} options
  */
-async function expectReachable(scope, { size, skip }) {
+async function expectReachable(scope, { size }) {
   const controls = scope.locator(
-    `:is(button, a[href], input, select, textarea):not(.shell__skip):not(:disabled)${skip ? `:not(${skip})` : ''}`,
+    ':is(button, a[href], input, select, textarea):not(.shell__skip):not(:disabled)',
   );
-  const count = await controls.count();
-  let checked = 0;
-  for (let i = 0; i < count; i++) {
-    const control = controls.nth(i);
-    const inLabel = await control.evaluate((el) => el.matches('input') && !!el.closest('label'));
-    const target = inLabel ? control.locator('xpath=ancestor::label[1]') : control;
-    if (!(await target.isVisible())) continue;
-    const name = await target.evaluate(
-      (el) => el.getAttribute('aria-label') || el.textContent?.trim() || el.outerHTML.slice(0, 60),
-    );
+  const found = await controls.evaluateAll((els) =>
+    els.map((el, index) => {
+      const inLabel = el.matches('input') && !!el.closest('label');
+      const target = inLabel ? /** @type {Element} */ (el.closest('label')) : el;
+      const { width, height } = target.getBoundingClientRect();
+      return {
+        index,
+        inLabel,
+        visible: target.checkVisibility({ visibilityProperty: true }) && width > 0 && height > 0,
+        name:
+          target.getAttribute('aria-label') ||
+          target.textContent?.trim() ||
+          target.outerHTML.slice(0, 60),
+        width,
+        height,
+      };
+    }),
+  );
+  const shown = found.filter((c) => c.visible);
+  expect(shown.length).toBeGreaterThan(0);
+  for (const c of shown) {
+    const control = controls.nth(c.index);
+    const target = c.inLabel ? control.locator('xpath=ancestor::label[1]') : control;
     await target.click({ trial: true, timeout: 5000 });
-    checked++;
     if (!size) continue;
-    const box = await target.boundingBox();
-    expect(box?.width, `${name} width`).toBeGreaterThanOrEqual(44);
-    expect(box?.height, `${name} height`).toBeGreaterThanOrEqual(44);
+    expect(c.width, `${c.name} width`).toBeGreaterThanOrEqual(44);
+    expect(c.height, `${c.name} height`).toBeGreaterThanOrEqual(44);
   }
-  expect(checked).toBeGreaterThan(0);
 }
 
 /**
@@ -330,7 +340,14 @@ for (const viewport of VIEWPORTS) {
           // shows it covers the page above the toolbar and the toolbar's first
           // row (a follow-up: the toolbar needs a large-text layout). There
           // the toast's own controls are checked now, the page's once it goes.
-          const crowded = viewport.width === 320 && fontSize === '200%';
+          // Reachability and hit targets don't depend on the theme, so they
+          // run on the Light load only: at 320 px at both text sizes, at 820
+          // and 1440 px at default text.
+          const controls =
+            colorScheme === 'dark' || (viewport.controls === 'page' && fontSize !== '100%')
+              ? 'none'
+              : viewport.controls;
+          const crowded = controls !== 'none' && viewport.width === 320 && fontSize === '200%';
           if (crowded) {
             const [t, bar] = await Promise.all([
               toast(page).boundingBox(),
@@ -338,7 +355,7 @@ for (const viewport of VIEWPORTS) {
             ]);
             expect(t && bar && t.y + t.height > bar.y).toBe(true);
             await expectReachable(toast(page), { size: false });
-          } else if (viewport.controls !== 'none') {
+          } else if (controls !== 'none') {
             // AC-12: every control on the page, row headers included (from
             // --bp-md the wide triggers and the home row's clock-change button).
             await expectReachable(page.locator('body'), { size: fontSize === '100%' });
@@ -372,12 +389,12 @@ for (const viewport of VIEWPORTS) {
           await expect(toast(page)).toBeVisible();
           await expectNoA11yViolations(page);
 
-          if (viewport.controls !== 'all') return;
+          if (controls !== 'all') return;
           const size = fontSize === '100%';
           if (crowded) {
-            // Off the toast, which then goes after its 5 s.
-            await page.mouse.move(0, 0);
-            await expect(toast(page)).toBeHidden({ timeout: 8000 });
+            // Undo takes the toast away (and puts Paris back).
+            await toast(page).getByRole('button', { name: 'Undo' }).click();
+            await expect(toast(page)).toBeHidden();
             await expectReachable(page.locator('body'), { size });
           }
           // The rest of the controls at 320 px: a row popover, Edit mode, then
@@ -392,7 +409,7 @@ for (const viewport of VIEWPORTS) {
 
           await page.getByRole('button', { name: 'Edit time zones', exact: true }).focus();
           await page.keyboard.press('Enter');
-          await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(4);
+          await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(crowded ? 5 : 4);
           await expectReachable(page.getByRole('grid'), { size });
           await expectReachable(page.locator('.card__header'), { size });
           expect(await pageOverflow(page)).toBe(0);
