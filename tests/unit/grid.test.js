@@ -1,0 +1,235 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { buildGrid, gridWindow, heatStep } from '../../src/lib/grid.js';
+import { zoneLocalParts } from '../../src/lib/zones.js';
+
+/** @typedef {import('../../src/lib/zones.js').Zone} Zone */
+/** @typedef {import('../../src/lib/grid.js').GridCell} GridCell */
+
+/** @param {string} tz @returns {Zone} */
+const iana = (tz) => ({ kind: 'iana', tz });
+const sydney = iana('Australia/Sydney');
+const newYork = iana('America/New_York');
+const kolkata = iana('Asia/Kolkata');
+const kathmandu = iana('Asia/Kathmandu');
+const tokyo = iana('Asia/Tokyo');
+
+/** @param {string} iso */
+const at = (iso) => new Date(iso);
+// Wednesday 18 Nov 2026, 12:00 in Sydney (AEDT, no change that week).
+const WEDNESDAY = at('2026-11-18T01:00:00Z');
+
+/** @param {number} x */
+const frac = (x) => ((x % 1) + 1) % 1;
+
+/**
+ * Cells of `cells` on local date `day` ("YYYY-MM-DD") in `zone`.
+ * @param {Zone} zone
+ * @param {GridCell[]} cells
+ * @param {string} day
+ */
+function cellsOn(zone, cells, day) {
+  return cells.filter((cell) => {
+    const p = zoneLocalParts(zone, cell.start);
+    const key = `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+    return key === day;
+  });
+}
+
+/**
+ * @param {Zone} zone
+ * @param {GridCell[]} cells
+ * @param {string} day
+ * @param {number} hour
+ */
+function cellAt(zone, cells, day, hour) {
+  const cell = cellsOn(zone, cells, day).find((c) => c.hour === hour);
+  assert.ok(cell, `${day} ${hour}:00 cell`);
+  return cell;
+}
+
+describe('gridWindow', () => {
+  it('spans yesterday to tomorrow in the home zone: 72 hours on a non-DST day', () => {
+    const { start, end } = gridWindow(sydney, WEDNESDAY);
+    assert.equal(start.toISOString(), '2026-11-16T13:00:00.000Z'); // 17 Nov 00:00 AEDT
+    assert.equal(end.toISOString(), '2026-11-19T13:00:00.000Z'); // 20 Nov 00:00 AEDT
+    const grid = buildGrid({ homeZone: sydney, zones: [], now: WEDNESDAY });
+    assert.ok(grid.hours >= 72);
+    assert.equal(grid.hours, 72);
+    assert.equal(grid.rows[0]?.cells.length, 72);
+  });
+});
+
+describe('buildGrid rows', () => {
+  it('puts the home row first and user rows in the given order', () => {
+    const grid = buildGrid({ homeZone: sydney, zones: [tokyo, kolkata], now: WEDNESDAY });
+    assert.deepEqual(
+      grid.rows.map((r) => r.zone),
+      [sydney, tokyo, kolkata],
+    );
+  });
+
+  it('places home cells on whole columns and half-hour zones between them', () => {
+    const grid = buildGrid({ homeZone: sydney, zones: [kolkata, kathmandu], now: WEDNESDAY });
+    const [home, kol, ktm] = grid.rows;
+    assert.ok(home && kol && ktm);
+    home.cells.forEach((cell, i) => {
+      assert.equal(cell.left, i);
+      assert.equal(cell.width, 1);
+    });
+    assert.ok(kol.cells.length > 0 && ktm.cells.length > 0);
+    for (const cell of kol.cells) assert.equal(frac(cell.left), 0.5);
+    for (const cell of ktm.cells) assert.equal(frac(cell.left), 0.25);
+    // Cells overhang the window edges unclipped.
+    assert.equal(kol.cells[0]?.left, -0.5);
+  });
+
+  it('gives a repeated hour two cells, the second flagged repeat (New York, 1 Nov 2026)', () => {
+    const grid = buildGrid({
+      homeZone: sydney,
+      zones: [newYork],
+      now: at('2026-11-01T01:00:00Z'),
+    });
+    const cells = /** @type {GridCell[]} */ (grid.rows[1]?.cells);
+    const ones = cellsOn(newYork, cells, '2026-11-01').filter((c) => c.hour === 1);
+    assert.deepEqual(
+      ones.map((c) => [c.start.toISOString(), c.repeat]),
+      [
+        ['2026-11-01T05:00:00.000Z', false],
+        ['2026-11-01T06:00:00.000Z', true],
+      ],
+    );
+    for (const day of ['2026-10-31', '2026-11-02']) {
+      const others = cellsOn(newYork, cells, day).filter((c) => c.hour === 1);
+      assert.equal(others.length, 1, day);
+      assert.equal(others[0]?.repeat, false, day);
+    }
+  });
+
+  it('has no cell for a skipped hour (Sydney, 4 Oct 2026)', () => {
+    const grid = buildGrid({ homeZone: sydney, zones: [], now: at('2026-10-04T01:00:00Z') });
+    const cells = /** @type {GridCell[]} */ (grid.rows[0]?.cells);
+    const day = cellsOn(sydney, cells, '2026-10-04');
+    assert.equal(day.length, 23);
+    assert.equal(
+      day.some((c) => c.hour === 2),
+      false,
+    );
+    assert.equal(grid.hours, 71);
+  });
+
+  it('gives a fixed zone a row', () => {
+    /** @type {Zone} */
+    const fixed = { kind: 'fixed', minutes: 330 };
+    const grid = buildGrid({ homeZone: sydney, zones: [fixed], now: WEDNESDAY });
+    const row = grid.rows[1];
+    assert.ok(row);
+    assert.deepEqual(row.zone, fixed);
+    assert.ok(row.cells.length >= 72);
+    for (const cell of row.cells) assert.equal(frac(cell.left), 0.5);
+  });
+});
+
+describe('buildGrid ratings', () => {
+  const grid = buildGrid({ homeZone: sydney, zones: [], now: WEDNESDAY });
+  const cells = /** @type {GridCell[]} */ (grid.rows[0]?.cells);
+
+  it('rates Best, Good and Unsuitable hours', () => {
+    assert.equal(cellAt(sydney, cells, '2026-11-18', 9).rating, 'best');
+    assert.equal(cellAt(sydney, cells, '2026-11-18', 16).rating, 'best');
+    assert.equal(cellAt(sydney, cells, '2026-11-18', 9).step, undefined);
+    assert.equal(cellAt(sydney, cells, '2026-11-18', 20).rating, 'unsuitable');
+    assert.equal(cellAt(sydney, cells, '2026-11-18', 5).rating, 'unsuitable');
+  });
+
+  it('steps Good hours 0 / 1 / 2 away from Best', () => {
+    for (const [hour, step] of [
+      [8, 0],
+      [17, 0],
+      [7, 1],
+      [18, 1],
+      [6, 2],
+      [19, 2],
+    ]) {
+      const cell = cellAt(sydney, cells, '2026-11-18', /** @type {number} */ (hour));
+      assert.equal(cell.rating, 'good', `${hour}:00`);
+      assert.equal(cell.step, step, `${hour}:00`);
+    }
+  });
+
+  it('rates weekend cells Unsuitable only when weekends are unavailable', () => {
+    const saturday = at('2026-11-21T01:00:00Z'); // Sat 21 Nov, 12:00 in Sydney
+    const on = buildGrid({ homeZone: sydney, zones: [], now: saturday });
+    const off = buildGrid({
+      homeZone: sydney,
+      zones: [],
+      now: saturday,
+      weekendsUnavailable: false,
+    });
+    const onCells = /** @type {GridCell[]} */ (on.rows[0]?.cells);
+    const offCells = /** @type {GridCell[]} */ (off.rows[0]?.cells);
+    assert.ok(cellsOn(sydney, onCells, '2026-11-21').every((c) => c.rating === 'unsuitable'));
+    assert.equal(cellAt(sydney, offCells, '2026-11-21', 10).rating, 'best');
+    assert.equal(cellAt(sydney, offCells, '2026-11-21', 7).step, 1);
+    // Friday stays rated by hour either way.
+    assert.equal(cellAt(sydney, onCells, '2026-11-20', 10).rating, 'best');
+  });
+
+  it('exposes the heat step of a rating', () => {
+    assert.equal(heatStep({ rating: 'good', d: 0 }), 0);
+    assert.equal(heatStep({ rating: 'good', d: 59 }), 0);
+    assert.equal(heatStep({ rating: 'good', d: 60 }), 1);
+    assert.equal(heatStep({ rating: 'good', d: 165 }), 2);
+    assert.equal(heatStep({ rating: 'best' }), undefined);
+    assert.equal(heatStep({ rating: 'unsuitable' }), undefined);
+  });
+});
+
+describe('buildGrid Everyone segments', () => {
+  const grid = buildGrid({ homeZone: sydney, zones: [tokyo], now: WEDNESDAY });
+
+  it('cover the window on 15-minute boundaries with no two equal neighbours', () => {
+    const { everyone } = grid;
+    assert.equal(everyone[0]?.start.getTime(), grid.start.getTime());
+    assert.equal(everyone[everyone.length - 1]?.end.getTime(), grid.end.getTime());
+    everyone.forEach((seg, i) => {
+      assert.equal(seg.start.getTime() % (15 * 60000), 0);
+      assert.equal(seg.end.getTime() % (15 * 60000), 0);
+      assert.equal(seg.left, (seg.start.getTime() - grid.start.getTime()) / 3600000);
+      assert.equal(seg.width, (seg.end.getTime() - seg.start.getTime()) / 3600000);
+      const next = everyone[i + 1];
+      if (!next) return;
+      assert.equal(next.start.getTime(), seg.end.getTime());
+      assert.ok(next.rating !== seg.rating || next.step !== seg.step, `segment ${i}`);
+    });
+  });
+
+  it('use the reddest step among the zones (Sydney 19:00, Tokyo 17:00 -> step 2)', () => {
+    const instant = at('2026-11-18T08:00:00Z'); // Sydney 19:00, Tokyo 17:00
+    const seg = grid.everyone.find((s) => s.start <= instant && instant < s.end);
+    assert.ok(seg);
+    assert.equal(seg.rating, 'good');
+    assert.equal(seg.step, 2);
+  });
+
+  it('mirror the home row when no zones are added', () => {
+    const alone = buildGrid({ homeZone: sydney, zones: [], now: WEDNESDAY });
+    const best = alone.everyone.filter((s) => s.rating === 'best');
+    assert.deepEqual(
+      best.map((s) => zoneLocalParts(sydney, s.start).hour),
+      [9, 9, 9],
+    );
+    assert.ok(best.every((s) => s.width === 8));
+  });
+
+  it('start Best at a half-hour column with Kolkata (Sydney 14:30)', () => {
+    const k = buildGrid({ homeZone: sydney, zones: [kolkata], now: WEDNESDAY });
+    const best = k.everyone.filter((s) => s.rating === 'best');
+    assert.ok(best.length > 0);
+    for (const seg of best) {
+      const p = zoneLocalParts(sydney, seg.start);
+      assert.deepEqual([p.hour, p.minute], [14, 30]);
+      assert.equal(frac(seg.left), 0.5);
+    }
+  });
+});
