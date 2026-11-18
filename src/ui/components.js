@@ -330,18 +330,21 @@ export function popover({ label, onClose }) {
     if (!anchor) return;
     const a = anchor.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
-    const left = Math.max(0, Math.min(a.left, vw - root.getBoundingClientRect().width));
-    root.style.setProperty('--popover-left', String(Math.round(left)));
-    // Measured at its new left: less room on the right can wrap its actions.
-    const { height } = root.getBoundingClientRect();
-    // Above the phone's fixed bottom toolbar, so it never lies over it.
+    // Above the phone's fixed bottom toolbar, so it never lies over it; taller
+    // than that room, it scrolls.
     const toolbar = document.querySelector('.toolbar');
     const vh =
       toolbar && getComputedStyle(toolbar).position === 'fixed'
         ? toolbar.getBoundingClientRect().top
         : document.documentElement.clientHeight;
+    root.style.setProperty('--popover-room', String(Math.floor(vh)));
+    const left = Math.max(0, Math.min(a.left, vw - root.getBoundingClientRect().width));
+    root.style.setProperty('--popover-left', String(Math.round(left)));
+    // Measured at its new left: less room on the right can wrap its actions.
+    const { height } = root.getBoundingClientRect();
     const below = a.bottom + height <= vh || a.top < height;
-    const top = below ? Math.min(a.bottom, Math.max(0, vh - height)) : a.top - height;
+    // Never past the room's bottom, even when the anchor is under the toolbar.
+    const top = Math.max(0, Math.min(below ? a.bottom : a.top - height, vh - height));
     root.style.setProperty('--popover-top', String(Math.round(top)));
   }
 
