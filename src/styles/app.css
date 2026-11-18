@@ -76,9 +76,13 @@
 
 /* ---------- Timeline grid ---------- */
 /* Positions come from JS as unitless custom properties in home columns:
-   --grid-hours on .grid, --cell-left / --cell-width on each cell. */
+   --grid-hours and --now-left on .grid, --cell-left / --cell-width on each cell.
+   The grid scrolls natively; JS adds wheel, mouse-drag and arrow-key input. */
 .grid {
+  position: relative;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
@@ -104,7 +108,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
-  width: var(--row-header-width-compact);
+  width: var(--grid-header-width);
   padding: var(--space-1);
   background: var(--color-surface-sunken);
   line-height: var(--line-height-tight);
@@ -198,6 +202,7 @@
   flex: none;
   width: calc(var(--grid-hours) * var(--slot-width));
   overflow: hidden;
+  user-select: none;
 }
 
 .grid__cell {
@@ -217,6 +222,17 @@
 
 .grid__repeat {
   font-size: var(--font-size-xs);
+}
+
+/* Above the cells (later in the tree), below the sticky headers (z-index 1). */
+.grid__now {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--grid-header-width) + var(--now-left) * var(--slot-width));
+  width: var(--now-line-width);
+  background: var(--color-accent);
+  pointer-events: none;
 }
 
 /* ---------- Heat: Best, Good (three steps, hatched), Unsuitable ---------- */
@@ -279,7 +295,6 @@
   }
 
   .grid__header {
-    width: var(--row-header-width);
     padding-inline: var(--space-2);
   }
 
@@ -289,11 +304,5 @@
 
   .grid__details {
     display: block;
-  }
-}
-
-@media (min-width: 64rem) {
-  .grid__header {
-    width: var(--row-header-width-wide);
   }
 }

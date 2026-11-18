@@ -64,6 +64,13 @@ const PAIRS = /** @type {const} */ ([
   ['--color-heat-ink', '--color-heat-mid', 4.5],
   ['--color-heat-ink', '--color-heat-hatch', 4.5],
   ['--color-unsuitable-ink', '--color-unsuitable', 4.5],
+  // The now line (accent) against every fill it crosses.
+  ['--color-accent', '--color-best', 3],
+  ['--color-accent', '--color-heat-near', 3],
+  ['--color-accent', '--color-heat-mid', 3],
+  ['--color-accent', '--color-heat-far', 3],
+  ['--color-accent', '--color-unsuitable', 3],
+  ['--color-accent', '--color-surface-sunken', 3],
 ]);
 
 const themes = {

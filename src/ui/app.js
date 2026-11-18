@@ -18,6 +18,7 @@ import { strings } from './strings.js';
  * @typedef {ReturnType<typeof import('./theme.js').createTheme>} ThemeController
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../lib/suitability.js').Rating} Rating
+ * @typedef {import('./grid.js').GridView} GridView
  */
 
 const MINUTE_MS = 60000;
@@ -49,6 +50,18 @@ export function mountApp(
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
   });
+  const nowButton = button({
+    label: strings.app.now,
+    ariaLabel: strings.app.nowLabel,
+    variant: 'ghost',
+    disabled: true,
+    onClick: () => {
+      const hadFocus = document.activeElement === nowButton;
+      view?.scrollToNow({ animate: true });
+      // The button disables itself once the line is back; keep keyboard focus.
+      if (hadFocus) view?.root.focus({ preventScroll: true });
+    },
+  });
   const settingsButton = button({
     label: strings.app.settings,
     icon: 'gear',
@@ -59,7 +72,7 @@ export function mountApp(
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [settingsButton],
+    actions: [nowButton, settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
   const settings = settingsSheet({ store, theme, toaster: shell.toaster });
@@ -98,8 +111,10 @@ export function mountApp(
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
-  /** @type {ReturnType<typeof timelineGrid> | null} */
+  /** @type {GridView | null} */
   let view = null;
+  /** Every render builds the same window, so a saved scroll instant stays inside it. */
+  const anchor = now();
 
   function render() {
     const { zones, settings } = store.getState();
@@ -117,20 +132,24 @@ export function mountApp(
     // A stored copy of the home zone stays hidden; its label names the home row.
     const isHome = (/** @type {StoredZone} */ z) => z.kind === 'iana' && z.tz === homeZone;
     const shown = zones.filter((z) => !isHome(z));
-    const current = now();
     const grid = buildGrid({
       homeZone: { kind: 'iana', tz: homeZone },
       zones: shown,
-      now: current,
+      now: anchor,
       weekendsUnavailable: settings.weekendsUnavailable,
     });
+    // Keep the instant at the left of the visible track across the rebuild.
+    const left = view?.root.isConnected ? view.leftInstant() : null;
     view = timelineGrid({
       grid,
       zones: shown,
-      now: current,
+      now: now(),
       onRemove: (zone) => remove(zone),
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
+      onNowVisible: (visible) => {
+        nowButton.disabled = visible;
+      },
     });
     const body = [view.root, view.popover];
     if (zones.length === 0) {
@@ -147,6 +166,7 @@ export function mountApp(
       );
     }
     timelinesCard.body.replaceChildren(...body);
+    if (left) view.showInstant(left);
   }
 
   /** Follow the device zone: re-render on a change, toast after travel. */
@@ -160,7 +180,7 @@ export function mountApp(
     shell.toaster.show({ message: strings.toasts.travelled(zoneCity(home.current())) });
   }
 
-  // Header clocks: tick on each minute boundary, re-aligned every time.
+  // Header clocks and the now line: tick on each minute boundary, re-aligned every time.
   function scheduleTick() {
     setTimeout(
       () => {
@@ -185,6 +205,9 @@ export function mountApp(
   scheduleTick();
   shell.main.append(addCard.root, timelinesCard.root);
   root.replaceChildren(shell.root, settings.root);
+  // TS narrows `view` to null here; render() above has set it.
+  /** @type {GridView | null} */ (view)?.scrollToNow();
+  window.addEventListener('resize', () => view?.refresh());
   // A later task than the region's mount, so screen readers announce it.
   if (store.wasReset()) {
     setTimeout(() => shell.toaster.show({ message: strings.toasts.dataReset }), 0);
