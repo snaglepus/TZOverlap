@@ -2,6 +2,7 @@
 // shared components in ./components.js and the tokens in src/styles/.
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
+import { bannerMessage, changeSentence, changesBetween } from '../lib/dst.js';
 import { dayQualifies, nextQualifyingDay } from '../lib/filter.js';
 import {
   DEFAULT_DAYS,
@@ -19,6 +20,7 @@ import {
   todayAnchor,
 } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
+import { rowName, shortDate } from '../lib/row-header.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
@@ -27,10 +29,12 @@ import {
   appShell,
   button,
   card,
+  createBanner,
   dateField,
   emptyState,
   errorState,
   segmentedControl,
+  sheet,
 } from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
@@ -195,6 +199,94 @@ export function mountApp(
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
+
+  // The DST banner: clock changes between now and a later shown date, under the
+  // update banner. Its sheet lists them; neither changes while the sheet is open.
+  const dstBanner = createBanner();
+  const clockChanges = sheet({ title: strings.dst.sheetTitle });
+  /** @type {import('../lib/dst.js').ChangeList | null} */
+  let dstList = null;
+  let dstDate = '';
+  /** The text on the DST banner, or null while it's hidden. @type {string | null} */
+  let dstShown = null;
+  /** Whether a scan for the shown date is current, until now reaches its first change. */
+  let dstScanned = false;
+  let dstUntil = Infinity;
+
+  function hideDst() {
+    dstList = null;
+    if (dstShown === null) return;
+    const hadFocus = dstBanner.root.contains(document.activeElement);
+    dstBanner.hide();
+    dstShown = null;
+    if (hadFocus) dateControl.input.focus();
+  }
+
+  /**
+   * Show or hide the DST banner for `current`. Ticks pass `rescan` false: the
+   * list is kept until now reaches its first change.
+   * @param {Date} current
+   * @param {boolean} rescan
+   */
+  function syncDst(current, rescan) {
+    if (clockChanges.root.open) return;
+    const target = headerInstant(homeZone(), anchor, current);
+    const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
+    if (isToday || target.getTime() <= current.getTime()) {
+      dstScanned = false;
+      hideDst();
+      return;
+    }
+    if (!rescan && dstScanned && current.getTime() < dstUntil) return;
+    const { zones } = store.getState();
+    const tz = home.current();
+    const cities = cityDataIfLoaded()?.cities;
+    const label = zones.find((z) => z.kind === 'iana' && z.tz === tz)?.label;
+    /** @param {Zone} zone @param {string | undefined} name */
+    const named = (zone, name) => {
+      const { full, display } = rowName({ zone, label: name, cities });
+      return { zone, name: full, display };
+    };
+    const list = changesBetween({
+      home: named(homeZone(), label),
+      others: shownZones().map((z) => named(z, z.label)),
+      from: current,
+      to: target,
+    });
+    const first = list.changes[0];
+    dstScanned = true;
+    dstUntil = first ? first.transition.at.getTime() : Infinity;
+    if (!first) {
+      hideDst();
+      return;
+    }
+    dstList = list;
+    dstDate = shortDate(homeZone(), target);
+    const message = bannerMessage(list, dstDate);
+    const text = JSON.stringify(message);
+    if (text === dstShown) return;
+    dstShown = text;
+    dstBanner.show({
+      message,
+      action: { label: strings.dst.details, onClick: openClockChanges },
+    });
+  }
+
+  function openClockChanges() {
+    if (!dstList) return;
+    clockChanges.body.replaceChildren(
+      ...(dstList.capped ? [h('p', { text: strings.dst.cappedNote(dstDate) })] : []),
+      h(
+        'ul',
+        { class: 'clock-changes' },
+        dstList.changes.map((change) => h('li', { text: changeSentence(change).long })),
+      ),
+    );
+    const opener = dstBanner.root.querySelector('button');
+    clockChanges.open(opener ?? undefined);
+  }
+  // After the sheet's own close handler has returned focus to Details.
+  clockChanges.root.addEventListener('close', () => syncDst(now(), true));
   /** The home zone of the last render. */
   let renderedHome = '';
   /** @type {GridView | null} */
@@ -344,6 +436,7 @@ export function mountApp(
     }
     view.watch();
     checkOverlap();
+    syncDst(current, true);
   }
 
   function render() {
@@ -430,6 +523,7 @@ export function mountApp(
         const current = now();
         view?.tick(current, headerInstant(homeZone(), anchor, current));
         syncDate(current);
+        syncDst(current, false);
         scheduleTick();
       },
       MINUTE_MS - (now().getTime() % MINUTE_MS),
@@ -460,8 +554,15 @@ export function mountApp(
   }
 
   const launch = home.check();
+  shell.banner.root.after(dstBanner.root);
   shell.main.append(timelinesCard.root);
-  root.replaceChildren(shell.root, settings.root, addCity.root, ...install.roots);
+  root.replaceChildren(
+    shell.root,
+    settings.root,
+    addCity.root,
+    clockChanges.root,
+    ...install.roots,
+  );
   // After mounting: the grid is measured to set its scroll position.
   store.subscribe(render);
   store.subscribe(syncHourCycle);
