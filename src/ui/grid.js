@@ -7,6 +7,7 @@
 // A click or tap on a track, or Enter/Space on a home hour cell (the roving
 // keyboard slots), selects a slot: the band and the headers' selected times.
 // Each user row's header has a drag handle; src/ui/reorder.js reorders rows.
+// In Edit mode (data-editing on the root) it also shows a Delete button.
 
 import { changeSentence, describeChange, dstStatus } from '../lib/dst.js';
 import { greyedSpans, qualifies } from '../lib/filter.js';
@@ -314,6 +315,8 @@ function homeSymbol() {
  *   homeName: string,
  *   setFilter: (filter: Filter) => void,
  *   focusRow: (id: string) => boolean,
+ *   focusDelete: (id: string) => boolean,
+ *   setEditing: (on: boolean) => void,
  *   destroy: () => void,
  * }} GridView
  * @typedef {import('../lib/row-order.js').Direction} Direction
@@ -341,7 +344,8 @@ function homeSymbol() {
  * the one holding `anchorStart`; its name describes a `duration`-minute
  * meeting starting there. Once the grid is in the document, call
  * scrollToNow(), scrollTo() or set scrollLeft, then watch() to start lazy
- * extension. Call `destroy()` before dropping the grid.
+ * extension. `editing` starts the grid in Edit mode, which shows each user
+ * row's Delete button. Call `destroy()` before dropping the grid.
  * @param {{
  *   grid: Grid,
  *   zones: readonly StoredZone[],
@@ -360,6 +364,7 @@ function homeSymbol() {
  *   duration: number,
  *   weekendsUnavailable: boolean,
  *   slot?: Date | null,
+ *   editing?: boolean,
  * }} options
  * @returns {GridView}
  */
@@ -381,6 +386,7 @@ export function timelineGrid({
   duration: initialDuration,
   weekendsUnavailable,
   slot: preferredSlot = null,
+  editing = false,
 }) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   // One popover for every header trigger, filled from the row that opened it:
@@ -396,6 +402,8 @@ export function timelineGrid({
   const detailsPart = h('div', { class: 'popover__details' });
   /** Visible trigger of each user row, by stored id. @type {Map<string, () => HTMLElement>} */
   const rowTriggers = new Map();
+  /** Delete button of each user row, by stored id. @type {Map<string, HTMLElement>} */
+  const rowDeletes = new Map();
   const wide = window.matchMedia(WIDE);
   /** @type {((date: Date, offsetAt: Date) => void)[]} */
   const updates = [];
@@ -531,6 +539,17 @@ export function timelineGrid({
           [icon('grip')],
         )
       : null;
+    // Shown only in Edit mode (app.css); deletes the row at once.
+    const deleteButton = stored
+      ? button({
+          label: strings.timelines.deleteZone(full),
+          icon: 'remove',
+          iconOnly: true,
+          variant: 'ghost',
+          onClick: () => actions.remove(stored),
+        })
+      : null;
+    deleteButton?.classList.add('grid__delete');
     const isOpen = () =>
       details.isOpenFor(trigger) ||
       (wideTrigger !== null && details.isOpenFor(wideTrigger)) ||
@@ -692,9 +711,16 @@ export function timelineGrid({
     const track = h('div', { class: 'grid__track' }, trackContent(gridRow, cycle, hourCells));
     tracks.push(track);
 
-    const el = row([trigger, wideTrigger ?? inline, handle], track, zoneKey(zone), '', stored?.id);
+    const el = row(
+      [trigger, wideTrigger ?? inline, deleteButton, handle],
+      track,
+      zoneKey(zone),
+      '',
+      stored?.id,
+    );
     if (stored) {
       rowTriggers.set(stored.id, visible);
+      if (deleteButton) rowDeletes.set(stored.id, deleteButton);
       // Right-click anywhere in a user row's header opens its popover.
       el.firstElementChild?.addEventListener('contextmenu', (event) => {
         event.preventDefault();
@@ -730,6 +756,7 @@ export function timelineGrid({
     [homeRow, everyone, ...userRows, band, line],
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
+  root.toggleAttribute('data-editing', editing);
   const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
   const reorder = attachReorder({
     root,
@@ -1197,6 +1224,17 @@ export function timelineGrid({
       if (!trigger) return false;
       trigger().focus();
       return true;
+    },
+    /** Focus user row `id`'s Delete button; false when there is none. */
+    focusDelete(id) {
+      const deleteButton = rowDeletes.get(id);
+      if (!deleteButton) return false;
+      deleteButton.focus();
+      return true;
+    },
+    /** Show or hide the user rows' Delete buttons and enlarged handles. */
+    setEditing(on) {
+      root.toggleAttribute('data-editing', on);
     },
     /** Stop lazy extension, label fitting, reordering and the breakpoint listener. */
     destroy() {
