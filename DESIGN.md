@@ -25,6 +25,8 @@ calm, precise, legible at a glance, and trustworthy with numbers.
   exception is the app/home-screen icons in `src/icons/`: PNGs generated from
   `--color-accent` and `--color-on-accent` by `scripts/make-icons.js`.
   Regenerate them (`node scripts/make-icons.js`) whenever those tokens change.
+  The one illustration allowed is the Share icon in the iOS install sheet:
+  `icon('share')`, an inline `currentColor` SVG sized to `--control-height`.
 
 ## 2. Where tokens live
 
@@ -157,7 +159,7 @@ durations become `0ms` (handled in `tokens.css`).
 ### 3.6 Layout sizes
 
 `--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
-`--slot-width` 3rem · `--slot-height` 3.5rem (56px, phone rows) ·
+`--slot-width` 48px · `--slot-height` 3.5rem (56px, phone rows) ·
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
 `--row-header-width-compact` 7rem (112px, phone) · `--row-header-width`
 11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
@@ -174,7 +176,10 @@ padding above and below, and the top border) · `--min-viewport-height` 100dvh �
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
-`--slot-width` is the width of one home-zone hour (a grid column).
+`--slot-width` is the width of one home-zone hour (a grid column). It is a
+fixed 48px, not rem, on purpose: columns don't widen with the text size, so
+more hours stay in view at large text, and labels that no longer fit trigger
+the alternate-label rule (§7).
 `--slot-height` is the minimum height of a grid row below `--bp-md` and
 `--slot-height-wide` from it. Row headers are `--grid-header-width` wide:
 `--row-header-width-compact`, `--row-header-width` from `--bp-md` and
@@ -209,9 +214,17 @@ in px, multiplied by `--hairline` in CSS.
   default" follows the OS live, with no reload; "Light" and "Dark" are saved to
   `settings.theme` and hold under any OS setting. Reset all data returns to
   System default.
+- Settings → Time format, right after Appearance, is a second Radio group:
+  "Automatic" (follows the locale's hour cycle), "12-hour" and "24-hour",
+  saved to `settings.hourCycle`. It follows the title bar toggle, the T key,
+  Reset all data (back to Automatic) and other tabs.
 - Settings also holds the "Treat weekends as unavailable" switch
   (`settings.weekendsUnavailable`, on by default). Off, weekend cells keep
   their band but are rated by hour only. Reset all data turns it back on.
+- Settings → Install (after the weekends switch, before Reset all data) lists
+  the install steps for iPhone or iPad, Android and desktop, plus an "Install
+  app" button while the browser offers one. It is absent when the app runs
+  installed.
 - `color-scheme` is set per theme so native controls and scrollbars match.
 
 ## 5. Typography rules
@@ -219,6 +232,12 @@ in px, multiplied by `--hairline` in CSS.
 - System font stacks only (see §3.2). No `@font-face`.
 - One `<h1>` per page (the app name in the shell). Card titles are `<h2>`.
 - Clock times, offsets and hour numbers: `--font-mono` + tabular numerals.
+- Times go through `formatTime()` in `src/lib/time-format.js`, in the cycle
+  from `settings.hourCycle` (`auto` follows the locale). Compact style for
+  hour cells, hour only: `9a`, `12p` (12-hour) or `09` (24-hour). Full style
+  for row header times, the details popover and every accessible label:
+  `9:30 am`, `12:00 pm` (12-hour) or `09:30` (24-hour). The am/pm words come
+  from `strings.time`. Header times never wrap or truncate.
 - Max line length for prose: 65ch.
 - All user-visible text lives in `src/ui/strings.js` (en-AU), never inline.
 
@@ -238,17 +257,21 @@ Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
 (below) before the label; with `iconOnly: true` the label
 becomes the `aria-label`, no text shows, and `.btn--icon` makes the button at
 least `--control-height` (44px) square. Disabled buttons use the `disabled`
-attribute, not just a class.
+attribute, not just a class. `pressed` makes a toggle button
+(`aria-pressed`); while pressed it gets a `--color-border-strong` border and the
+`--color-surface-sunken` fill, so the state shows without relying on colour
+alone. Example: the title bar "24-hour" toggle.
 
 ### Icon — `icon()` · `.icon`
 
 Inline SVG built with `createElementNS`, `fill="currentColor"`, sized by
 `--icon-size`. Always decorative (`aria-hidden="true"`, `focusable="false"`):
-the button that holds it carries the name, or, where an icon stands alone, a
-wrapper with `role="img"` and an `aria-label` from strings. Icons: `gear`
-(Settings) and `location` (a pin: the home row's symbol, wrapped as
-`role="img"` "Your location" and sized `--space-4` in the row header). Add a
-name to the `IconName` union and its path data together.
+the button that holds it carries the name, the adjacent text does, or, where an
+icon stands alone, a wrapper with `role="img"` and an `aria-label` from strings.
+Icons: `gear` (Settings), `location` (a pin: the home row's symbol, wrapped as
+`role="img"` "Your location" and sized `--space-4` in the row header) and
+`share` (the iOS Share button: a tray with an up arrow, in the iOS install
+sheet). Add a name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -270,7 +293,9 @@ fit the second row at 320px. Use for the toolbar's date control (labelled
 
 Surface with `--radius-lg`, hairline border and `--shadow-sm`. Has an `<h2>`
 title and a body. Use to group one task or one view (e.g. "Add a time zone",
-"Timelines"). Do not nest cards.
+"Timelines"). The one-time install hint ("Install TZ Overlap", with "Install
+app" and "Not now") is a card placed first in `<main>`: non-modal, no timeout.
+Do not nest cards.
 
 ### App shell — `appShell()` · `.shell`
 
@@ -279,13 +304,16 @@ toolbar, `<main id="main">` constrained to `--content-max-width` and opening
 with the page's one banner region (returned as `banner`), footer, and the
 page's one toast region (returned as `toaster`). The toolbar
 (`role="group"`, "Toolbar") holds the `actions` (on the timelines page: the Date
-field, a ghost "Today" button that is hidden while the date shown is today, a
-ghost **Now** button, named "Go to now", then Settings), comes right after the
-brand in DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
-bottom of the viewport on a surface with a top hairline, wraps its controls
-onto two rows (the Date field first, the buttons right-aligned below), is
-padded by the bottom, left and right safe-area insets, and the shell pads its bottom to match; from
-`--bp-md` it sits in the title bar at the end. The title bar pads its top by
+field, a ghost "Today" button that is hidden while the date shown is today, the
+"24-hour" toggle (a ghost pressed-state Button, pressed while 24-hour times
+show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`, where the toolbar is
+in the title bar), a ghost **Now** button, named "Go to now", then Settings),
+comes right after the brand in DOM order, and is omitted when there are none.
+Below `--bp-md` it is fixed to the bottom of the viewport on a surface with a
+top hairline, wraps its controls onto two rows (the Date field first, the
+buttons right-aligned below), is padded by the bottom, left and right safe-area
+insets, and the shell pads its bottom to match; from `--bp-md` it sits in the
+title bar at the end. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
 renders inside exactly one shell.
@@ -300,7 +328,8 @@ every width. Solid `--color-surface`, hairline border, `--shadow-md`;
 `::backdrop` is `--color-backdrop`, never blurred. `open(opener)` focuses the
 first control; Esc, a backdrop click, Close and `close()` all close it and
 return focus to `opener`. Tab and Shift+Tab wrap inside it. Use for settings and
-other short tasks that leave the page in place.
+other short tasks that leave the page in place, e.g. Settings and the one-time
+iOS install sheet ("Install TZ Overlap": the Share steps and icon).
 
 ### Popover — `popover()` · `.popover`
 
@@ -344,7 +373,7 @@ A `<fieldset>` with a `<legend>` and one native radio per option, each inside
 its `<label>` row of at least `--control-height`, with `accent-color` from
 `--color-accent`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a choice of a few mutually exclusive settings, e.g.
-Appearance.
+Appearance and Time format.
 
 ### Switch — `switchControl()` · `.switch`
 
@@ -459,6 +488,16 @@ date is shown and now is outside the window, the line is hidden and Now goes
 back to today, like the Today button. Lazy extension moves the line with the
 window. A rebuild (zone added or removed, weekend setting, another tab) keeps
 the anchor date, the days loaded and the scroll position.
+
+Hour cells show the compact time in a `.grid__label` element. After each build,
+lazy extension, 12/24-hour switch and size change of the grid (a
+`ResizeObserver`, which also catches root font-size changes), the grid measures
+the widest label (with the repeat marker) plus `--space-1` on each side against
+one column. If it doesn't fit, the grid gets `data-labels="alternate"` and
+labels on odd hours get `visibility: hidden`: every second label shows. Text is
+never shrunk to fit. Hidden labels stay in the cell's `aria-label`. Switching
+the hour cycle rewrites every time in place, keeping the scroll position and
+focus.
 Chrome is solid: no translucent materials and no `backdrop-filter` or blur
 anywhere, including behind sheets.
 
@@ -474,11 +513,12 @@ anywhere, including behind sheets.
 - **Keyboard.** Everything is reachable and operable by keyboard in a logical
   order. The skip link is the first focusable element. Scrollable regions are
   focusable (`tabindex="0"`) and labelled. Forms submit with Enter. In the
-  timeline grid, ←/→ scroll one hour, Shift+←/→ six hours and N goes to now;
-  these keys work only while focus is inside the grid (WCAG 2.1.4), and are
-  ignored with Alt, Ctrl or Meta held (N also with Shift), so Alt+← stays
-  browser Back. When the focused Now button disables itself, focus moves to the
-  grid.
+  timeline grid, ←/→ scroll one hour, Shift+←/→ six hours, N goes to now and T
+  switches between 12-hour and 24-hour times (at every width); these keys work
+  only while focus is inside the grid (WCAG 2.1.4: scoping them to the focused
+  component needs no setting to turn them off), and are ignored with Alt, Ctrl
+  or Meta held (N and T also with Shift), so Alt+← stays browser Back. When the
+  focused Now button disables itself, focus moves to the grid.
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
   `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
   The timeline is a labelled `role="grid"` with `role="row"`, `role="rowheader"`
@@ -499,3 +539,11 @@ anywhere, including behind sheets.
   wheel, drag, the first position and restores after a rebuild are instant.
 - **Automated check.** E2E tests run axe-core against the page in both themes
   and fail on any WCAG A/AA violation.
+  One documented exception: axe's Label in Name rule
+  (`label-content-name-mismatch`, SC 2.5.3) is not applied to hour cells
+  (`.grid__cell[data-hour]`); it still runs on everything else. A 12-hour cell
+  shows the compact `9a` while its name is the full `9:00 am, Best`, which the
+  rule's word match can't connect. The cells can't be focused or activated
+  (dragging them only scrolls), and the name is a fuller form of the same time, so
+  no user loses the visible label. `tests/e2e/helpers.js` applies the
+  exclusion.

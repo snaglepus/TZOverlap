@@ -22,6 +22,7 @@ import {
   nowScrollLeft,
   wheelToHorizontal,
 } from '../lib/scroll.js';
+import { formatTime } from '../lib/time-format.js';
 import { zoneLocalParts } from '../lib/zones.js';
 import { button, icon, popover } from './components.js';
 import { append, h } from './dom.js';
@@ -37,19 +38,17 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../data/cities.js').City} City
  * @typedef {keyof import('../lib/grid.js').Extent} Side
+ * @typedef {import('../lib/time-format.js').HourCycle} HourCycle
  */
-
-/** @param {number} n */
-const pad = (n) => String(n).padStart(2, '0');
 
 /**
- * "14:30" in `zone` at `date`.
+ * The full time ("2:30 pm" or "14:30") in `zone` at `date`.
  * @param {Zone} zone
  * @param {Date} date
+ * @param {HourCycle} cycle
  */
-function clock(zone, date) {
-  const { hour, minute } = zoneLocalParts(zone, date);
-  return `${pad(hour)}:${pad(minute)}`;
+function clock(zone, date, cycle) {
+  return formatTime(zoneLocalParts(zone, date), cycle, 'full');
 }
 
 /** Smooth scrolling unless the user asks for reduced motion. */
@@ -89,27 +88,23 @@ function placed(span, attrs, children = []) {
 }
 
 /**
+ * An hour cell: the compact label in .grid__label (hidden on odd hours when
+ * labels don't fit), the full time in its accessible name.
  * @param {GridCell} cell
+ * @param {HourCycle} cycle
  * @param {string} [day] day label when the cell starts a local date
  */
-function hourCell(cell, day) {
-  const hour = pad(cell.hour);
-  return placed(
+function hourCell(cell, cycle, day) {
+  const el = placed(
     cell,
     {
       'data-hour': String(cell.hour),
+      'data-odd': cell.hour % 2 === 1 ? 'true' : undefined,
       'data-weekend': cell.weekend ? 'true' : undefined,
-      'aria-label': strings.timelines.cell(
-        hour,
-        strings.ratings[cell.rating],
-        cell.repeat,
-        cell.weekend,
-        day,
-      ),
       title: cell.repeat ? strings.timelines.repeatTitle : undefined,
     },
     [
-      hour,
+      h('span', { class: 'grid__label' }),
       cell.repeat
         ? h('sup', {
             class: 'grid__repeat',
@@ -119,20 +114,63 @@ function hourCell(cell, day) {
         : null,
     ],
   );
+  labelHourCell(el, cell, cycle, day);
+  return el;
 }
 
-/** @param {Grid} grid */
-function everyoneSegments(grid) {
-  const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
-  return grid.everyone.map((segment) =>
-    placed(segment, {
-      'aria-label': strings.timelines.segment(
-        clock(homeZone, segment.start),
-        clock(homeZone, segment.end),
-        strings.ratings[segment.rating],
-      ),
-    }),
+/**
+ * @param {HTMLElement} el
+ * @param {GridCell} cell
+ * @param {HourCycle} cycle
+ * @param {string} [day]
+ */
+function labelHourCell(el, cell, cycle, day) {
+  const time = { hour: cell.hour, minute: 0 };
+  const label = /** @type {HTMLElement} */ (el.firstElementChild);
+  label.textContent = formatTime(time, cycle, 'compact');
+  el.setAttribute(
+    'aria-label',
+    strings.timelines.cell(
+      formatTime(time, cycle, 'full'),
+      strings.ratings[cell.rating],
+      cell.repeat,
+      cell.weekend,
+      day,
+    ),
   );
+}
+
+/**
+ * @param {HTMLElement} el
+ * @param {Segment} segment
+ * @param {Zone} homeZone
+ * @param {HourCycle} cycle
+ */
+function labelSegment(el, segment, homeZone, cycle) {
+  el.setAttribute(
+    'aria-label',
+    strings.timelines.segment(
+      clock(homeZone, segment.start, cycle),
+      clock(homeZone, segment.end, cycle),
+      strings.ratings[segment.rating],
+    ),
+  );
+}
+
+/**
+ * The Everyone row's segments, each also pushed onto `segments` for relabelling.
+ * @param {Grid} grid
+ * @param {HourCycle} cycle
+ * @param {[HTMLElement, Segment][]} segments
+ */
+function everyoneSegments(grid, cycle, segments) {
+  const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
+  return grid.everyone.map((segment) => {
+    const el = placed(segment, {});
+    labelSegment(el, segment, homeZone, cycle);
+    segments.push([el, segment]);
+    return el;
+  });
 }
 
 /**
@@ -156,13 +194,21 @@ function divider(midnight, label) {
 
 /**
  * A row's hour cells and its midnight dividers. The day label of each midnight
- * goes on the divider and on the day's first cell.
+ * goes on the divider and on the day's first cell. Each cell is also pushed
+ * onto `hourCells` for relabelling.
  * @param {GridRow} gridRow
+ * @param {HourCycle} cycle
+ * @param {[HTMLElement, GridCell, string | undefined][]} hourCells
  */
-function trackContent({ zone, cells, midnights }) {
+function trackContent({ zone, cells, midnights }, cycle, hourCells) {
   const labels = new Map(midnights.map(({ at }) => [at.getTime(), dayLabel(zone, at)]));
   return [
-    ...cells.map((cell) => hourCell(cell, labels.get(cell.start.getTime()))),
+    ...cells.map((cell) => {
+      const day = labels.get(cell.start.getTime());
+      const el = hourCell(cell, cycle, day);
+      hourCells.push([el, cell, day]);
+      return el;
+    }),
     ...midnights.map((midnight) =>
       divider(midnight, /** @type {string} */ (labels.get(midnight.at.getTime()))),
     ),
@@ -200,8 +246,9 @@ function homeSymbol() {
  *   scrollTo: (instant: Date) => void,
  *   hasNow: () => boolean,
  *   watch: () => void,
- *   disconnect: () => void,
  *   refresh: () => void,
+ *   setHourCycle: (cycle: HourCycle) => void,
+ *   destroy: () => void,
  * }} GridView
  */
 
@@ -210,16 +257,18 @@ function homeSymbol() {
  * Clocks and dates show `now`; offsets show `offsetAt`. `extend(side)` returns
  * the grid with one more day on that side, or null at the cap. `homeLabel` is
  * the label of a hidden stored copy of the home zone, if any; `cities` is the
- * city data when it is already loaded. `onNowVisible` is told whenever the now
- * line comes into or goes out of view, and `onGoToNow` runs on N (by default
- * scrollToNow). Once the grid is in the document, call scrollToNow(), scrollTo()
- * or set scrollLeft, then watch() to start lazy extension.
+ * city data when it is already loaded; `hourCycle` is the resolved 12/24-hour
+ * cycle. `onNowVisible` is told whenever the now line comes into or goes out of
+ * view, and `onGoToNow` runs on N (by default scrollToNow). Once the grid is in
+ * the document, call scrollToNow(), scrollTo() or set scrollLeft, then watch()
+ * to start lazy extension. Call `destroy()` before dropping the grid.
  * @param {{
  *   grid: Grid,
  *   zones: readonly StoredZone[],
  *   now: Date,
  *   offsetAt: Date,
  *   extend: (side: Side) => Grid | null,
+ *   hourCycle: HourCycle,
  *   onRemove: (zone: StoredZone) => void,
  *   homeLabel?: string,
  *   cities?: readonly City[],
@@ -234,6 +283,7 @@ export function timelineGrid({
   now,
   offsetAt,
   extend,
+  hourCycle,
   onRemove,
   homeLabel,
   cities,
@@ -245,11 +295,16 @@ export function timelineGrid({
   const details = popover({ label: strings.timelines.details });
   /** @type {((date: Date, offsetAt: Date) => void)[]} */
   const updates = [];
+  /** @type {[HTMLElement, GridCell, string | undefined][]} */
+  const hourCells = [];
+  /** @type {[HTMLElement, Segment][]} */
+  const segments = [];
   let current = now;
   let currentOffset = offsetAt;
   let shown = grid;
   /** @type {HTMLElement[]} */
   const tracks = [];
+  let cycle = hourCycle;
 
   const zoneRows = grid.rows.map((gridRow, i) => {
     const { zone } = gridRow;
@@ -311,7 +366,7 @@ export function timelineGrid({
       details.body.replaceChildren();
       append(details.body, [
         h('p', { class: 'popover__title', text: full }),
-        h('p', { class: 'grid__time', text: clock(zone, at) }),
+        h('p', { class: 'grid__time', text: clock(zone, at, cycle) }),
         diff ? h('p', { text: diff.long }) : null,
         h('p', { text: fullDate(zone, at) }),
         h('p', { text: offsetLine(zone, offsetInstant) }),
@@ -330,7 +385,7 @@ export function timelineGrid({
 
     /** @param {Date} at @param {Date} offsetInstant */
     function update(at, offsetInstant) {
-      const hhmm = clock(zone, at);
+      const hhmm = clock(zone, at, cycle);
       const diff = dayDifferenceLabel(dayDifference(zone, homeZone, at));
       buttonTime.textContent = hhmm;
       time.textContent = hhmm;
@@ -346,7 +401,7 @@ export function timelineGrid({
     update(now, offsetAt);
     updates.push(update);
 
-    const track = h('div', { class: 'grid__track' }, trackContent(gridRow));
+    const track = h('div', { class: 'grid__track' }, trackContent(gridRow, cycle, hourCells));
     tracks.push(track);
 
     return row(
@@ -368,7 +423,7 @@ export function timelineGrid({
     );
   });
 
-  const everyoneTrack = h('div', { class: 'grid__track' }, everyoneSegments(grid));
+  const everyoneTrack = h('div', { class: 'grid__track' }, everyoneSegments(grid, cycle, segments));
   const everyone = row(
     [h('span', { class: 'grid__name', text: strings.timelines.everyone })],
     everyoneTrack,
@@ -387,6 +442,25 @@ export function timelineGrid({
     [homeRow, everyone, ...userRows, line],
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
+  const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
+
+  // Labels that don't fit one column (with --space-1 each side, the label's
+  // padding) hide on odd hours; never shrunk. Viewport and root font-size
+  // changes both resize the grid.
+  function fitLabels() {
+    const column = homeTrack.getBoundingClientRect().width / shown.hours;
+    let widest = 0;
+    for (const [el] of hourCells) {
+      let width = 0;
+      for (const child of el.children) width += child.getBoundingClientRect().width;
+      widest = Math.max(widest, width);
+    }
+    if (widest > column) root.dataset.labels = 'alternate';
+    else delete root.dataset.labels;
+  }
+  const resize = new ResizeObserver(fitLabels);
+  resize.observe(root);
+  fitLabels();
 
   /** @param {Date} date */
   const inWindow = (date) => shown.start <= date && date < shown.end;
@@ -514,7 +588,6 @@ export function timelineGrid({
 
   // Lazy extension: an edge marker EXTEND_COLUMNS wide at each end of the home
   // track, observed against the grid minus the sticky header.
-  const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
   const homeHeader = /** @type {HTMLElement} */ (homeRow?.firstElementChild);
   const edgeEl = () => h('div', { class: 'grid__edge', attrs: { 'aria-hidden': 'true' } });
   /** @type {Record<Side, HTMLElement>} */
@@ -537,11 +610,16 @@ export function timelineGrid({
   /** @param {Grid} next */
   function setGrid(next) {
     shown = next;
-    next.rows.forEach((gridRow, i) => tracks[i]?.replaceChildren(...trackContent(gridRow)));
-    everyoneTrack.replaceChildren(...everyoneSegments(next));
+    hourCells.length = 0;
+    segments.length = 0;
+    next.rows.forEach((gridRow, i) =>
+      tracks[i]?.replaceChildren(...trackContent(gridRow, cycle, hourCells)),
+    );
+    everyoneTrack.replaceChildren(...everyoneSegments(next, cycle, segments));
     root.style.setProperty('--grid-hours', String(next.hours));
     placeEdges();
     placeLine(current);
+    fitLabels();
   }
 
   /** @param {IntersectionObserverEntry[]} entries */
@@ -605,15 +683,23 @@ export function timelineGrid({
       window.addEventListener('resize', watch);
       watch();
     },
-    /** Stop lazy extension. */
-    disconnect() {
-      window.removeEventListener('resize', watch);
-      observer?.disconnect();
-      observer = null;
-    },
     scrollToNow,
     /** Whether the current instant is inside the window. */
     hasNow: () => inWindow(current),
     refresh,
+    setHourCycle(next) {
+      cycle = next;
+      for (const [el, cell, day] of hourCells) labelHourCell(el, cell, cycle, day);
+      for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle);
+      for (const update of updates) update(current, currentOffset);
+      fitLabels();
+    },
+    /** Stop lazy extension and label fitting. */
+    destroy() {
+      window.removeEventListener('resize', watch);
+      observer?.disconnect();
+      observer = null;
+      resize.disconnect();
+    },
   };
 }

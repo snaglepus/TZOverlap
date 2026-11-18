@@ -14,6 +14,8 @@ same moment. The timelines open on yesterday to tomorrow of a chosen date
 (today by default, picked in the toolbar) and load more days as you scroll, up
 to 14 either side. A heat scale shows which hours are ideal, acceptable (the shoulder
 hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
+Settings → Install, a one-time install hint and a one-time iOS sheet explain how
+to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
 Planned next: select a slot to see the exact local time in every zone, share a
 proposal link, and export to a calendar.
@@ -113,6 +115,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     time-engine.js      offset transitions, zone gaps, per-zone hour cells, DST status
     grid.js             grid model: anchor-date window (a day either side, extended up to 14),
                         anchor and extension helpers, positioned hour cells, Everyone segments
+    time-format.js      formatTime() compact/full in 12- or 24-hour; resolves `auto` from the locale
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
@@ -124,6 +127,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps
+    install.js          installGuidance(): user agent + standalone flags → install guidance kind
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
     components.js       shared components: button, icon, field, dateField, card, appShell,
@@ -135,8 +139,10 @@ src/                    the app (served as-is in dev; bundled for prod)
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
                         lazy extension (IntersectionObserver)
-    settings.js         the Settings sheet: Appearance, Treat weekends as unavailable and
-                        Reset all data
+    settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
+                        Treat weekends as unavailable, Install and Reset all data
+    install.js          install guidance: beforeinstallprompt capture, hint card, iOS sheet,
+                        Settings → Install section
     strings.js          all user-visible text (en-AU), short/long variants
   styles/
     tokens.css          ALL design tokens (the only place for raw values)

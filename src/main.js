@@ -1,6 +1,7 @@
 // Entry point: wire state, theme and UI, with a top-level error boundary.
 
 import { SERVICE_WORKER_URL } from './build-env.js';
+import { installGuidance } from './lib/install.js';
 import { createStore } from './lib/store.js';
 import { hasTimeZoneSupport } from './lib/timezones.js';
 import { registerServiceWorker } from './lib/updates.js';
@@ -41,7 +42,14 @@ try {
       store,
       media: window.matchMedia('(prefers-color-scheme: dark)'),
     });
-    const app = mountApp(root, { store, theme });
+    const installKind = installGuidance({
+      userAgent: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints,
+      displayModeStandalone: window.matchMedia('(display-mode: standalone)').matches,
+      // Safari-only, non-standard.
+      navigatorStandalone: /** @type {{ standalone?: boolean }} */ (navigator).standalone === true,
+    });
+    const app = mountApp(root, { store, theme, installKind });
     // Save before the page goes away, and follow other tabs' writes.
     window.addEventListener('pagehide', () => store.flush());
     document.addEventListener('visibilitychange', () => {

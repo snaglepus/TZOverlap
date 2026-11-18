@@ -137,6 +137,17 @@
   }
 }
 
+/* ---------- Title bar 12/24-hour toggle: desktop only ---------- */
+.hour-toggle {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .hour-toggle {
+    display: inline-flex;
+  }
+}
+
 /* ---------- Settings sheet ---------- */
 .settings {
   display: flex;
@@ -157,10 +168,53 @@
   font-size: var(--font-size-sm);
 }
 
-.settings__actions {
+.settings__actions,
+.install__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* ---------- Install guidance (Settings, hint card, iOS sheet) ---------- */
+.install {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.install__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Same type as the Appearance legend, its sibling in Settings. */
+.install__heading {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
+.install__group-title {
+  margin: var(--space-0);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.install__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-0);
+  padding-inline-start: var(--space-5);
+  max-width: var(--measure);
+}
+
+.icon.install__illustration {
+  width: var(--control-height);
+  height: var(--control-height);
 }
 
 /* ---------- Legend ---------- */
@@ -284,12 +338,15 @@
 }
 
 .grid__clock {
+  flex-wrap: wrap;
   font-size: var(--font-size-xs);
 }
 
+/* Never wraps or truncates; the day badge moves to its own line instead. */
 .grid__time {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .grid__badge {
@@ -335,6 +392,11 @@
   line-height: var(--line-height-tight);
 }
 
+/* The fit check measures the label with --space-1 on each side. */
+.grid__label {
+  padding-inline: var(--space-1);
+}
+
 /* Midnight: a full-height line with the day label chip at its top-right.
    No z-index, so the sticky row header (z-index 1) stays on top. */
 .grid__divider {
@@ -369,6 +431,11 @@
   left: calc(var(--cell-left) * var(--slot-width));
   width: calc(var(--cell-width) * var(--slot-width));
   pointer-events: none;
+}
+
+/* Labels too wide for one column: show every second one, never smaller. */
+.grid[data-labels='alternate'] .grid__cell[data-odd] > * {
+  visibility: hidden;
 }
 
 /* Above the cells (later in the tree), below the sticky headers (z-index 1). */

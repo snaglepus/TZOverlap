@@ -18,11 +18,13 @@ import {
 } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
+import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
 import { addCitySheet } from './add-city.js';
 import { appShell, button, card, dateField, emptyState, errorState } from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
+import { installController } from './install.js';
 import { settingsSheet } from './settings.js';
 import { strings } from './strings.js';
 
@@ -35,6 +37,7 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/grid.js').Extent} Extent
  * @typedef {import('../lib/zones.js').Zone} Zone
  * @typedef {import('./grid.js').GridView} GridView
+ * @typedef {import('../lib/install.js').InstallKind} InstallKind
  */
 
 const MINUTE_MS = 60000;
@@ -46,13 +49,27 @@ const MINUTE_MS = 60000;
  *   theme: ThemeController,
  *   deviceZone?: () => string,
  *   now?: () => Date,
+ *   localeHourCycle?: string,
+ *   installKind?: InstallKind,
  * }} deps
  */
 export function mountApp(
   root,
-  { store, theme, deviceZone = getLocalTimeZone, now = () => new Date() },
+  {
+    store,
+    theme,
+    deviceZone = getLocalTimeZone,
+    now = () => new Date(),
+    localeHourCycle = readLocaleHourCycle(),
+    installKind = 'other',
+  },
 ) {
   const home = createHomeTracker({ store, deviceZone });
+  /** The 12/24-hour cycle on screen: the setting, with `auto` following the locale. */
+  const hourCycle = () => resolveHourCycle(store.getState().settings.hourCycle, localeHourCycle);
+  /** Store the explicit opposite of the cycle showing (toggle and T key). */
+  const toggleHourCycle = () =>
+    store.updateSettings({ hourCycle: hourCycle() === 'h23' ? 'h12' : 'h23' });
   const announcer = h('p', {
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
@@ -105,13 +122,23 @@ export function mountApp(
   dateControl.input.addEventListener('blur', () => {
     dateControl.input.value = formatAnchor(anchor);
   });
+  // Title bar 12/24 toggle, desktop only (app.css); pressed while 24-hour shows.
+  const hourToggle = button({
+    label: strings.app.hourToggle,
+    variant: 'ghost',
+    pressed: hourCycle() === 'h23',
+    onClick: toggleHourCycle,
+  });
+  hourToggle.classList.add('hour-toggle');
+  hourToggle.setAttribute('aria-keyshortcuts', 'T');
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [dateControl.root, todayButton, nowButton, settingsButton],
+    actions: [dateControl.root, todayButton, hourToggle, nowButton, settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
-  const settings = settingsSheet({ store, theme, toaster: shell.toaster });
+  const install = installController({ store, kind: installKind, main: shell.main });
+  const settings = settingsSheet({ store, theme, toaster: shell.toaster, install });
 
   const addCity = addCitySheet({
     store,
@@ -178,7 +205,7 @@ export function mountApp(
         weekendsUnavailable: settings.weekendsUnavailable,
       });
     const current = now();
-    view?.disconnect();
+    view?.destroy();
     view = timelineGrid({
       grid: build(),
       zones: shown,
@@ -190,6 +217,7 @@ export function mountApp(
         extent = next;
         return build();
       },
+      hourCycle: shownCycle,
       onRemove: (zone) => remove(zone),
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
@@ -251,6 +279,28 @@ export function mountApp(
     resetTo(todayAnchor(homeZone(), now()));
   }
 
+  /** The cycle the grid and toggle show; a change rewrites them in place. */
+  let shownCycle = hourCycle();
+
+  function syncHourCycle() {
+    const next = hourCycle();
+    if (next === shownCycle) return;
+    shownCycle = next;
+    hourToggle.setAttribute('aria-pressed', String(next === 'h23'));
+    view?.setHourCycle(next);
+  }
+
+  // T toggles the cycle, only while focus is in the timeline grid (WCAG 2.1.4).
+  /** @param {KeyboardEvent} event */
+  function onHourCycleKey(event) {
+    if (event.key !== 't' && event.key !== 'T') return;
+    if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    if (event.repeat || event.isComposing) return;
+    if (!view || !(event.target instanceof Node) || !view.root.contains(event.target)) return;
+    event.preventDefault();
+    toggleHourCycle();
+  }
+
   /** Follow the device zone: re-render on a change, toast after travel. */
   function checkHome() {
     const { changed, travelled } = home.check();
@@ -301,18 +351,21 @@ export function mountApp(
 
   const launch = home.check();
   shell.main.append(timelinesCard.root);
-  root.replaceChildren(shell.root, settings.root, addCity.root);
+  root.replaceChildren(shell.root, settings.root, addCity.root, ...install.roots);
   // After mounting: the grid is measured to set its scroll position.
   store.subscribe(render);
+  store.subscribe(syncHourCycle);
   render();
   scheduleTick();
   document.addEventListener('keydown', onKeydown);
+  install.start();
   window.addEventListener('resize', () => view?.refresh());
   // A later task than the region's mount, so screen readers announce it.
   if (store.wasReset()) {
     setTimeout(() => shell.toaster.show({ message: strings.toasts.dataReset }), 0);
   }
   if (launch.travelled) setTimeout(showTravelled, 0);
+  document.addEventListener('keydown', onHourCycleKey);
   window.addEventListener('focus', checkHome);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') checkHome();
