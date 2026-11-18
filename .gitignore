@@ -23,3 +23,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Software factory
+/factory/jobs/
+/.worktrees/

@@ -138,3 +138,25 @@ don't add new ones without updating DESIGN.md.**
   the time zone and the locale. Don't depend on the machine's time zone.
 - Never use `innerHTML` with user input. Build DOM with `h()`.
 - Keep a PR to one feature. Run `npm run check` before pushing.
+
+## Software factory
+
+`/factory run` builds open GitHub issues and Linear issues labeled `factory`,
+and `/factory add <feature>` builds one described in conversation, through
+intake → spec → spec review (medium/high risk) → build → gate → review →
+approve, one PR per ticket. State is in `factory/jobs/` (gitignored);
+`factory/bin/job` is its only writer. Checks: `factory/checks.sh`. Dashboard:
+`cd factory && python3 -m http.server`, then open
+http://localhost:8000/dashboard.html (`#history` for the table of finished
+jobs).
+
+Each job works in its own git worktree at `.worktrees/<job-id>` (gitignored).
+A tool run from the repo root that doesn't read `.gitignore` sees those copies
+too; exclude `.worktrees/` in its config.
+
+In this repo only Linear (team `TZO`) is enabled as a ticket source; GitHub
+issues and chat are off in `factory/config.json`. `factory/checks.sh` installs
+dependencies and the headless browser if missing, picks free `E2E_PORT` /
+`PERF_PORT` values so parallel gates don't collide, then runs `npm run check`
+(every layer: lint, format, typecheck, unit, integration, build, e2e, perf).
+ESLint and Prettier already ignore `.worktrees/` and `factory/`.
