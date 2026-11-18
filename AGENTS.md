@@ -98,9 +98,8 @@ src/                    the app (served as-is in dev; bundled for prod)
   lib/                  pure logic, no DOM: unit-test it
     timezones.js        Intl-based tz primitives (validation, offsets, formatting)
     zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
-    hours.js            hour → score (0–4) → band; combining scores across zones
     time-engine.js      offset transitions, zone gaps, per-zone hour cells, DST status
-    timeline.js         aligned timelines, local-day start, overlap row
+    grid.js             grid model: home yesterday–tomorrow window, positioned hour cells, Everyone segments
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
@@ -113,6 +112,7 @@ src/                    the app (served as-is in dev; bundled for prod)
                         errorState, sheet, createToaster (toast), radioGroup
     theme.js            light/dark controller
     app.js              the timelines page
+    grid.js             timeline grid DOM (role="grid"), header clocks
     settings.js         the Settings sheet: Appearance and Reset all data
     strings.js          all user-visible text (en-AU), short/long variants
   styles/

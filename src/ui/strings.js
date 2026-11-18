@@ -69,33 +69,27 @@ export const strings = /** @satisfies {Strings} */ ({
   timelines: {
     cardTitle: 'Timelines',
     legend: 'Legend',
-    caption:
-      'Today’s hours in each time zone, aligned on the same moment. Scroll sideways for more.',
-    zoneHeader: 'Zone',
-    /** @param {string} label */
-    slotHeader: (label) => `Your ${label}`,
+    gridLabel: 'Hours in each time zone, aligned on the same moment. Scroll sideways for more.',
     /** @param {string} city */
     you: (city) => `${city} (you)`,
+    everyone: 'Everyone',
+    noDst: 'No DST',
     removeLabel: '×',
     /** @param {string} city */
     remove: (city) => `Remove ${city}`,
-    /** @param {string} label @param {string} band */
-    slotDetail: (label, band) => ` ${label}, ${band}`,
-    /** @param {number} shift */
-    dayShift: (shift) => (shift > 0 ? `+${shift}d` : `${shift}d`),
-    overlapTitle: 'All zones',
-    overlapMeta: 'overlap',
-    /** @param {string} band */
-    overlapDetail: (band) => `, ${band} for everyone`,
+    repeatMarker: '2',
+    repeatTitle: 'Clocks go back — this hour repeats',
+    /** @param {string} hour "09" @param {string} rating @param {boolean} [repeat] */
+    cell: (hour, rating, repeat = false) => `${hour}:00${repeat ? ' (repeated)' : ''}, ${rating}`,
+    /** @param {string} from "14:30" @param {string} to @param {string} rating */
+    segment: (from, to, rating) => `${from} to ${to} your time, ${rating} for everyone`,
   },
-  /** Legend labels, by band. */
-  bands: {
-    ideal: 'Ideal',
-    acceptable: 'Acceptable',
-    unacceptable: 'Unacceptable',
+  /** Rating names: legend, cell and segment labels. */
+  ratings: {
+    best: 'Best',
+    good: 'Good',
+    unsuitable: 'Unsuitable',
   },
-  /** Visible text in the "All zones" row, by band. */
-  overlap: { ideal: 'best', acceptable: 'ok', unacceptable: 'no' },
   fatal: {
     retry: 'Try again',
     noTimeZones: {

@@ -26,7 +26,7 @@ async function seedCorruptState(page) {
 /** @param {import('@playwright/test').Page} page */
 const zoneRows = (page) =>
   page
-    .locator('tbody tr[data-zone]:not([data-zone="overlap"])')
+    .locator('[role="row"][data-zone]:not([data-zone="everyone"])')
     .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-zone')));
 
 /** @param {import('@playwright/test').Page} page */
@@ -194,7 +194,7 @@ test('reset: confirm, cancel changes nothing', async ({ page }) => {
   await cancel.click();
   await expect(dialog.getByRole('button', { name: 'Reset everything' })).toBeHidden();
   await expect(dialog.getByRole('button', { name: 'Reset all data' })).toBeFocused();
-  await expect(page.locator('tr[data-zone="Asia/Tokyo"]')).toHaveCount(1);
+  await expect(page.locator('[role="row"][data-zone="Asia/Tokyo"]')).toHaveCount(1);
   await expect(html).toHaveAttribute('data-theme', 'dark');
 
   await page.reload();

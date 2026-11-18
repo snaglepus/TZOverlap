@@ -1,5 +1,5 @@
-// Integration: store + persistence (in-memory Storage double) + timeline engine
-// + timezone primitives, wired together the way main.js wires them.
+// Integration: store + persistence (in-memory Storage double) + grid model
+// (time engine + suitability), wired together the way main.js wires them.
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -11,7 +11,7 @@ import {
   createStore,
   defaultState,
 } from '../../src/lib/store.js';
-import { buildTimeline } from '../../src/lib/timeline.js';
+import { buildGrid } from '../../src/lib/grid.js';
 
 /** Storage double with the same contract as window.localStorage. */
 class MemoryStorage {
@@ -99,52 +99,60 @@ describe('store persistence across sessions', () => {
   });
 });
 
-describe('store -> timeline', () => {
-  const start = new Date('2026-06-15T13:20:00Z'); // summer: London BST, NY EDT
+describe('store -> grid', () => {
+  const now = new Date('2026-06-15T13:20:00Z'); // Monday: London BST, New York EDT
 
-  it('aligns every row on the same instants, starting at the hour', () => {
+  it('builds the home row first, then every stored zone in order, aligned in home columns', () => {
     const store = createStore({ storage: new MemoryStorage() });
     store.add({ kind: 'iana', tz: 'America/New_York' });
-    store.add({ kind: 'iana', tz: 'Asia/Kolkata' });
+    store.add({ kind: 'fixed', minutes: 330 });
+    store.add({ kind: 'iana', tz: 'Asia/Tokyo' });
     store.flush();
-    const timeline = buildTimeline({ zones: ['Europe/London', ...tzs(store)], start, hours: 24 });
-
-    assert.equal(timeline.start.toISOString(), '2026-06-15T13:00:00.000Z');
-    assert.equal(timeline.rows.length, 3);
-    for (const row of timeline.rows) {
-      assert.equal(row.slots.length, 24);
-      row.slots.forEach((slot, i) => {
-        assert.equal(slot.instant.getTime(), timeline.start.getTime() + i * 3_600_000);
-      });
-    }
-    const [london, ny, kolkata] = timeline.rows.map((r) => r.slots[0]?.label);
-    assert.deepEqual([london, ny, kolkata], ['14:00', '09:00', '18:30']);
-  });
-
-  it('computes the cross-zone overlap from the worst zone in each column', () => {
-    const store = createStore();
-    store.add({ kind: 'iana', tz: 'America/New_York' });
-    store.flush();
-    const timeline = buildTimeline({ zones: ['Europe/London', ...tzs(store)], start, hours: 24 });
-
-    // 13:00Z = 14:00 London (ideal), 09:00 New York (ideal)
-    assert.equal(timeline.overlap[0]?.band, 'ideal');
-    // 17:00Z = 18:00 London (score 2), 13:00 NY (ideal) -> acceptable
-    assert.equal(timeline.overlap[4]?.score, 2);
-    // 22:00Z = 23:00 London -> unacceptable whatever NY says
-    assert.equal(timeline.overlap[9]?.band, 'unacceptable');
-
-    const ideal = timeline.overlap.filter((o) => o.band === 'ideal').length;
-    assert.equal(ideal, 3); // 13:00-15:59Z: London 14-16, NY 09-11
-  });
-
-  it('marks slots that fall on a different calendar day than the reference zone', () => {
-    const timeline = buildTimeline({
-      zones: ['America/Los_Angeles', 'Asia/Tokyo'],
-      start: new Date('2026-06-15T16:00:00Z'), // 09:00 LA = 01:00 next day Tokyo
-      hours: 1,
+    const { zones, settings } = store.getState();
+    const grid = buildGrid({
+      homeZone: { kind: 'iana', tz: 'Europe/London' },
+      zones,
+      now,
+      weekendsUnavailable: settings.weekendsUnavailable,
     });
-    assert.equal(timeline.rows[0]?.slots[0]?.dayShift, 0);
-    assert.equal(timeline.rows[1]?.slots[0]?.dayShift, 1);
+
+    assert.equal(grid.start.toISOString(), '2026-06-13T23:00:00.000Z'); // 14 Jun 00:00 BST
+    assert.equal(grid.hours, 72);
+    assert.deepEqual(
+      grid.rows.map(({ zone }) => (zone.kind === 'iana' ? zone.tz : zone.minutes)),
+      ['Europe/London', 'America/New_York', 330, 'Asia/Tokyo'],
+    );
+    const [london, ny, fixed, tokyo] = grid.rows;
+    assert.ok(london && ny && fixed && tokyo);
+    // Whole-hour zones share column edges; UTC+5:30 sits half a column off.
+    for (const row of [london, ny, tokyo]) {
+      assert.ok(row.cells.every((cell) => Number.isInteger(cell.left)));
+    }
+    assert.ok(fixed.cells.every((cell) => (cell.left + 1) % 1 === 0.5));
+    // Same column = same moment: London 14:00 is New York 09:00 and Tokyo 22:00.
+    const at = (/** @type {typeof london} */ row) =>
+      row.cells.find((cell) => cell.start.toISOString() === '2026-06-15T13:00:00.000Z');
+    assert.deepEqual(
+      [london, ny, tokyo].map((row) => at(row)?.hour),
+      [14, 9, 22],
+    );
+    assert.equal(at(london)?.left, at(ny)?.left);
+  });
+
+  it('follows the stored weekend setting', () => {
+    const store = createStore({ storage: new MemoryStorage() });
+    store.add({ kind: 'iana', tz: 'America/New_York' });
+    const sunday = new Date('2026-06-14T13:00:00Z'); // 14:00 London, 09:00 New York
+    /** @param {boolean} weekendsUnavailable */
+    const rating = (weekendsUnavailable) =>
+      buildGrid({
+        homeZone: { kind: 'iana', tz: 'Europe/London' },
+        zones: store.getState().zones,
+        now,
+        weekendsUnavailable,
+      }).everyone.find((seg) => seg.start <= sunday && sunday < seg.end)?.rating;
+    assert.equal(store.getState().settings.weekendsUnavailable, true);
+    assert.equal(rating(true), 'unsuitable');
+    assert.equal(rating(false), 'best');
   });
 });

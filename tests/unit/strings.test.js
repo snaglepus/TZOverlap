@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { strings } from '../../src/ui/strings.js';
 
 const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
-const callers = ['ui/app.js', 'main.js', 'ui/components.js', 'ui/settings.js'];
+const callers = ['ui/app.js', 'ui/grid.js', 'main.js', 'ui/components.js', 'ui/settings.js'];
 
 /** @typedef {Record<string, unknown>} Tree */
 
@@ -89,9 +89,17 @@ describe('strings', () => {
     );
     assert.equal(strings.addZone.help(7), 'Use an IANA name. You can add 7 more.');
     assert.equal(strings.timelines.you('London'), 'London (you)');
-    assert.equal(strings.timelines.slotDetail('14:00', 'ideal'), ' 14:00, ideal');
-    assert.equal(strings.timelines.dayShift(1), '+1d');
-    assert.equal(strings.timelines.dayShift(-1), '-1d');
+    assert.equal(strings.timelines.everyone, 'Everyone');
+    assert.equal(strings.timelines.noDst, 'No DST');
+    assert.equal(strings.timelines.repeatTitle, 'Clocks go back — this hour repeats');
+    assert.match(strings.timelines.gridLabel, /Hours in each time zone/);
+    assert.equal(strings.timelines.cell('09', 'Best'), '09:00, Best');
+    assert.equal(strings.timelines.cell('01', 'Unsuitable', true), '01:00 (repeated), Unsuitable');
+    assert.equal(
+      strings.timelines.segment('14:30', '17:00', 'Best'),
+      '14:30 to 17:00 your time, Best for everyone',
+    );
+    assert.deepEqual(strings.ratings, { best: 'Best', good: 'Good', unsuitable: 'Unsuitable' });
     assert.equal(strings.fatal.noTimeZones.title, 'Time zones aren’t available');
   });
 });

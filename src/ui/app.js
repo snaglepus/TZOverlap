@@ -1,12 +1,12 @@
 // The main page: app shell, add-zone card, timelines card. Built only from the
 // shared components in ./components.js and the tokens in src/styles/.
 
+import { buildGrid } from '../lib/grid.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
-import { buildTimeline, startOfLocalDay } from '../lib/timeline.js';
-import { formatOffset, zoneCity } from '../lib/timezones.js';
 import { ianaZoneFromInput } from '../lib/zones.js';
 import { appShell, button, card, emptyState, errorState, field } from './components.js';
 import { h } from './dom.js';
+import { timelineGrid } from './grid.js';
 import { settingsSheet } from './settings.js';
 import { strings } from './strings.js';
 
@@ -14,9 +14,10 @@ import { strings } from './strings.js';
  * @typedef {ReturnType<typeof import('../lib/store.js').createStore>} Store
  * @typedef {ReturnType<typeof import('./theme.js').createTheme>} ThemeController
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
- * @typedef {Extract<StoredZone, { kind: 'iana' }>} IanaZone
- * @typedef {import('../lib/hours.js').Band} Band
+ * @typedef {import('../lib/suitability.js').Rating} Rating
  */
+
+const MINUTE_MS = 60000;
 
 /** @type {Record<'empty' | 'invalid' | 'duplicate' | 'limit', (input: string) => string>} */
 const ADD_ERRORS = {
@@ -91,30 +92,33 @@ export function mountApp(
   // --- Timelines card --------------------------------------------------------
   const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
 
-  /** Zone list of the last render; settings-only changes keep the DOM. */
+  /** Zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
+  /** @type {ReturnType<typeof timelineGrid> | null} */
+  let view = null;
 
   function render() {
-    const { zones } = store.getState();
-    const key = JSON.stringify(
-      zones.map((z) => [z.id, z.kind, z.kind === 'iana' ? z.tz : z.minutes, z.label]),
-    );
+    const { zones, settings } = store.getState();
+    const key = JSON.stringify([
+      zones.map((z) => [z.id, z.kind, z.kind === 'iana' ? z.tz : z.minutes, z.label, z.country]),
+      settings.weekendsUnavailable,
+    ]);
     if (key === renderedKey) return;
     renderedKey = key;
     const remaining = MAX_EXTRA_ZONES - zones.length;
     zoneField.setHelp(remaining > 0 ? strings.addZone.help(remaining) : strings.addZone.full);
 
-    // Fixed zones wait for TZO-8; a stored copy of the home zone stays hidden.
-    const shown = /** @type {IanaZone[]} */ (
-      zones.filter((z) => z.kind === 'iana' && z.tz !== homeZone)
-    );
+    // A stored copy of the home zone stays hidden.
+    const shown = zones.filter((z) => z.kind !== 'iana' || z.tz !== homeZone);
     const current = now();
-    const timeline = buildTimeline({
-      zones: [homeZone, ...shown.map((z) => z.tz)],
-      start: startOfLocalDay(homeZone, current),
-      hours: 24,
+    const grid = buildGrid({
+      homeZone: { kind: 'iana', tz: homeZone },
+      zones: shown,
+      now: current,
+      weekendsUnavailable: settings.weekendsUnavailable,
     });
-    const body = [timelineTable(timeline, current, shown, (zone) => remove(zone))];
+    view = timelineGrid({ grid, zones: shown, now: current, onRemove: (zone) => remove(zone) });
+    const body = [view.root];
     if (zones.length === 0) {
       body.push(
         emptyState({
@@ -131,6 +135,17 @@ export function mountApp(
     timelinesCard.body.replaceChildren(...body);
   }
 
+  // Header clocks: tick on each minute boundary, re-aligned every time.
+  function scheduleTick() {
+    setTimeout(
+      () => {
+        view?.tick(now());
+        scheduleTick();
+      },
+      MINUTE_MS - (now().getTime() % MINUTE_MS),
+    );
+  }
+
   /** @param {StoredZone} zone */
   function remove(zone) {
     store.remove(zone.id);
@@ -140,6 +155,7 @@ export function mountApp(
 
   store.subscribe(render);
   render();
+  scheduleTick();
   shell.main.append(addCard.root, timelinesCard.root);
   root.replaceChildren(shell.root, settings.root);
   // A later task than the region's mount, so screen readers announce it.
@@ -149,143 +165,24 @@ export function mountApp(
 }
 
 function legend() {
-  /** @type {[string, Band][]} */
+  /** @type {[Rating, string | undefined][]} */
   const items = [
-    ['heat-4', 'ideal'],
-    ['heat-2', 'acceptable'],
-    ['heat-0', 'unacceptable'],
+    ['best', undefined],
+    ['good', '1'],
+    ['unsuitable', undefined],
   ];
   return h(
     'ul',
     { class: 'legend', attrs: { 'aria-label': strings.timelines.legend } },
-    items.map(([cls, band]) =>
+    items.map(([rating, step]) =>
       h('li', { class: 'legend__item' }, [
-        h('span', { class: `legend__swatch ${cls}`, attrs: { 'aria-hidden': 'true' } }),
-        strings.bands[band],
+        h('span', {
+          class: 'legend__swatch heat',
+          attrs: { 'aria-hidden': 'true', 'data-rating': rating, 'data-heat': step },
+        }),
+        strings.ratings[rating],
       ]),
     ),
-  );
-}
-
-/**
- * @param {import('../lib/timeline.js').Timeline} timeline
- * @param {Date} current
- * @param {IanaZone[]} zones stored zones for rows 1.., in order
- * @param {(zone: StoredZone) => void} onRemove
- */
-function timelineTable(timeline, current, zones, onRemove) {
-  const captionId = 'timeline-caption';
-  const reference = timeline.rows[0];
-  const nowIndex = reference
-    ? reference.slots.findIndex(
-        (s) => current >= s.instant && current.getTime() < s.instant.getTime() + 3_600_000,
-      )
-    : -1;
-
-  const head = h('thead', { class: 'visually-hidden' }, [
-    h('tr', {}, [
-      h('th', { text: strings.timelines.zoneHeader, attrs: { scope: 'col' } }),
-      ...(reference?.slots ?? []).map((slot) =>
-        h('th', { text: strings.timelines.slotHeader(slot.label), attrs: { scope: 'col' } }),
-      ),
-    ]),
-  ]);
-
-  const rows = timeline.rows.map((row, rowIndex) => {
-    const zone = rowIndex === 0 ? null : zones[rowIndex - 1];
-    return h('tr', { attrs: { 'data-zone': row.timeZone } }, [
-      h('th', { class: 'timeline__zone', attrs: { scope: 'row' } }, [
-        h('div', { class: 'timeline__zone-inner' }, [
-          h('div', {}, [
-            h('span', {
-              class: 'timeline__city',
-              text: zone ? zone.label : strings.timelines.you(zoneCity(row.timeZone)),
-            }),
-            h('span', {
-              class: 'timeline__meta',
-              text: formatOffset(row.offsetMinutes),
-            }),
-          ]),
-          zone
-            ? button({
-                label: strings.timelines.removeLabel,
-                variant: 'ghost',
-                size: 'sm',
-                ariaLabel: strings.timelines.remove(zone.label),
-                onClick: () => onRemove(zone),
-              })
-            : null,
-        ]),
-      ]),
-      ...row.slots.map((slot, i) =>
-        h(
-          'td',
-          {
-            class: `slot heat-${slot.score}${i === nowIndex ? ' slot--now' : ''}`,
-            attrs: { 'data-band': slot.band, 'aria-current': i === nowIndex ? 'time' : undefined },
-          },
-          [
-            slot.label.slice(0, 2),
-            h('span', {
-              class: 'visually-hidden',
-              text: strings.timelines.slotDetail(slot.label, slot.band),
-            }),
-            slot.dayShift
-              ? h('span', {
-                  class: 'slot__day',
-                  text: strings.timelines.dayShift(slot.dayShift),
-                })
-              : null,
-          ],
-        ),
-      ),
-    ]);
-  });
-
-  if (timeline.rows.length > 1) {
-    rows.push(
-      h('tr', { class: 'timeline__row--overlap', attrs: { 'data-zone': 'overlap' } }, [
-        h('th', { class: 'timeline__zone', attrs: { scope: 'row' } }, [
-          h('span', { class: 'timeline__city', text: strings.timelines.overlapTitle }),
-          h('span', { class: 'timeline__meta', text: strings.timelines.overlapMeta }),
-        ]),
-        ...timeline.overlap.map((o, i) =>
-          h(
-            'td',
-            {
-              class: `slot heat-${o.score}${i === nowIndex ? ' slot--now' : ''}`,
-              attrs: { 'data-band': o.band },
-            },
-            [
-              strings.overlap[o.band],
-              h('span', {
-                class: 'visually-hidden',
-                text: strings.timelines.overlapDetail(o.band),
-              }),
-            ],
-          ),
-        ),
-      ]),
-    );
-  }
-
-  return h(
-    'div',
-    {
-      class: 'timeline',
-      attrs: { role: 'region', 'aria-labelledby': captionId, tabindex: '0' },
-    },
-    [
-      h('table', { class: 'timeline__table' }, [
-        h('caption', {
-          class: 'visually-hidden',
-          text: strings.timelines.caption,
-          attrs: { id: captionId },
-        }),
-        head,
-        h('tbody', {}, rows),
-      ]),
-    ],
   );
 }
 
