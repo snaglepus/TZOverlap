@@ -10,7 +10,9 @@ TZ Overlap is a lightweight, client-side-only web app for people who schedule
 across time zones: distributed teams, people with friends and family abroad,
 and anyone booking a call with several regions. It shows the user's own time
 zone plus up to seven others as horizontal, scrollable timelines aligned on the
-same moment. A heat scale shows which hours are ideal, acceptable (the shoulder
+same moment. The timelines open on yesterday to tomorrow of a chosen date
+(today by default, picked in the toolbar) and load more days as you scroll, up
+to 14 either side. A heat scale shows which hours are ideal, acceptable (the shoulder
 hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
 
 Planned next: select a slot to see the exact local time in every zone, share a
@@ -99,7 +101,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     timezones.js        Intl-based tz primitives (validation, offsets, formatting)
     zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
     time-engine.js      offset transitions, zone gaps, per-zone hour cells, DST status
-    grid.js             grid model: home yesterday–tomorrow window, positioned hour cells, Everyone segments
+    grid.js             grid model: anchor-date window (a day either side, extended up to 14),
+                        anchor and extension helpers, positioned hour cells, Everyone segments
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
@@ -111,11 +114,12 @@ src/                    the app (served as-is in dev; bundled for prod)
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
-    components.js       shared components: button, icon, field, card, appShell, emptyState,
-                        errorState, sheet, popover, createToaster (toast), radioGroup
+    components.js       shared components: button, icon, field, dateField, card, appShell,
+                        emptyState, errorState, sheet, popover, createToaster (toast), radioGroup
     theme.js            light/dark controller
     app.js              the timelines page; re-checks the home zone on launch, focus, visibility and each minute
-    grid.js             timeline grid DOM (role="grid"), header clocks
+    grid.js             timeline grid DOM (role="grid"), header clocks, lazy extension
+                        (IntersectionObserver)
     settings.js         the Settings sheet: Appearance and Reset all data
     strings.js          all user-visible text (en-AU), short/long variants
   styles/

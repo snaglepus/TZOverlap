@@ -155,8 +155,8 @@ durations become `0ms` (handled in `tokens.css`).
 11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
 from `--bp-lg`) · `--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
-toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
-safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+toasts) · `--toolbar-height` 4.5rem (phone bottom toolbar, before the
+safe-area inset; fits the date field's stacked label) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
@@ -239,6 +239,15 @@ slot. Errors set `aria-invalid="true"` and are linked with `aria-describedby`;
 the error text is in a polite live region. Use for every text entry. Supports a
 `<datalist>` of suggestions.
 
+### Date field — `dateField()` · `.date-field`, `.input`
+
+A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
+optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
+text. Below `--bp-md` the label sits above the input in `--font-size-xs`, so it
+fits the bottom toolbar at 320px; from `--bp-md` it sits beside the input in
+`--font-size-sm`. Use for the toolbar's date control (labelled "Today" while
+the timelines show today, "Date" otherwise).
+
 ### Card — `card()` · `.card`
 
 Surface with `--radius-lg`, hairline border and `--shadow-sm`. Has an `<h2>`
@@ -251,7 +260,8 @@ Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
 toolbar, `<main id="main">` constrained to `--content-max-width`, footer, and
 the page's one toast region (returned as `toaster`). The toolbar
 (`role="group"`, "Toolbar") holds the `actions`, comes right after the brand in
-DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
+DOM order (on the timelines page: the Date field, a ghost "Today" button that is
+hidden while the date shown is today, and Settings), and is omitted when there are none. Below `--bp-md` it is fixed to the
 bottom of the viewport on a surface with a top hairline, padded by the bottom,
 left and right safe-area insets, and the shell pads its bottom to match; from
 `--bp-md` it sits in the title bar at the end. The title bar pads its top by
@@ -330,8 +340,13 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
-Everyone, then the added zones in order. It covers yesterday, today and
-tomorrow in the home zone. Row headers stay sticky on the left; names truncate
+Everyone, then the added zones in order. It opens on yesterday to tomorrow of
+the anchor date in the home zone (today, or the date picked in the toolbar),
+with the current instant (or the start of a picked date) a third of the way in.
+Scrolling within 6 columns of either end adds a whole home-zone day on that
+side (an IntersectionObserver on invisible `.grid__edge` markers), up to 14
+days either side of the anchor, and adding days on the left keeps the content
+still. Header clocks show the current time; offsets follow the date shown. Row headers stay sticky on the left; names truncate
 with an ellipsis, and the full name is always in the accessible name. Each zone
 header has the name (the home row is the plain city, "Sydney", after a
 `location` symbol, with no remove control), the live local time, the short date
