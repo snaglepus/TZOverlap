@@ -71,7 +71,7 @@
   width: var(--space-4);
   height: var(--space-4);
   border-radius: var(--radius-sm);
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-border-strong);
 }
 
 /* ---------- Timeline grid ---------- */
@@ -203,6 +203,12 @@
 .heat[data-rating='unsuitable'] {
   background-color: var(--color-unsuitable);
   color: var(--color-unsuitable-ink);
+}
+
+/* Everyone segments have no text, so Best also gets a solid inner edge:
+   Best (edge), Good (hatch) and Unsuitable (plain) differ without colour. */
+.grid__row--everyone .heat[data-rating='best'] {
+  box-shadow: inset 0 0 0 var(--best-edge-width) var(--color-best-ink);
 }
 
 @media (min-width: 40rem) {

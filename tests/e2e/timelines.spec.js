@@ -459,6 +459,27 @@ test.describe('grid', () => {
     expect(others.every((s) => s.image === 'none')).toBe(true);
     const best = new Set(styles.filter((s) => s.rating === 'best').map((s) => s.colour));
     expect(best.size).toBe(1);
+
+    // Everyone segments have no text: Best has an inner edge, Unsuitable is plain.
+    await addZone(page, 'Asia/Tokyo');
+    const edges = await row(page, 'everyone')
+      .locator('[data-rating]')
+      .evaluateAll((els) =>
+        els.map((el) => ({
+          rating: el.getAttribute('data-rating'),
+          shadow: getComputedStyle(el).boxShadow,
+        })),
+      );
+    const bestEdges = edges.filter((e) => e.rating === 'best');
+    expect(bestEdges.length).toBeGreaterThan(0);
+    expect(bestEdges.every((e) => e.shadow.includes('inset'))).toBe(true);
+    expect(edges.filter((e) => e.rating !== 'best').every((e) => e.shadow === 'none')).toBe(true);
+
+    // Legend swatches are outlined in --color-border-strong (3:1 against the card).
+    const outlines = await page
+      .locator('.legend__swatch')
+      .evaluateAll((els) => els.map((el) => getComputedStyle(el).borderTopColor));
+    expect(new Set(outlines)).toEqual(new Set(['rgb(125, 119, 108)']));
   });
 
   test('Everyone takes the reddest step among the zones', async ({ page }) => {

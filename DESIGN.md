@@ -88,7 +88,10 @@ step among the zones that are Good in each slot. Styles key off
 `data-rating` / `data-heat` on elements with the `.heat` class (cells, segments,
 legend swatches). Colour is never the only cue (WCAG 1.4.1): every hour cell
 shows its local hour as text, Good cells and segments carry a diagonal hatch,
-Best cells are bold, Unsuitable cells are dimmed with muted text, and every
+Best cells are bold, Everyone Best segments (which have no text) carry a solid
+inner edge in `--color-best-ink` (`--best-edge-width`), Unsuitable cells are
+dimmed with muted text and have neither, legend swatches have a
+`--color-border-strong` outline (≥ 3:1 against the card), and every
 cell and segment has an `aria-label` naming its rating.
 
 ### 3.2 Typography
@@ -146,6 +149,7 @@ durations become `0ms` (handled in `tokens.css`).
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
 safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+`--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 

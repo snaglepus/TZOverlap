@@ -92,6 +92,7 @@
   --toolbar-height: 3.75rem;
   --min-viewport-height: 100dvh;
   --hatch-size: 6px;
+  --best-edge-width: 3px;
   --hairline: 1px;
   --opacity-disabled: 0.55;
 
