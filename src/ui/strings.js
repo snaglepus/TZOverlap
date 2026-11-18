@@ -16,6 +16,8 @@ export const strings = /** @satisfies {Strings} */ ({
     skipLink: 'Skip to content',
     settings: 'Settings',
     toolbar: 'Toolbar',
+    /** The title bar 12/24 toggle; pressed while 24-hour times show. */
+    hourToggle: '24-hour',
   },
   sheet: {
     close: 'Close',
@@ -27,6 +29,12 @@ export const strings = /** @satisfies {Strings} */ ({
       system: 'System default',
       light: 'Light',
       dark: 'Dark',
+    },
+    timeFormat: 'Time format',
+    hourCycles: {
+      auto: 'Automatic',
+      h12: '12-hour',
+      h23: '24-hour',
     },
     resetHelp: 'Remove your time zones and settings from this device.',
     reset: 'Reset all data',
@@ -102,10 +110,17 @@ export const strings = /** @satisfies {Strings} */ ({
     remove: (city) => `Remove ${city}`,
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
-    /** @param {string} hour "09" @param {string} rating @param {boolean} [repeat] */
-    cell: (hour, rating, repeat = false) => `${hour}:00${repeat ? ' (repeated)' : ''}, ${rating}`,
-    /** @param {string} from "14:30" @param {string} to @param {string} rating */
+    /** @param {string} time "9:00 am" or "09:00" @param {string} rating @param {boolean} [repeat] */
+    cell: (time, rating, repeat = false) => `${time}${repeat ? ' (repeated)' : ''}, ${rating}`,
+    /** @param {string} from "2:30 pm" or "14:30" @param {string} to @param {string} rating */
     segment: (from, to, rating) => `${from} to ${to} your time, ${rating} for everyone`,
+  },
+  /** am/pm words for 12-hour times: full ("9:30 am") and compact ("9a"). */
+  time: {
+    am: 'am',
+    pm: 'pm',
+    amShort: 'a',
+    pmShort: 'p',
   },
   /** Rating names: legend, cell and segment labels. */
   ratings: {

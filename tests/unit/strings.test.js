@@ -92,8 +92,13 @@ describe('strings', () => {
     assert.equal(strings.timelines.noDst, 'No DST');
     assert.equal(strings.timelines.repeatTitle, 'Clocks go back — this hour repeats');
     assert.match(strings.timelines.gridLabel, /Hours in each time zone/);
-    assert.equal(strings.timelines.cell('09', 'Best'), '09:00, Best');
-    assert.equal(strings.timelines.cell('01', 'Unsuitable', true), '01:00 (repeated), Unsuitable');
+    assert.equal(strings.timelines.cell('09:00', 'Best'), '09:00, Best');
+    assert.equal(strings.timelines.cell('9:00 am', 'Best'), '9:00 am, Best');
+    assert.equal(
+      strings.timelines.cell('01:00', 'Unsuitable', true),
+      '01:00 (repeated), Unsuitable',
+    );
+    assert.deepEqual(strings.time, { am: 'am', pm: 'pm', amShort: 'a', pmShort: 'p' });
     assert.equal(
       strings.timelines.segment('14:30', '17:00', 'Best'),
       '14:30 to 17:00 your time, Best for everyone',
