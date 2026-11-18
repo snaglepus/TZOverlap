@@ -95,6 +95,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     timezones.js        Intl-based tz primitives (validation, offsets, formatting)
     zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
     hours.js            hour → score (0–4) → band; combining scores across zones
+    time-engine.js      offset transitions, zone gaps, per-zone hour cells, DST status
     timeline.js         aligned timelines, local-day start, overlap row
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
