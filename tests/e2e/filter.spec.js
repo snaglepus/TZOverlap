@@ -299,24 +299,38 @@ test.describe('no-overlap message (FR-29b, PRD T10)', () => {
     });
   });
 
-  test('seven zones over 16 hours: none in the next 14 days, All clears it', async ({ page }) => {
-    await seedZones(page, zones(SPREAD));
-    await page.goto('/');
-    await choose(page, 'Best');
-    await expect(message(page)).toContainText('No time works for everyone today');
-    const date = await dateInput(page).inputValue();
-    await message(page).getByRole('button', { name: 'Show next day that works' }).click();
-    await expect(message(page)).toContainText(
-      'No time works for everyone in the next 14 days either.',
-    );
-    await expect(message(page).getByRole('button')).toHaveCount(0);
-    // Both lines share the message style (weight and wrapping).
-    await expect(message(page).locator('.no-overlap__message')).toHaveCount(2);
-    await expect(dateInput(page)).toHaveValue(date);
-    await expect(grid(page)).toBeFocused();
-    await choose(page, 'All');
-    await expect(message(page)).toBeEmpty();
-  });
+  for (const viewport of [
+    { width: 1280, height: 800 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`${viewport.width}px: seven zones over 16 hours: none in the next 14 days, All clears it`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await seedZones(page, zones(SPREAD));
+      await page.goto('/');
+      await choose(page, 'Best');
+      await expect(message(page)).toContainText('No time works for everyone today');
+      const date = await dateInput(page).inputValue();
+      await message(page).getByRole('button', { name: 'Show next day that works' }).click();
+      await expect(message(page)).toContainText(
+        'No time works for everyone in the next 14 days either.',
+      );
+      await expect(message(page).getByRole('button')).toHaveCount(0);
+      // Both lines share the message style (weight and wrapping).
+      await expect(message(page).locator('.no-overlap__message')).toHaveCount(2);
+      // One block: the second line starts under the first, at the same left edge.
+      const [first, second] = await message(page)
+        .locator('.no-overlap__message')
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+      expect(second.left).toBe(first.left);
+      expect(second.top).toBeGreaterThanOrEqual(first.bottom);
+      await expect(dateInput(page)).toHaveValue(date);
+      await expect(grid(page)).toBeFocused();
+      await choose(page, 'All');
+      await expect(message(page)).toBeEmpty();
+    });
+  }
 
   for (const scheme of /** @type {const} */ (['light', 'dark'])) {
     test(`axe passes with Best and the message in ${scheme} theme`, async ({ page }) => {

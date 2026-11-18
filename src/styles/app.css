@@ -506,6 +506,13 @@
   overflow-wrap: anywhere;
 }
 
+/* The none-found line replaces the button: under the first line, one block.
+   No measure cap, which would let the full-width basis fit beside the first line. */
+.no-overlap__message + .no-overlap__message {
+  flex-basis: 100%;
+  max-width: none;
+}
+
 /* ---------- Heat: Best, Good (three steps, hatched), Unsuitable ---------- */
 .heat[data-rating='best'] {
   background-color: var(--color-best);
