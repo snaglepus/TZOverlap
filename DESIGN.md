@@ -215,10 +215,12 @@ padding above and below, and the top border) · `--min-viewport-height` 100dvh �
 `--banner-inset-start` / `--banner-inset-end` `max(8px, 32px - var(--space-4))`
 / `max(8px, 24px - var(--space-3))` (the banner's inline padding below
 `--bp-md`: 16px / 12px at default text, 8px at 200%, so a 320px phone keeps
-room for a two-line message) · `--toolbar-inset` `max(8px, 32px - var(--space-4))`
-and `--segment-inset` `max(4px, 20px - var(--space-2))` (the phone toolbar's
-inline padding and its filter segments': 16px and 12px at default text, 8px and
-4px at 200%, so the filter's labels fit a 320px phone at large text) ·
+room for a two-line message) · `--phone-gutter`
+`max(8px, 32px - var(--space-4))` and `--segment-inset`
+`max(4px, 20px - var(--space-2))` (below `--bp-md`: the page gutters of the
+title bar, main and footer and the bottom toolbar's inline padding, and the
+toolbar filter segments' inline padding: 16px and 12px at default text, 8px and
+4px at 200%, so large text on a phone keeps room for its words) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
@@ -566,11 +568,11 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                                                                |
-| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base      | 0         | Single column, `--space-4` gutters, compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                                                                |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                 |
+| Name      | Min width | Changes                                                                                                                                                                                                                                                              |
+| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                                                                                              |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                               |
 
 Short viewports keep the phone row header. The wide row header (its inline
 details, the 64px rows, the wider header padding) needs height as well as
