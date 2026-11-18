@@ -542,6 +542,86 @@
   accent-color: var(--color-accent);
 }
 
+/* ---------- Segmented control: native radios as one bordered strip ---------- */
+/* Each segment carries its own border, overlapping its neighbour's by one, so
+   a segment is a full --control-height tall. Below --bp-md the toolbar's
+   filter takes a whole row and the segments share it; from --bp-md it is a
+   line of its own at the end of the title bar toolbar. */
+.segmented {
+  display: flex;
+  justify-content: flex-end;
+  min-width: var(--space-0);
+  margin: var(--space-0);
+  padding: var(--space-0);
+  border: none;
+}
+
+.toolbar > .segmented {
+  flex-basis: 100%;
+}
+
+.segmented__options {
+  display: flex;
+  flex: 1;
+  min-width: var(--space-0);
+}
+
+.segmented__option {
+  position: relative;
+  display: flex;
+  flex: 1 1 var(--space-0);
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding-inline: var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.segmented__option + .segmented__option {
+  margin-inline-start: calc(var(--border-width) * -1);
+}
+
+.segmented__option:first-child {
+  border-start-start-radius: var(--radius-md);
+  border-end-start-radius: var(--radius-md);
+}
+
+.segmented__option:last-child {
+  border-start-end-radius: var(--radius-md);
+  border-end-end-radius: var(--radius-md);
+}
+
+.segmented__option:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* Checked: sunken fill, a doubled strong border and bold text, so not by colour alone. */
+.segmented__option:has(.segmented__input:checked) {
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-border-strong);
+  font-weight: var(--font-weight-bold);
+}
+
+.segmented__option:has(.segmented__input:focus-visible) {
+  z-index: 1;
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (min-width: 40rem) {
+  .segmented__options {
+    flex: none;
+  }
+}
+
 /* ---------- Switch: a native checkbox with role="switch" ---------- */
 .switch {
   display: flex;

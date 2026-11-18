@@ -271,7 +271,9 @@ test('toast: the reset-done toast fits two lines on phones, then goes', async ({
   await page.goto('/');
   const dialog = await openSettings(page);
   await dialog.getByRole('button', { name: 'Reset all data' }).click();
-  // Keyboard, so the pointer is not left resting on the toast (that pauses it).
+  // Keyboard, and the pointer moved off the toolbar, so it is not left resting
+  // on the toast after the resize (that pauses it).
+  await page.mouse.move(0, 0);
   await dialog.getByRole('button', { name: 'Reset everything' }).press('Enter');
   await expectToastFits(page, RESET_DONE);
   await page.setViewportSize({ width: 390, height: 844 });

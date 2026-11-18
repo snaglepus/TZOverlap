@@ -124,6 +124,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         anchor and extension helpers, positioned hour cells, Everyone segments
     time-format.js      formatTime() compact/full in 12- or 24-hour; resolves `auto` from the locale
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
+    filter.js           All / Good / Best filter: qualifies(), greyedSpans() (masks by instant),
+                        dayQualifies() and nextQualifyingDay() (the no-overlap message's search)
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
                         migration, debounced save via injected Storage, cross-tab sync
@@ -144,9 +146,10 @@ src/                    the app (served as-is in dev; bundled for prod)
     dom.js              h() element builder (textContent only, never innerHTML)
     components.js       shared components: button, icon, field, dateField, card, appShell,
                         emptyState, errorState, sheet, popover, createToaster (toast), createBanner,
-                        radioGroup, switchControl
+                        radioGroup, segmentedControl, switchControl
     theme.js            light/dark controller
-    app.js              the timelines page: grid, Add city button, first-run prompt, limit note;
+    app.js              the timelines page: grid, Add city button, first-run prompt, limit note,
+                        the All / Good / Best filter (toolbar, keys 1/2/3) and the no-overlap message;
                         the selection state, selection bar, announcements and Esc to clear;
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates

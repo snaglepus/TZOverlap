@@ -247,9 +247,13 @@
 /* Positions come from JS as unitless custom properties in home columns:
    --grid-hours and --now-left on .grid, --selection-left / --selection-width on
    the band, --cell-left / --cell-width on each cell.
-   The grid scrolls natively; JS adds wheel, mouse-drag and arrow-key input. */
+   The grid scrolls natively; JS adds wheel, mouse-drag and arrow-key input.
+   Layers, bottom to top: cell fills, filter masks, labels / dividers /
+   selection band / now line (z-index 1), sticky row headers (z-index 2).
+   Isolated, so none of these z-indexes reach the fixed toolbar. */
 .grid {
   position: relative;
+  isolation: isolate;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   /* A focused slot scrolls into view clear of the sticky header. */
@@ -276,7 +280,7 @@
 .grid__header {
   position: sticky;
   left: var(--space-0);
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex: none;
   align-items: center;
@@ -422,15 +426,41 @@
   outline-offset: calc(var(--focus-ring-width) * -1);
 }
 
-/* The fit check measures the label with --space-1 on each side. */
+/* The fit check measures the label with --space-1 on each side. Above the
+   filter masks, so greyed hours stay readable. */
 .grid__label {
+  position: relative;
+  z-index: 1;
   padding-inline: var(--space-1);
 }
 
+/* The filter greys out what doesn't qualify: an opaque fill with a
+   cross-hatch (unlike Good's single hatch), the same instants in every row. */
+.grid__mask {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--cell-left) * var(--slot-width));
+  width: calc(var(--cell-width) * var(--slot-width));
+  background-color: var(--color-filtered);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      var(--color-filtered-pattern) 0 var(--hairline),
+      transparent var(--hairline) var(--hatch-size)
+    ),
+    repeating-linear-gradient(
+      135deg,
+      var(--color-filtered-pattern) 0 var(--hairline),
+      transparent var(--hairline) var(--hatch-size)
+    );
+}
+
 /* Midnight: a full-height line with the day label chip at its top-right.
-   No z-index, so the sticky row header (z-index 1) stays on top. */
+   Above the masks, under the sticky row header. */
 .grid__divider {
   position: absolute;
+  z-index: 1;
   top: var(--space-0);
   bottom: var(--space-0);
   left: calc(var(--cell-left) * var(--slot-width));
@@ -450,6 +480,8 @@
 }
 
 .grid__repeat {
+  position: relative;
+  z-index: 1;
   font-size: var(--font-size-xs);
 }
 
@@ -469,9 +501,11 @@
 }
 
 /* The selected slot: an outline across every row, no fill, so cell text keeps
-   its contrast. Above the cells, below the now line and the sticky headers. */
+   its contrast. Above the cells and masks, below the now line (later in the
+   tree) and the sticky headers. */
 .grid__selection {
   position: absolute;
+  z-index: 1;
   top: var(--space-0);
   bottom: var(--space-0);
   left: calc(var(--grid-header-width) + var(--selection-left) * var(--slot-width));
@@ -480,15 +514,47 @@
   pointer-events: none;
 }
 
-/* Above the cells (later in the tree), below the sticky headers (z-index 1). */
+/* Above the cells, masks and labels (later in the tree), below the sticky headers. */
 .grid__now {
   position: absolute;
+  z-index: 1;
   top: var(--space-0);
   bottom: var(--space-0);
   left: calc(var(--grid-header-width) + var(--now-left) * var(--slot-width));
   width: var(--now-line-width);
   background: var(--color-accent);
   pointer-events: none;
+}
+
+/* ---------- No-overlap message: above the grid while the filter leaves the date empty ---------- */
+.no-overlap:empty {
+  display: none;
+}
+
+.no-overlap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.no-overlap__message {
+  flex: 1 1 auto;
+  min-width: var(--space-0);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* The none-found line replaces the button: under the first line, one block.
+   No measure cap, which would let the full-width basis fit beside the first line. */
+.no-overlap__message + .no-overlap__message {
+  flex-basis: 100%;
+  max-width: none;
 }
 
 /* ---------- Selection bar ---------- */

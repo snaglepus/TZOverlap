@@ -120,6 +120,16 @@ describe('strings', () => {
       strings.timelines.segment('14:30', '17:00', 'Best'),
       '14:30 to 17:00 your time, Best for everyone',
     );
+    assert.equal(
+      strings.timelines.segment('06:00', '14:00', 'Good', true),
+      '06:00 to 14:00 your time, Good for everyone, greyed out by the filter',
+    );
+    assert.equal(strings.filter.changed('Best'), 'Filter: Best');
+    assert.equal(strings.filter.noOverlap, 'No time works for everyone today');
+    assert.equal(
+      strings.filter.noneFound(14),
+      'No time works for everyone in the next 14 days either.',
+    );
     assert.deepEqual(strings.ratings, { best: 'Best', good: 'Good', unsuitable: 'Unsuitable' });
     assert.equal(strings.fatal.noTimeZones.title, 'Time zones aren’t available');
   });

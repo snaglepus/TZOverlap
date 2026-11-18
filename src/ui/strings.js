@@ -153,8 +153,27 @@ export const strings = /** @satisfies {Strings} */ ({
      */
     cell: (time, rating, repeat = false, weekend = false, day = '') =>
       `${time}${repeat ? ' (repeated)' : ''}${day ? `, ${day}` : ''}, ${rating}${weekend ? ', weekend' : ''}`,
-    /** @param {string} from "2:30 pm" or "14:30" @param {string} to @param {string} rating */
-    segment: (from, to, rating) => `${from} to ${to} your time, ${rating} for everyone`,
+    /**
+     * @param {string} from "2:30 pm" or "14:30" @param {string} to @param {string} rating
+     * @param {boolean} [greyed] covered by the filter's mask
+     */
+    segment: (from, to, rating, greyed = false) =>
+      `${from} to ${to} your time, ${rating} for everyone${greyed ? ', greyed out by the filter' : ''}`,
+  },
+  /** The All / Good / Best filter and the no-overlap message. */
+  filter: {
+    label: 'Filter',
+    options: {
+      all: 'All',
+      good: 'Good',
+      best: 'Best',
+    },
+    /** @param {string} option */
+    changed: (option) => `Filter: ${option}`,
+    noOverlap: 'No time works for everyone today',
+    nextDay: 'Show next day that works',
+    /** @param {number} days */
+    noneFound: (days) => `No time works for everyone in the next ${days} days either.`,
   },
   /** The selected slot: row headers, the selection bar and the focused-slot name. */
   selection: {

@@ -533,6 +533,55 @@ export function radioGroup({ legend, name, options, value, onChange }) {
 }
 
 /**
+ * Segmented control: a <fieldset> of native radios drawn as one bordered strip
+ * of side-by-side segments. The legend and the radios are visually hidden; each
+ * radio sits in its segment's <label>. `keyshortcuts` sets aria-keyshortcuts.
+ * @template {string} T
+ * @param {{
+ *   legend: string,
+ *   name: string,
+ *   options: readonly { value: T, label: string, keyshortcuts?: string }[],
+ *   value: T,
+ *   onChange: (value: T) => void,
+ * }} options
+ */
+export function segmentedControl({ legend, name, options, value, onChange }) {
+  const inputs = options.map((option) =>
+    h('input', {
+      class: 'segmented__input visually-hidden',
+      attrs: {
+        type: 'radio',
+        name,
+        value: option.value,
+        checked: option.value === value,
+        'aria-keyshortcuts': option.keyshortcuts,
+      },
+    }),
+  );
+  const root = h('fieldset', { class: 'segmented' }, [
+    h('legend', { class: 'visually-hidden', text: legend }),
+    h(
+      'div',
+      { class: 'segmented__options' },
+      options.map((option, i) =>
+        h('label', { class: 'segmented__option' }, [inputs[i], option.label]),
+      ),
+    ),
+  ]);
+  root.addEventListener('change', (event) => {
+    const input = /** @type {HTMLInputElement} */ (event.target);
+    onChange(/** @type {T} */ (input.value));
+  });
+  return {
+    root,
+    /** Check the matching radio without firing onChange. @param {T} next */
+    setValue(next) {
+      for (const input of inputs) input.checked = input.value === next;
+    },
+  };
+}
+
+/**
  * Switch: a native checkbox with role="switch", on or off.
  * @param {{ label: string, checked: boolean, onChange: (checked: boolean) => void }} options
  */
