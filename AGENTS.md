@@ -99,6 +99,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     components.js       shared components: button, field, card, appShell, emptyState, errorState
     theme.js            light/dark controller
     app.js              the timelines page
+    strings.js          all user-visible text (en-AU), short/long variants
   styles/
     tokens.css          ALL design tokens (the only place for raw values)
     base.css, components.css, app.css, main.css
@@ -138,6 +139,7 @@ don't add new ones without updating DESIGN.md.**
 - Make tests deterministic. E2E fixes the clock (`page.clock.setFixedTime`),
   the time zone and the locale. Don't depend on the machine's time zone.
 - Never use `innerHTML` with user input. Build DOM with `h()`.
+- User-visible text goes in `src/ui/strings.js`, never inline.
 - Keep a PR to one feature. Run `npm run check` before pushing.
 
 ## Software factory
