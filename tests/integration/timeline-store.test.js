@@ -12,6 +12,7 @@ import {
   defaultState,
 } from '../../src/lib/store.js';
 import { buildGrid } from '../../src/lib/grid.js';
+import { createHomeTracker } from '../../src/lib/home.js';
 
 /** Storage double with the same contract as window.localStorage. */
 class MemoryStorage {
@@ -154,5 +155,53 @@ describe('store -> grid', () => {
     assert.equal(store.getState().settings.weekendsUnavailable, true);
     assert.equal(rating(true), 'unsuitable');
     assert.equal(rating(false), 'best');
+  });
+});
+
+describe('travel: home tracker + store + grid', () => {
+  it('commits lastHomeTz once per change and rebuilds the grid for the new home', () => {
+    const storage = new MemoryStorage();
+    const seed = createStore({ storage });
+    seed.add({ kind: 'iana', tz: 'Europe/London' });
+    seed.add({ kind: 'iana', tz: 'Asia/Tokyo' });
+    seed.updateMeta({ lastHomeTz: 'Australia/Sydney' });
+    seed.flush();
+
+    const store = createStore({ storage });
+    const zonesBefore = structuredClone(store.getState().zones);
+    let device = 'Australia/Sydney';
+    const tracker = createHomeTracker({ store, deviceZone: () => device });
+    /** @type {(string | null)[]} */
+    const commits = [];
+    store.subscribe((state) => commits.push(state.meta.lastHomeTz));
+    const now = new Date('2026-06-15T13:30:00Z');
+    /** @param {string} tz */
+    const grid = (tz) =>
+      buildGrid({
+        homeZone: { kind: 'iana', tz },
+        zones: store.getState().zones,
+        now,
+        weekendsUnavailable: true,
+      });
+
+    tracker.check();
+    const sydney = grid(tracker.current());
+    device = 'America/Los_Angeles';
+    assert.equal(tracker.check().travelled, true);
+    tracker.check();
+    tracker.check();
+    store.flush();
+
+    assert.deepEqual(commits, ['America/Los_Angeles']);
+    const persisted = JSON.parse(storage.getItem(STATE_KEY) ?? '');
+    assert.equal(persisted.meta.lastHomeTz, 'America/Los_Angeles');
+
+    const la = grid(tracker.current());
+    const first = la.rows[0]?.zone;
+    assert.equal(first?.kind === 'iana' && first.tz, 'America/Los_Angeles');
+    assert.notDeepEqual(la.everyone, sydney.everyone);
+
+    assert.deepEqual(store.getState().zones, zonesBefore);
+    assert.deepEqual(persisted.zones, zonesBefore);
   });
 });
