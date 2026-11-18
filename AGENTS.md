@@ -94,13 +94,15 @@ never rewrites files.
 | Integration tests        | `npm run test:integration` | `node --test tests/integration`: real module wiring, Storage double, local HTTP server          |
 | Production build         | `npm run build`            | esbuild bundle and minify into `dist/`                                                          |
 | End-to-end tests         | `npm run test:e2e`         | Playwright, headless Chromium, dev server on `E2E_PORT` (default 4173), axe-core WCAG AA        |
-| Performance              | `npm run test:perf`        | gzip size budget plus LCP/CLS budget on a production build served on `PERF_PORT` (default 4174) |
+| Performance              | `npm run test:perf`        | gzip size, LCP/CLS and clock-tick scripting budgets on a production build on `PERF_PORT` (4174) |
 | **Everything, in order** | **`npm run check`**        | lint → format → typecheck → unit → integration → build → e2e → perf                             |
 
 To fix formatting, run `npm run format`. This is the only script that writes
 files. `npm test` runs just the four test layers.
 
 Budgets live in `perf-budget.json`. If a PR has to raise one, say why in the PR.
+`clockTick.scriptMs` (4) caps the median scripting time of one minute tick with
+8 rows (PRD 10.1), measured by `tests/perf/tick.spec.js`.
 The lazily loaded city data (`dist/data/cities.js`) has its own `cityData`
 budget and is not counted in the `js` or `total` shell budgets.
 
@@ -194,10 +196,12 @@ scripts/
 tests/
   unit/                 node:test, pure modules + contrast + token linter
   integration/          node:test, store↔storage↔timeline, config↔server over HTTP
-  e2e/                  Playwright specs (*.spec.js); production-build.js serves a build per test
-  perf/                 budget.test.js (size) + vitals.spec.js (LCP/CLS)
+  e2e/                  Playwright specs (*.spec.js); production-build.js serves a build per test;
+                        responsive.spec.js: the viewport, text size, theme and preference matrix;
+                        persistence.spec.js: the AC-4 reload journey
+  perf/                 budget.test.js (size) + vitals.spec.js (LCP/CLS) + tick.spec.js (clock tick)
 DESIGN.md               design system: the source of truth for UI
-perf-budget.json        performance budgets (city data has its own cityData budget)
+perf-budget.json        performance budgets (city data has its own cityData budget; clockTick for the minute tick)
 playwright.config.js    e2e config;  playwright.perf.config.js: perf config
 .github/workflows/ci.yml  runs npm run check on every push and PR
 ```
