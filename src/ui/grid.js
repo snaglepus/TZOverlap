@@ -49,6 +49,23 @@ import { strings } from './strings.js';
 const HOUR_MS = 3600000;
 
 /**
+ * Put `nodes` at the end of `parent` (before `before` when it is there) while
+ * `show`, else take them out; nodes already in place are left alone.
+ * @param {HTMLElement} parent
+ * @param {HTMLElement[]} nodes
+ * @param {boolean} show
+ * @param {HTMLElement | null} before
+ */
+function place(parent, nodes, show, before) {
+  for (const node of nodes) {
+    if (!show) node.remove();
+    else if (node.parentNode !== parent) {
+      parent.insertBefore(node, before?.parentNode === parent ? before : null);
+    }
+  }
+}
+
+/**
  * The full time ("2:30 pm" or "14:30") in `zone` at `date`.
  * @param {Zone} zone
  * @param {Date} date
@@ -380,6 +397,11 @@ export function timelineGrid({
       icon('alert'),
     ]);
     const warningLong = h('span', { class: 'visually-hidden' });
+    const clockLine = h('span', { class: 'grid__line grid__clock' }, [
+      buttonTime,
+      badge,
+      badgeLong,
+    ]);
     const trigger = h(
       'button',
       {
@@ -391,13 +413,7 @@ export function timelineGrid({
           isHome ? homeSymbol() : null,
           h('span', { class: 'grid__name' }, nameText()),
         ]),
-        h(
-          'span',
-          { class: 'grid__line grid__clock' },
-          dst
-            ? [buttonTime, badge, badgeLong, dstChip, dstLong, warningChip, warningLong]
-            : [buttonTime, badge, badgeLong],
-        ),
+        clockLine,
       ],
     );
 
@@ -416,20 +432,19 @@ export function timelineGrid({
       },
       [icon('alert'), warningText],
     );
+    const meta = h('span', { class: 'grid__meta' }, [
+      time,
+      day,
+      date,
+      offset,
+      zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
+    ]);
     const inline = h('div', { class: 'grid__details' }, [
       h('span', { class: 'grid__line' }, [
         isHome ? homeSymbol() : null,
         h('span', { class: 'grid__name' }, nameText()),
       ]),
-      h('span', { class: 'grid__meta' }, [
-        time,
-        day,
-        date,
-        offset,
-        dst ? dstMeta : null,
-        dst ? warning : null,
-        zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
-      ]),
+      meta,
     ]);
 
     /** @param {Date} at @param {Date} offsetInstant */
@@ -512,12 +527,11 @@ export function timelineGrid({
         syncStatus(offsetInstant);
         const change = status?.change;
         const observing = Boolean(status?.observing);
-        dstChip.hidden = !observing;
-        dstLong.hidden = !observing;
-        dstMeta.hidden = !observing;
-        warningChip.hidden = !change;
-        warningLong.hidden = !change;
-        warning.hidden = !change;
+        // Badges are in the DOM only while shown, DST before the warning.
+        place(clockLine, [dstChip, dstLong], observing, warningChip);
+        place(meta, [dstMeta], observing, warning);
+        place(clockLine, [warningChip, warningLong], Boolean(change), null);
+        place(meta, [warning], Boolean(change), null);
         if (change) {
           const label = strings.dst.warning(shortDate(zone, change.at));
           warningLong.textContent = label;

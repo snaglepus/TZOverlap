@@ -256,7 +256,7 @@ test.describe('Row header badges', () => {
 });
 
 test.describe('Accessibility', () => {
-  for (const appearance of ['Light', 'Dark']) {
+  for (const appearance of /** @type {const} */ (['Light', 'Dark'])) {
     test(`has no violations with the banner and a warning badge (${appearance})`, async ({
       page,
     }) => {
