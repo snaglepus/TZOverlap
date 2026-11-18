@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  CLICK_SLOP_PX,
   columnsAt,
+  instantAt,
   isLineVisible,
   keyStep,
   nowScrollLeft,
@@ -24,6 +26,29 @@ describe('columnsAt', () => {
 
   it('is negative before the window', () => {
     assert.equal(columnsAt(start, new Date('2026-11-16T12:00:00Z')), -1);
+  });
+});
+
+describe('instantAt', () => {
+  const start = new Date('2026-11-16T13:00:00Z');
+
+  it('is the inverse of columnsAt', () => {
+    assert.equal(instantAt(start, 0).toISOString(), start.toISOString());
+    assert.equal(instantAt(start, 24).toISOString(), '2026-11-17T13:00:00.000Z');
+    assert.equal(instantAt(start, 1.5).toISOString(), '2026-11-16T14:30:00.000Z');
+    assert.equal(instantAt(start, -1).toISOString(), '2026-11-16T12:00:00.000Z');
+    const instant = new Date('2026-11-17T22:07:00Z');
+    assert.equal(instantAt(start, columnsAt(start, instant)).getTime(), instant.getTime());
+  });
+
+  it('gives fractions of an hour for a pointer part-way across a column', () => {
+    assert.equal(instantAt(start, 10.25).toISOString(), '2026-11-16T23:15:00.000Z');
+  });
+});
+
+describe('CLICK_SLOP_PX', () => {
+  it('is 4 px', () => {
+    assert.equal(CLICK_SLOP_PX, 4);
   });
 });
 

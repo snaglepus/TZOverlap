@@ -13,6 +13,8 @@ const callers = [
   'ui/settings.js',
   'ui/add-city.js',
   'ui/install.js',
+  'ui/selection-bar.js',
+  'lib/selection-details.js',
   'lib/dst.js',
 ];
 

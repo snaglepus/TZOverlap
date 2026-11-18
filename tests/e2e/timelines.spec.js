@@ -168,9 +168,14 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   // The filter: one stop, on the checked radio.
   await page.keyboard.press('Tab');
   await expect(page.getByRole('radio', { name: 'All', exact: true })).toBeFocused();
-  // The scrollable grid is itself focusable, then Add city below it.
+  // The scrollable grid is itself focusable, then the home row's one keyboard
+  // slot, then Add city below it.
   await page.keyboard.press('Tab');
   await expect(grid(page)).toBeFocused();
+  await page.keyboard.press('Tab');
+  const slot = row(page, 'Europe/London').locator('[role="gridcell"][tabindex="0"]');
+  await expect(slot).toHaveCount(1);
+  await expect(slot).toBeFocused();
   await page.keyboard.press('Tab');
   const add = page.getByRole('button', { name: 'Add city', exact: true });
   await expect(add).toBeFocused();

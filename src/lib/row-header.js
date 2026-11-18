@@ -33,6 +33,12 @@ const fullDateFormat = new Intl.DateTimeFormat('en-AU', {
   month: 'long',
   year: 'numeric',
 });
+const longDateFormat = new Intl.DateTimeFormat('en-AU', {
+  timeZone: 'UTC',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
 
 /**
  * Midnight UTC on the local calendar date of `zone` at `date`.
@@ -115,6 +121,24 @@ export function dayLabel(zone, date) {
  */
 export function fullDate(zone, date) {
   return joinParts(fullDateFormat, localDay(zone, date), ['weekday', 'day', 'month', 'year']);
+}
+
+/**
+ * "Wednesday 18 November": the zone's local date at `date`, without the year.
+ * @param {Zone} zone
+ * @param {Date} date
+ */
+export function longDate(zone, date) {
+  return joinParts(longDateFormat, localDay(zone, date), ['weekday', 'day', 'month']);
+}
+
+/**
+ * "Tuesday": the zone's local weekday at `date`.
+ * @param {Zone} zone
+ * @param {Date} date
+ */
+export function longWeekday(zone, date) {
+  return joinParts(longDateFormat, localDay(zone, date), ['weekday']);
 }
 
 /**

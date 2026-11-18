@@ -1,5 +1,6 @@
-// The main page: app shell, timelines card with the Add city button. Built only from the
-// shared components in ./components.js and the tokens in src/styles/.
+// The main page: app shell, timelines card with the Add city button and the
+// selection bar. Built only from the shared components in ./components.js and
+// the tokens in src/styles/.
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
 import { bannerMessage, changeSentence, changesBetween } from '../lib/dst.js';
@@ -22,6 +23,8 @@ import {
 import { createHomeTracker } from '../lib/home.js';
 import { rowName, shortDate } from '../lib/row-header.js';
 import { canMove, moveTarget } from '../lib/row-order.js';
+import { createSelectionState } from '../lib/selection.js';
+import { describeSelection, selectionSummary } from '../lib/selection-details.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
@@ -40,6 +43,7 @@ import {
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
 import { installController } from './install.js';
+import { selectionBar } from './selection-bar.js';
 import { settingsSheet } from './settings.js';
 import { strings } from './strings.js';
 
@@ -201,6 +205,42 @@ export function mountApp(
     attrs: { role: 'status', 'aria-live': 'polite' },
   });
   timelinesCard.body.before(noOverlap);
+
+  // --- Selection ---------------------------------------------------------------
+  // Kept in memory only; it survives rebuilds, date changes and lazy extension.
+  const selection = createSelectionState();
+  const bar = selectionBar({
+    onClear: () => {
+      selection.clear();
+      // The bar and its button are gone; keep focus in the timelines.
+      view?.root.focus({ preventScroll: true });
+    },
+  });
+  /** The zones of the rows shown, home first. */
+  let rowZones = /** @type {import('../lib/grid.js').GridZone[]} */ ([]);
+
+  /** Recompute the bar from the selection; returns its summary, or null when hidden. */
+  function syncBar() {
+    const selected = selection.get();
+    if (!selected || !view) {
+      bar.hide();
+      return null;
+    }
+    const details = describeSelection(selected, rowZones, {
+      weekendsUnavailable: store.getState().settings.weekendsUnavailable,
+    });
+    const summary = selectionSummary(details, view.homeName, shownCycle);
+    bar.show(summary);
+    return summary;
+  }
+
+  selection.subscribe(() => {
+    view?.setSelection(selection.get());
+    const summary = syncBar();
+    announcer.textContent = summary
+      ? strings.selection.announce(summary)
+      : strings.selection.cleared;
+  });
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
@@ -386,7 +426,9 @@ export function mountApp(
         weekendsUnavailable: settings.weekendsUnavailable,
       });
     const current = now();
+    const slot = view?.slot() ?? null;
     view?.destroy();
+    rowZones = [homeZone(), ...shown];
     view = timelineGrid({
       grid: build(),
       zones: shown,
@@ -413,7 +455,14 @@ export function mountApp(
         nowButton.disabled = visible;
       },
       onGoToNow: goToNow,
+      onSelect: (instant) => selection.select(instant, store.getState().settings.defaultDuration),
+      anchorStart: anchorStart(homeZone(), anchor),
+      duration: settings.defaultDuration,
+      weekendsUnavailable: settings.weekendsUnavailable,
+      slot,
     });
+    view.setSelection(selection.get());
+    syncBar();
     const body = [view.root, view.popover];
     addButton = null;
     if (zones.length >= MAX_EXTRA_ZONES) {
@@ -437,6 +486,7 @@ export function mountApp(
         body.push(h('div', { class: 'add-city-row' }, [addButton]));
       }
     }
+    body.push(bar.root);
     timelinesCard.body.replaceChildren(...body);
     if (scrollLeft !== null) {
       view.root.scrollLeft = scrollLeft;
@@ -478,6 +528,32 @@ export function mountApp(
     shownCycle = next;
     hourToggle.setAttribute('aria-pressed', String(next === 'h23'));
     view?.setHourCycle(next);
+    syncBar();
+  }
+
+  /** The meeting length the next selection and the focused slot's name use. */
+  let shownDuration = store.getState().settings.defaultDuration;
+
+  // render()'s key and syncHourCycle() ignore it, so watch it here.
+  function syncDuration() {
+    const next = store.getState().settings.defaultDuration;
+    if (next === shownDuration) return;
+    shownDuration = next;
+    view?.setDuration(next);
+  }
+
+  /**
+   * Esc clears the selection, unless a sheet or popover is open: then it closes
+   * that instead. Runs in the capture phase, before the popover's own handler.
+   * @param {KeyboardEvent} event
+   */
+  function onEscape(event) {
+    if (event.key !== 'Escape' || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.shiftKey || !selection.get()) return;
+    if (document.querySelector('dialog[open], :popover-open')) return;
+    const inBar = bar.root.contains(document.activeElement);
+    selection.clear();
+    if (inBar) view?.root.focus({ preventScroll: true });
   }
 
   /** Follow the stored filter: control, masks and message, without a rebuild. */
@@ -608,6 +684,7 @@ export function mountApp(
   // After mounting: the grid is measured to set its scroll position.
   store.subscribe(render);
   store.subscribe(syncHourCycle);
+  store.subscribe(syncDuration);
   store.subscribe(syncFilter);
   render();
   scheduleTick();
@@ -620,6 +697,7 @@ export function mountApp(
   }
   if (launch.travelled) setTimeout(showTravelled, 0);
   document.addEventListener('keydown', onHourCycleKey);
+  document.addEventListener('keydown', onEscape, true);
   document.addEventListener('keydown', onFilterKey);
   window.addEventListener('focus', checkHome);
   document.addEventListener('visibilitychange', () => {

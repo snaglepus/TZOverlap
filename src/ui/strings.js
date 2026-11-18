@@ -188,6 +188,53 @@ export const strings = /** @satisfies {Strings} */ ({
     /** @param {number} days */
     noneFound: (days) => `No time works for everyone in the next ${days} days either.`,
   },
+  /** The selected slot: row headers, the selection bar and the focused-slot name. */
+  selection: {
+    /** @param {string} time "03:30" or "3:30 am" */
+    header: (time) => `Selected ${time}`,
+    /** Visually hidden before the phone header's selected time. */
+    headerPrefix: 'Selected ',
+    barLabel: 'Selected time',
+    clearLabel: '×',
+    clear: 'Clear selection',
+    separator: ' · ',
+    cleared: 'Selection cleared',
+    /**
+     * "Wed 18 Nov, 09:00–10:00 Sydney"
+     * @param {string} date @param {string} from @param {string} to @param {string} home
+     */
+    when: (date, from, to, home) => `${date}, ${from}–${to} ${home}`,
+    /** The bar's rating wording. */
+    bar: {
+      best: 'Best for all',
+      good: 'Good for all',
+      unsuitable: 'Unsuitable for some',
+    },
+    /** @param {{ when: string, rating: string }} summary */
+    announce: (summary) => `Selected ${summary.when}, ${summary.rating}`,
+    /** The overall rating in a focused slot's name. */
+    overall: {
+      best: 'Best for everyone',
+      good: 'Good for everyone',
+      unsuitable: 'Unsuitable for someone',
+    },
+    /**
+     * "Wednesday 18 November, 9:00 am Sydney."
+     * @param {string} date @param {string} time @param {string} home
+     */
+    slotHome: (date, time, home) => `${date}, ${time} ${home}.`,
+    /**
+     * "London 10:00 pm Tuesday, Good." (the weekday only when the date differs from home's)
+     * @param {string} name @param {string} time @param {string} rating @param {string} [weekday]
+     */
+    slotZone: (name, time, rating, weekday = '') =>
+      `${name} ${time}${weekday ? ` ${weekday}` : ''}, ${rating}.`,
+    /**
+     * The roving slot's name: its visible label first (WCAG 2.5.3), then the description.
+     * @param {string} visible "9a" or "09" @param {string} description
+     */
+    slotName: (visible, description) => `${visible}, ${description}`,
+  },
   /** DST badges on row headers, the clock-change banner and its sheet. */
   dst: {
     badge: 'DST',
