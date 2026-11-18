@@ -10,5 +10,8 @@
   "webVitals": {
     "lcpMs": 1500,
     "cls": 0.05
+  },
+  "clockTick": {
+    "scriptMs": 4
   }
 }
