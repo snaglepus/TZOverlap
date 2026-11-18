@@ -34,6 +34,7 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/grid.js').Anchor} Anchor
  * @typedef {import('../lib/grid.js').Extent} Extent
  * @typedef {import('../lib/zones.js').Zone} Zone
+ * @typedef {import('./grid.js').GridView} GridView
  */
 
 const MINUTE_MS = 60000;
@@ -64,6 +65,18 @@ export function mountApp(
   const announcer = h('p', {
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
+  });
+  const nowButton = button({
+    label: strings.app.now,
+    ariaLabel: strings.app.nowLabel,
+    variant: 'ghost',
+    disabled: true,
+    onClick: () => {
+      const hadFocus = document.activeElement === nowButton;
+      goToNow();
+      // The button disables itself once the line is back; keep keyboard focus.
+      if (hadFocus) view?.root.focus({ preventScroll: true });
+    },
   });
   const settingsButton = button({
     label: strings.app.settings,
@@ -104,7 +117,7 @@ export function mountApp(
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [dateControl.root, todayButton, settingsButton],
+    actions: [dateControl.root, todayButton, nowButton, settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
   const settings = settingsSheet({ store, theme, toaster: shell.toaster });
@@ -145,7 +158,7 @@ export function mountApp(
   let renderedKey = '';
   /** The home zone of the last render. */
   let renderedHome = '';
-  /** @type {ReturnType<typeof timelineGrid> | null} */
+  /** @type {GridView | null} */
   let view = null;
 
   /** Label and Today button against today's date at `current`. @param {Date} current */
@@ -162,6 +175,12 @@ export function mountApp(
     dateControl.input.value = formatAnchor(anchor);
     showGrid(null);
     syncDate(now());
+  }
+
+  /** Now button and N: scroll to the now line, or back to today when it isn't in the window. */
+  function goToNow() {
+    if (view?.hasNow()) view.scrollToNow({ animate: true });
+    else resetTo(todayAnchor(homeZone(), now()));
   }
 
   /**
@@ -200,6 +219,10 @@ export function mountApp(
       onRemove: (zone) => remove(zone),
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
+      onNowVisible: (visible) => {
+        nowButton.disabled = visible;
+      },
+      onGoToNow: goToNow,
     });
     const body = [view.root, view.popover];
     if (zones.length === 0) {
@@ -216,8 +239,10 @@ export function mountApp(
       );
     }
     timelinesCard.body.replaceChildren(...body);
-    if (scrollLeft !== null) view.root.scrollLeft = scrollLeft;
-    else {
+    if (scrollLeft !== null) {
+      view.root.scrollLeft = scrollLeft;
+      view.refresh();
+    } else {
       const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
       view.scrollTo(isToday ? current : anchorStart(homeZone(), anchor));
     }
@@ -257,7 +282,7 @@ export function mountApp(
     shell.toaster.show({ message: strings.toasts.travelled(zoneCity(home.current())) });
   }
 
-  // Header clocks: tick on each minute boundary, re-aligned every time.
+  // Header clocks and the now line: tick on each minute boundary, re-aligned every time.
   function scheduleTick() {
     setTimeout(
       () => {
@@ -285,6 +310,7 @@ export function mountApp(
   store.subscribe(render);
   render();
   scheduleTick();
+  window.addEventListener('resize', () => view?.refresh());
   // A later task than the region's mount, so screen readers announce it.
   if (store.wasReset()) {
     setTimeout(() => shell.toaster.show({ message: strings.toasts.dataReset }), 0);

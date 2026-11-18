@@ -15,6 +15,8 @@ export const strings = /** @satisfies {Strings} */ ({
     footer: 'Runs entirely in your browser. Nothing you enter leaves this device.',
     skipLink: 'Skip to content',
     settings: 'Settings',
+    now: 'Now',
+    nowLabel: 'Go to now',
     toolbar: 'Toolbar',
   },
   /** The date control and the Today button in the toolbar. */
