@@ -90,8 +90,11 @@ function smoothBehavior() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
 }
 
-/** The --bp-md breakpoint (tokens.css), where the phone and wide header triggers swap. */
-const WIDE = '(min-width: 40rem)';
+/**
+ * Where the phone and wide header triggers swap (app.css): from --bp-md wide,
+ * and as tall, so a phone in landscape keeps the phone header.
+ */
+const WIDE = '(min-width: 40rem) and (min-height: 40rem)';
 
 /** @param {Zone} zone */
 function zoneKey(zone) {
