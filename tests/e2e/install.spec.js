@@ -181,11 +181,16 @@ test('Settings → Install lists the steps for every platform', async ({ page })
   ]);
   await expect(dialog).not.toContainText(/offline|without a connection/i);
 
-  // Between Appearance and Reset all data.
+  // After Appearance and the weekends switch, before Reset all data.
   const order = await dialog.evaluate((el) =>
     [...(el.querySelector('.settings')?.children ?? [])].map((c) => c.className),
   );
-  expect(order).toEqual(['radio-group', 'settings__section install', 'settings__section']);
+  expect(order).toEqual([
+    'radio-group',
+    'settings__section',
+    'settings__section install',
+    'settings__section',
+  ]);
 
   // The Install heading matches its sibling label, the Appearance legend.
   /** @param {import('@playwright/test').Locator} el */
