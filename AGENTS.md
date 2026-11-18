@@ -17,8 +17,15 @@ hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
 to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
-Planned next: select a slot to see the exact local time in every zone, share a
-proposal link, and export to a calendar.
+Clicking, tapping or pressing Enter on a slot selects it (snapped to 15
+minutes, `settings.defaultDuration` long): an outlined band crosses every row,
+each row header shows that zone's selected time, and a selection bar gives the
+date, home time range and rating, with × or Esc to clear. Selection state and
+its derived per-zone times and ratings are pure lib modules
+(`src/lib/selection.js`, `src/lib/selection-details.js`).
+
+Planned next: share a proposal link for the selected slot, and export it to a
+calendar.
 
 **Hard constraints**
 
@@ -126,7 +133,12 @@ src/                    the app (served as-is in dev; bundled for prod)
     row-header.js       row header text: names, day difference, dates, abbreviation and offset line
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
-    scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps
+    scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps,
+                        instantAt() and CLICK_SLOP_PX for click-to-select
+    selection.js        selection state: snapToSlot(), createSelection(), createSelectionState()
+    selection-details.js
+                        describeSelection(): per-zone local times and ratings of a selection;
+                        selectionSummary() (bar text) and slotLabel() (focused-slot name)
     install.js          installGuidance(): user agent + standalone flags → install guidance kind
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
@@ -135,14 +147,17 @@ src/                    the app (served as-is in dev; bundled for prod)
                         radioGroup, switchControl
     theme.js            light/dark controller
     app.js              the timelines page: grid, Add city button, first-run prompt, limit note;
+                        the selection state, selection bar, announcements and Esc to clear;
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
-                        lazy extension (IntersectionObserver)
+                        lazy extension (IntersectionObserver); click/tap selection, the selection
+                        band, header selected times, roving home-cell keyboard slots
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
                         Treat weekends as unavailable, Install and Reset all data
     install.js          install guidance: beforeinstallprompt capture, hint card, iOS sheet,
                         Settings → Install section
+    selection-bar.js    selectionBar(): the selected time range, rating in words and clear button
     strings.js          all user-visible text (en-AU), short/long variants
   styles/
     tokens.css          ALL design tokens (the only place for raw values)

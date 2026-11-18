@@ -173,6 +173,8 @@ padding above and below, and the top border) · `--min-viewport-height` 100dvh �
 `--weekend-band-width` 4px (top band on weekend hour cells) ·
 `--day-divider-width` 2px (midnight divider line) ·
 `--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
+`--selection-edge-width` 3px (the four sides of the selection band, in
+`--color-accent`) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
@@ -184,13 +186,15 @@ the alternate-label rule (§7).
 `--slot-height-wide` from it. Row headers are `--grid-header-width` wide:
 `--row-header-width-compact`, `--row-header-width` from `--bp-md` and
 `--row-header-width-wide` from `--bp-lg` (switched in `tokens.css`, so the
-headers and the now line read the same value). The grid sets four unitless
+headers and the now line read the same value). The grid sets unitless
 runtime properties through `style.setProperty()` (CSSOM, allowed by the CSP):
 `--grid-hours` on the grid (track width = hours × `--slot-width`), `--now-left`
 on the grid (hours from the window start to now; the now line sits at
-`--grid-header-width` + `--now-left` × `--slot-width`), and `--cell-left` /
-`--cell-width` on each cell and segment (in columns, multiplied by
-`--slot-width` in CSS). They are not tokens and are never declared in a
+`--grid-header-width` + `--now-left` × `--slot-width`), `--selection-left` and
+`--selection-width` on the selection band (hours from the window start to the
+selection start, and the duration in hours clipped at the window end; placed
+like the now line), and `--cell-left` / `--cell-width` on each cell and segment
+(in columns, multiplied by `--slot-width` in CSS). They are not tokens and are never declared in a
 stylesheet. The Popover sets `--popover-left` / `--popover-top` the same way,
 in px, multiplied by `--hairline` in CSS.
 
@@ -396,6 +400,22 @@ sentence on what the user can do, and an optional "Try again" secondary button.
 Use when a view or the whole app cannot render (e.g. the browser lacks time zone
 support). For a single bad input value, use the Input error message instead.
 
+### Selection bar — `selectionBar()` · `.selection-bar`
+
+`src/ui/selection-bar.js`. The last child of the Timelines card, after the Add
+city row, limit note or empty state; hidden while nothing is selected. A
+`role="group"` labelled "Selected time" on `--color-surface` with a
+`--color-border-strong` hairline and `--radius-md`: the date and home time
+range in `--font-mono` tabular numerals (`.selection-bar__when`, "Wed 18 Nov,
+09:00–10:00 Sydney", en dash), a " · " separator (`aria-hidden`), the rating
+in words (`.selection-bar__rating`: "Best for all", "Good for all" or
+"Unsuitable for some") and a ghost `sm` "×" button named "Clear selection".
+From `--bp-md` it is one line where it fits; below it, two lines (the time
+range, then the rating) with the separator hidden and the button beside both.
+Every text container has `min-width: 0` and `overflow-wrap: anywhere`, so it
+never scrolls the page sideways. `show(summary)` fills and shows it, `hide()`
+hides it.
+
 ### Add city — `addCitySheet()` (`src/ui/add-city.js`) · `.add-city*`
 
 Page pattern, not a shared component. The Timelines card ends with an "Add
@@ -477,6 +497,51 @@ scrolls the timeline) and the Remove buttons work as before. With focus in the
 grid, ←/→ scroll one column and Shift+←/→ six. The maths lives in
 `src/lib/scroll.js`.
 
+Selecting: a primary click, tap or pen tap on any track (a zone row or
+Everyone) selects that instant, snapped to the nearest 15 minutes, for
+`settings.defaultDuration` minutes (`src/lib/selection.js`; nothing is saved).
+A press on a header selects nothing, and so does a mouse press that moves more
+than `CLICK_SLOP_PX` (4px) before release (that is a drag-scroll) or a touch
+that scrolls the grid. Pressing a track keeps focus on the grid root and never
+scrolls it. A new selection replaces the old one and is announced politely
+("Selected Wed 18 Nov, 09:00–10:00 Sydney, Best for all"). The rating is the
+meeting's worst 15-minute slot over its whole duration
+(`src/lib/selection-details.js`).
+
+Band: one `aria-hidden` `.grid__selection` after the rows and before the now
+line, so the line paints above it: a `--selection-edge-width` outline in
+`--color-accent` on all four sides with no fill (cell text keeps its contrast),
+`pointer-events: none`, crossing every row and passing under the sticky
+headers. It carries `data-start` (ISO) and `data-duration` (minutes), shows
+only while its start is inside the window, and is clipped at the window end.
+The selection survives rebuilds, lazy extension, the date picker and Today.
+
+Header selected times: while a slot is selected, every zone header shows that
+zone's local time at the selection start, in the current 12/24-hour cycle.
+From `--bp-md` it is a "Selected 03:30" line under the meta (`--font-size-xs`,
+the time in `--font-mono` tabular numerals; it may wrap, never truncates), and
+the live time stays. Below `--bp-md` the header's second line shows the
+selected time in place of the live time, with a `--border-width` outline in
+`--color-accent` (shape, not colour alone) and the day badge hidden; a
+visually hidden "Selected " before it puts the word in the button's name, and
+the details popover lists both times. The minute tick doesn't change them.
+
+Keyboard slots: the home row's hour cells are a roving set. Exactly one has
+`tabindex="0"` (the last one focused; at first the cell holding now, else the
+first cell of the anchor date), so Tab goes grid → phone header button → slot
+→ the controls after it. On a slot, ←/→ move focus one home hour and
+Shift+←/→ six, scrolling only as needed to keep the cell clear of the sticky
+header (`scroll-padding-inline-start: var(--grid-header-width)`); near either
+end lazy extension adds days as usual and focus stays on the same cell. Enter
+or Space selects the slot's start and keeps focus. With focus on the grid root
+or a header control, arrows still scroll. A slot's focus ring is an inset
+`--focus-ring-width` outline in `--color-focus`, so the track can't clip it.
+
+Clearing: the bar's × button (focus then goes to the grid) or Esc anywhere,
+except that while a sheet or popover is open Esc closes that first and keeps
+the selection. Clearing hides the band, the header selected times and the bar,
+and announces "Selection cleared".
+
 Now line: an `aria-hidden` `--now-line-width` line in `--color-accent`, the last
 child of the grid, crossing every row. It is painted above the cells and below
 the sticky headers, so it passes under the header column. The minute tick moves
@@ -518,7 +583,15 @@ anywhere, including behind sheets.
   only while focus is inside the grid (WCAG 2.1.4: scoping them to the focused
   component needs no setting to turn them off), and are ignored with Alt, Ctrl
   or Meta held (N and T also with Shift), so Alt+← stays browser Back. When the
-  focused Now button disables itself, focus moves to the grid.
+  focused Now button disables itself, focus moves to the grid. The home row's
+  hour cells are roving keyboard slots (one tab stop): on a slot, ←/→ move
+  focus one hour and Shift+←/→ six, Enter or Space selects it, and N and T
+  still work. Esc clears the selection unless a sheet or popover is open, which
+  it closes instead. The focused slot's name starts with its visible label,
+  then the date, home time and name, the overall rating and each zone's time
+  and rating for a `defaultDuration` meeting there ("9a, Wednesday 18
+  November, 9:00 am Sydney. Best for everyone. London 10:00 pm Tuesday,
+  Good.").
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
   `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
   The timeline is a labelled `role="grid"` with `role="row"`, `role="rowheader"`
@@ -540,10 +613,15 @@ anywhere, including behind sheets.
 - **Automated check.** E2E tests run axe-core against the page in both themes
   and fail on any WCAG A/AA violation.
   One documented exception: axe's Label in Name rule
-  (`label-content-name-mismatch`, SC 2.5.3) is not applied to hour cells
-  (`.grid__cell[data-hour]`); it still runs on everything else. A 12-hour cell
+  (`label-content-name-mismatch`, SC 2.5.3) is not applied to the hour cells
+  that aren't the roving slot (`.grid__cell[data-hour]:not([tabindex="0"])`:
+  user-row cells, which have no tabindex, and home cells with `tabindex="-1"`);
+  it still runs on everything else, the roving slot included. A 12-hour cell
   shows the compact `9a` while its name is the full `9:00 am, Best`, which the
-  rule's word match can't connect. The cells can't be focused or activated
-  (dragging them only scrolls), and the name is a fuller form of the same time, so
-  no user loses the visible label. `tests/e2e/helpers.js` applies the
-  exclusion.
+  rule's word match can't connect. Home hour cells are now focusable and
+  activatable, but only as the roving slot, and the roving slot's name starts
+  with its visible label ("9a, Wednesday 18 November, …"); the other cells
+  can't be activated from the keyboard until they become the roving cell and
+  take its name, and a click on them selects by position like any track. The
+  name is a fuller form of the same time, so no user loses the visible label.
+  `tests/e2e/helpers.js` applies the exclusion.
