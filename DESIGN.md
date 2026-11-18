@@ -156,8 +156,9 @@ durations become `0ms` (handled in `tokens.css`).
 from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
 `--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
-toasts) · `--toolbar-height` 4.5rem (phone bottom toolbar, before the
-safe-area inset; fits the date field's stacked label) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+toasts) · `--toolbar-height` 105px (phone bottom toolbar before the safe-area
+inset: two `--control-height` rows, the `--space-2` row gap, `--space-1`
+padding above and below, and the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
@@ -247,10 +248,10 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
 optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
-text. Below `--bp-md` the label sits above the input in `--font-size-xs`, so it
-fits the bottom toolbar at 320px; from `--bp-md` it sits beside the input in
-`--font-size-sm`. Use for the toolbar's date control (labelled "Today" while
-the timelines show today, "Date" otherwise).
+text. The label sits beside the input in `--font-size-sm`. In the bottom
+toolbar (below `--bp-md`) the field takes the whole first row, so the buttons
+fit the second row at 320px. Use for the toolbar's date control (labelled
+"Today" while the timelines show today, "Date" otherwise).
 
 ### Card — `card()` · `.card`
 
@@ -268,8 +269,9 @@ page's one toast region (returned as `toaster`). The toolbar
 field, a ghost "Today" button that is hidden while the date shown is today, a
 ghost **Now** button, named "Go to now", then Settings), comes right after the
 brand in DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
-bottom of the viewport on a surface with a top hairline, padded by the bottom,
-left and right safe-area insets, and the shell pads its bottom to match; from
+bottom of the viewport on a surface with a top hairline, wraps its controls
+onto two rows (the Date field first, the buttons right-aligned below), is
+padded by the bottom, left and right safe-area insets, and the shell pads its bottom to match; from
 `--bp-md` it sits in the title bar at the end. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page

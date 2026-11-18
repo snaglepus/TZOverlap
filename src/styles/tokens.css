@@ -92,7 +92,8 @@
   --grid-header-width: var(--row-header-width-compact);
   --icon-size: 1.25rem;
   --sheet-max-width: 32rem;
-  --toolbar-height: 4.5rem;
+  /* Two control rows, the row gap, the block padding and the top border. */
+  --toolbar-height: calc(2 * var(--control-height) + 2 * var(--space-2) + var(--border-width));
   --min-viewport-height: 100dvh;
   --hatch-size: 6px;
   --best-edge-width: 3px;
