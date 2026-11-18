@@ -267,7 +267,9 @@
   min-height: var(--slot-height);
 }
 
-.grid__row--everyone {
+/* On the header and track, not the row: the opaque sticky header then covers
+   its part of the lines, so the band and now line never show through there. */
+.grid__row--everyone > * {
   border-block: var(--border-width) solid var(--color-border-strong);
 }
 
@@ -511,7 +513,6 @@
 }
 
 .selection-bar__when {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-medium);
 }

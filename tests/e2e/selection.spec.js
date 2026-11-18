@@ -153,6 +153,40 @@ test('a click snaps to the nearest 15 minutes and draws a band across every row'
   expect(geometry.order).toBe(true);
 });
 
+test('the band never shows through the sticky header column', async ({ page }) => {
+  await seed(page, SEEDED);
+  await page.goto('/');
+  await clickAt(page, '2026-11-17T23:00:00.000Z', 0.05);
+  await expect(band(page)).toBeVisible();
+  // Scroll the band under the headers.
+  await grid(page).evaluate((el) => {
+    const b = /** @type {Element} */ (el.querySelector('.grid__selection'));
+    el.scrollLeft += b.getBoundingClientRect().left - el.getBoundingClientRect().left;
+  });
+  const rows = await page.evaluate(() =>
+    [...document.querySelectorAll('[role="row"]')].map((r) => {
+      const row = r.getBoundingClientRect();
+      const header = /** @type {Element} */ (r.querySelector('[role="rowheader"]'));
+      const box = header.getBoundingClientRect();
+      const band = /** @type {Element} */ (
+        document.querySelector('.grid__selection')
+      ).getBoundingClientRect();
+      return {
+        zone: r.getAttribute('data-zone'),
+        under: band.left < box.right,
+        // The opaque header covers its row's full height, borders included,
+        // so no band pixels show at the row boundaries.
+        covers: box.top <= row.top + 0.5 && box.bottom >= row.bottom - 0.5,
+        opaque: getComputedStyle(header).backgroundColor !== 'rgba(0, 0, 0, 0)',
+      };
+    }),
+  );
+  expect(rows).toHaveLength(4);
+  for (const entry of rows) {
+    expect(entry, entry.zone ?? '').toMatchObject({ under: true, covers: true, opaque: true });
+  }
+});
+
 test('headers show each zone’s selected time and the bar the range and rating', async ({
   page,
 }) => {
