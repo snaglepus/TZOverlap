@@ -39,14 +39,15 @@
   list-style: none;
 }
 
-/* Fixed trailing columns, so times and offsets line up down the list. */
+/* Fixed trailing columns, so times and offsets line up down the list. Phones
+   put the name on its own line, with the Added pill, time and offset under it. */
 .add-city__result {
   display: grid;
-  grid-template-columns: minmax(var(--space-0), 1fr) auto var(--space-7) calc(
+  grid-template-columns: minmax(var(--space-0), 1fr) var(--space-7) calc(
       var(--space-8) + var(--space-3)
     );
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
   width: 100%;
   min-height: var(--control-height);
   padding: var(--space-2) var(--space-3);
@@ -64,7 +65,7 @@
 
 .add-city__name {
   display: flex;
-  grid-column: 1;
+  grid-column: 1 / -1;
   flex-direction: column;
   min-width: var(--space-0);
 }
@@ -79,7 +80,9 @@
 }
 
 .add-city__added {
-  grid-column: 2;
+  grid-row: 2;
+  grid-column: 1;
+  justify-self: start;
   padding-inline: var(--space-2);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-pill);
@@ -93,12 +96,45 @@
 }
 
 .add-city__time {
-  grid-column: 3;
+  grid-row: 2;
+  grid-column: 2;
 }
 
 .add-city__offset {
-  grid-column: 4;
+  grid-row: 2;
+  grid-column: 3;
   color: var(--color-text-muted);
+}
+
+@media (min-width: 40rem) {
+  .add-city__result {
+    grid-template-columns: minmax(var(--space-0), 1fr) auto var(--space-7) calc(
+        var(--space-8) + var(--space-3)
+      );
+    gap: var(--space-3);
+  }
+
+  .add-city__name {
+    grid-column: 1;
+  }
+
+  .add-city__added,
+  .add-city__time,
+  .add-city__offset {
+    grid-row: 1;
+  }
+
+  .add-city__added {
+    grid-column: 2;
+  }
+
+  .add-city__time {
+    grid-column: 3;
+  }
+
+  .add-city__offset {
+    grid-column: 4;
+  }
 }
 
 /* ---------- Title bar 12/24-hour toggle: desktop only ---------- */
@@ -385,6 +421,16 @@
 
 .grid__repeat {
   font-size: var(--font-size-xs);
+}
+
+/* Invisible markers at each end of the home track: lazy extension watches them. */
+.grid__edge {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--cell-left) * var(--slot-width));
+  width: calc(var(--cell-width) * var(--slot-width));
+  pointer-events: none;
 }
 
 /* Labels too wide for one column: show every second one, never smaller. */

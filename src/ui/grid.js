@@ -2,8 +2,10 @@
 // per zone plus the Everyone row. Cells are absolutely positioned in each
 // row's track from the grid model (src/lib/grid.js), in home columns. Adds
 // wheel, mouse-drag and arrow-key scrolling and the now line; touch and
-// trackpad scrolling stay native.
+// trackpad scrolling stay native. An IntersectionObserver extends the window
+// by a day when the visible track area comes within EXTEND_COLUMNS of either end.
 
+import { EXTEND_COLUMNS } from '../lib/grid.js';
 import {
   dayDifference,
   dayDifferenceLabel,
@@ -30,14 +32,14 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/grid.js').Grid} Grid
  * @typedef {import('../lib/grid.js').Segment} Segment
  * @typedef {import('../lib/grid.js').GridCell} GridCell
+ * @typedef {import('../lib/grid.js').GridRow} GridRow
  * @typedef {import('../lib/grid.js').Midnight} Midnight
  * @typedef {import('../lib/zones.js').Zone} Zone
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../data/cities.js').City} City
+ * @typedef {keyof import('../lib/grid.js').Extent} Side
  * @typedef {import('../lib/time-format.js').HourCycle} HourCycle
  */
-
-const HOUR = 3600000;
 
 /**
  * The full time ("2:30 pm" or "14:30") in `zone` at `date`.
@@ -156,6 +158,22 @@ function labelSegment(el, segment, homeZone, cycle) {
 }
 
 /**
+ * The Everyone row's segments, each also pushed onto `segments` for relabelling.
+ * @param {Grid} grid
+ * @param {HourCycle} cycle
+ * @param {[HTMLElement, Segment][]} segments
+ */
+function everyoneSegments(grid, cycle, segments) {
+  const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
+  return grid.everyone.map((segment) => {
+    const el = placed(segment, {});
+    labelSegment(el, segment, homeZone, cycle);
+    segments.push([el, segment]);
+    return el;
+  });
+}
+
+/**
  * A local midnight: a line with a day label chip. Hidden from assistive tech;
  * the day's first cell carries the label in its name instead.
  * @param {Midnight} midnight
@@ -175,15 +193,38 @@ function divider(midnight, label) {
 }
 
 /**
+ * A row's hour cells and its midnight dividers. The day label of each midnight
+ * goes on the divider and on the day's first cell. Each cell is also pushed
+ * onto `hourCells` for relabelling.
+ * @param {GridRow} gridRow
+ * @param {HourCycle} cycle
+ * @param {[HTMLElement, GridCell, string | undefined][]} hourCells
+ */
+function trackContent({ zone, cells, midnights }, cycle, hourCells) {
+  const labels = new Map(midnights.map(({ at }) => [at.getTime(), dayLabel(zone, at)]));
+  return [
+    ...cells.map((cell) => {
+      const day = labels.get(cell.start.getTime());
+      const el = hourCell(cell, cycle, day);
+      hourCells.push([el, cell, day]);
+      return el;
+    }),
+    ...midnights.map((midnight) =>
+      divider(midnight, /** @type {string} */ (labels.get(midnight.at.getTime()))),
+    ),
+  ];
+}
+
+/**
  * @param {import('./dom.js').Child[]} header
- * @param {HTMLElement[]} cells
+ * @param {HTMLElement} track
  * @param {string} key data-zone value
  * @param {string} [modifier]
  */
-function row(header, cells, key, modifier = '') {
+function row(header, track, key, modifier = '') {
   return h('div', { class: `grid__row${modifier}`, attrs: { role: 'row', 'data-zone': key } }, [
     h('div', { class: 'grid__header', attrs: { role: 'rowheader' } }, header),
-    h('div', { class: 'grid__track' }, cells),
+    track,
   ]);
 }
 
@@ -200,10 +241,11 @@ function homeSymbol() {
  * @typedef {{
  *   root: HTMLElement,
  *   popover: HTMLElement,
- *   tick: (now: Date) => void,
+ *   tick: (now: Date, offsetAt: Date) => void,
  *   scrollToNow: (options?: { animate?: boolean }) => void,
- *   leftInstant: () => Date | null,
- *   showInstant: (instant: Date) => void,
+ *   scrollTo: (instant: Date) => void,
+ *   hasNow: () => boolean,
+ *   watch: () => void,
  *   refresh: () => void,
  *   setHourCycle: (cycle: HourCycle) => void,
  *   destroy: () => void,
@@ -212,19 +254,26 @@ function homeSymbol() {
 
 /**
  * Render the grid. `zones` are the stored zones behind rows 1.. of `grid`.
- * `homeLabel` is the label of a hidden stored copy of the home zone, if any;
- * `cities` is the city data when it is already loaded; `hourCycle` is the
- * resolved 12/24-hour cycle. `onNowVisible` is told whenever the now line comes
- * into or goes out of view. Call `destroy()` before dropping the grid.
+ * Clocks and dates show `now`; offsets show `offsetAt`. `extend(side)` returns
+ * the grid with one more day on that side, or null at the cap. `homeLabel` is
+ * the label of a hidden stored copy of the home zone, if any; `cities` is the
+ * city data when it is already loaded; `hourCycle` is the resolved 12/24-hour
+ * cycle. `onNowVisible` is told whenever the now line comes into or goes out of
+ * view, and `onGoToNow` runs on N (by default scrollToNow). Once the grid is in
+ * the document, call scrollToNow(), scrollTo() or set scrollLeft, then watch()
+ * to start lazy extension. Call `destroy()` before dropping the grid.
  * @param {{
  *   grid: Grid,
  *   zones: readonly StoredZone[],
  *   now: Date,
+ *   offsetAt: Date,
+ *   extend: (side: Side) => Grid | null,
  *   hourCycle: HourCycle,
  *   onRemove: (zone: StoredZone) => void,
  *   homeLabel?: string,
  *   cities?: readonly City[],
  *   onNowVisible?: (visible: boolean) => void,
+ *   onGoToNow?: () => void,
  * }} options
  * @returns {GridView}
  */
@@ -232,30 +281,36 @@ export function timelineGrid({
   grid,
   zones,
   now,
+  offsetAt,
+  extend,
   hourCycle,
   onRemove,
   homeLabel,
   cities,
   onNowVisible = () => {},
+  onGoToNow,
 }) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   // One details popover for every phone header, filled from the one that opened it.
   const details = popover({ label: strings.timelines.details });
-  /** @type {((date: Date) => void)[]} */
+  /** @type {((date: Date, offsetAt: Date) => void)[]} */
   const updates = [];
   /** @type {[HTMLElement, GridCell, string | undefined][]} */
   const hourCells = [];
   /** @type {[HTMLElement, Segment][]} */
   const segments = [];
   let current = now;
+  let currentOffset = offsetAt;
+  let shown = grid;
+  /** @type {HTMLElement[]} */
+  const tracks = [];
   let cycle = hourCycle;
 
-  const zoneRows = grid.rows.map(({ zone, cells, midnights }, i) => {
+  const zoneRows = grid.rows.map((gridRow, i) => {
+    const { zone } = gridRow;
     const stored = i === 0 ? null : zones[i - 1];
     const isHome = !stored;
     const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
-    // Day label per midnight instant, shared by the divider and the day's first cell.
-    const labels = new Map(midnights.map(({ at }) => [at.getTime(), dayLabel(zone, at)]));
 
     // Shows `display`; screen readers get `full`.
     const nameText = () =>
@@ -305,8 +360,8 @@ export function timelineGrid({
       ]),
     ]);
 
-    /** @param {Date} at */
-    function fill(at) {
+    /** @param {Date} at @param {Date} offsetInstant */
+    function fill(at, offsetInstant) {
       const diff = dayDifferenceLabel(dayDifference(zone, homeZone, at));
       details.body.replaceChildren();
       append(details.body, [
@@ -314,7 +369,7 @@ export function timelineGrid({
         h('p', { class: 'grid__time', text: clock(zone, at, cycle) }),
         diff ? h('p', { text: diff.long }) : null,
         h('p', { text: fullDate(zone, at) }),
-        h('p', { text: offsetLine(zone, at) }),
+        h('p', { text: offsetLine(zone, offsetInstant) }),
         zone.kind === 'fixed' ? h('p', { text: strings.timelines.noDst }) : null,
       ]);
     }
@@ -324,12 +379,12 @@ export function timelineGrid({
         details.close();
         return;
       }
-      fill(current);
+      fill(current, currentOffset);
       details.open(trigger);
     });
 
-    /** @param {Date} at */
-    function update(at) {
+    /** @param {Date} at @param {Date} offsetInstant */
+    function update(at, offsetInstant) {
       const hhmm = clock(zone, at, cycle);
       const diff = dayDifferenceLabel(dayDifference(zone, homeZone, at));
       buttonTime.textContent = hhmm;
@@ -340,11 +395,14 @@ export function timelineGrid({
       day.textContent = diff?.long ?? '';
       day.hidden = !diff;
       date.textContent = shortDate(zone, at);
-      offset.textContent = offsetLine(zone, at);
-      if (details.isOpenFor(trigger)) fill(at);
+      offset.textContent = offsetLine(zone, offsetInstant);
+      if (details.isOpenFor(trigger)) fill(at, offsetInstant);
     }
-    update(now);
+    update(now, offsetAt);
     updates.push(update);
+
+    const track = h('div', { class: 'grid__track' }, trackContent(gridRow, cycle, hourCells));
+    tracks.push(track);
 
     return row(
       [
@@ -360,29 +418,15 @@ export function timelineGrid({
             })
           : null,
       ],
-      [
-        ...cells.map((cell) => {
-          const day = labels.get(cell.start.getTime());
-          const el = hourCell(cell, cycle, day);
-          hourCells.push([el, cell, day]);
-          return el;
-        }),
-        ...midnights.map((midnight) =>
-          divider(midnight, /** @type {string} */ (labels.get(midnight.at.getTime()))),
-        ),
-      ],
+      track,
       zoneKey(zone),
     );
   });
 
+  const everyoneTrack = h('div', { class: 'grid__track' }, everyoneSegments(grid, cycle, segments));
   const everyone = row(
     [h('span', { class: 'grid__name', text: strings.timelines.everyone })],
-    grid.everyone.map((segment) => {
-      const el = placed(segment, {});
-      labelSegment(el, segment, homeZone, cycle);
-      segments.push([el, segment]);
-      return el;
-    }),
+    everyoneTrack,
     'everyone',
     ' grid__row--everyone',
   );
@@ -398,13 +442,13 @@ export function timelineGrid({
     [homeRow, everyone, ...userRows, line],
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
-  const homeTrack = /** @type {HTMLElement} */ (homeRow?.querySelector('.grid__track'));
+  const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
 
   // Labels that don't fit one column (with --space-1 each side, the label's
   // padding) hide on odd hours; never shrunk. Viewport and root font-size
   // changes both resize the grid.
   function fitLabels() {
-    const column = homeTrack.getBoundingClientRect().width / grid.hours;
+    const column = homeTrack.getBoundingClientRect().width / shown.hours;
     let widest = 0;
     for (const [el] of hourCells) {
       let width = 0;
@@ -419,9 +463,13 @@ export function timelineGrid({
   fitLabels();
 
   /** @param {Date} date */
+  const inWindow = (date) => shown.start <= date && date < shown.end;
+  /** @param {Date} date */
   const placeLine = (date) => {
     current = date;
-    root.style.setProperty('--now-left', String(columnsAt(grid.start, date)));
+    root.style.setProperty('--now-left', String(columnsAt(shown.start, date)));
+    // Outside the window (another date shown) the line would widen the scroll area.
+    line.hidden = !inWindow(date);
   };
   placeLine(now);
 
@@ -432,10 +480,10 @@ export function timelineGrid({
     if (!header || !track) return null;
     const trackWidth = track.getBoundingClientRect().width;
     if (trackWidth === 0) return null;
-    const column = trackWidth / grid.hours;
+    const column = trackWidth / shown.hours;
     return {
       column,
-      linePx: columnsAt(grid.start, current) * column,
+      linePx: columnsAt(shown.start, current) * column,
       visibleWidth: root.clientWidth - header.getBoundingClientRect().width,
       maxScroll: root.scrollWidth - root.clientWidth,
     };
@@ -446,7 +494,7 @@ export function timelineGrid({
   function refresh() {
     const m = measure();
     if (!m) return;
-    const visible = isLineVisible({ ...m, scrollLeft: root.scrollLeft });
+    const visible = inWindow(current) && isLineVisible({ ...m, scrollLeft: root.scrollLeft });
     if (visible === lineVisible) return;
     lineVisible = visible;
     onNowVisible(visible);
@@ -526,7 +574,8 @@ export function timelineGrid({
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === 'n' || event.key === 'N') {
       if (event.shiftKey) return;
-      scrollToNow({ animate: true });
+      if (onGoToNow) onGoToNow();
+      else scrollToNow({ animate: true });
       event.preventDefault();
       return;
     }
@@ -537,35 +586,119 @@ export function timelineGrid({
     event.preventDefault();
   });
 
+  // Lazy extension: an edge marker EXTEND_COLUMNS wide at each end of the home
+  // track, observed against the grid minus the sticky header.
+  const homeHeader = /** @type {HTMLElement} */ (homeRow?.firstElementChild);
+  const edgeEl = () => h('div', { class: 'grid__edge', attrs: { 'aria-hidden': 'true' } });
+  /** @type {Record<Side, HTMLElement>} */
+  const edges = { before: edgeEl(), after: edgeEl() };
+  /** @type {Set<Side>} */
+  const capped = new Set();
+  /** @type {IntersectionObserver | null} */
+  let observer = null;
+
+  function placeEdges() {
+    edges.before.style.setProperty('--cell-left', '0');
+    edges.after.style.setProperty('--cell-left', String(shown.hours - EXTEND_COLUMNS));
+    for (const edge of Object.values(edges)) {
+      edge.style.setProperty('--cell-width', String(EXTEND_COLUMNS));
+    }
+    homeTrack.append(edges.before, edges.after);
+  }
+  placeEdges();
+
+  /** @param {Grid} next */
+  function setGrid(next) {
+    shown = next;
+    hourCells.length = 0;
+    segments.length = 0;
+    next.rows.forEach((gridRow, i) =>
+      tracks[i]?.replaceChildren(...trackContent(gridRow, cycle, hourCells)),
+    );
+    everyoneTrack.replaceChildren(...everyoneSegments(next, cycle, segments));
+    root.style.setProperty('--grid-hours', String(next.hours));
+    placeEdges();
+    placeLine(current);
+    fitLabels();
+  }
+
+  /** @param {IntersectionObserverEntry[]} entries */
+  function onIntersect(entries) {
+    let changed = false;
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const side = entry.target === edges.before ? 'before' : 'after';
+      const next = extend(side);
+      changed = true;
+      if (!next) {
+        capped.add(side);
+        continue;
+      }
+      const width = homeTrack.getBoundingClientRect().width;
+      setGrid(next);
+      // Keep what's on screen in place: earlier days push the content right.
+      if (side === 'before') root.scrollLeft += homeTrack.getBoundingClientRect().width - width;
+    }
+    // A fresh observer reports the current state, so a still-near edge extends again.
+    if (changed) {
+      refresh();
+      watch();
+    }
+  }
+
+  function watch() {
+    observer?.disconnect();
+    const header = homeHeader.getBoundingClientRect().width;
+    observer = new IntersectionObserver(onIntersect, {
+      root,
+      rootMargin: `0px 0px 0px ${-header}px`,
+    });
+    for (const side of /** @type {Side[]} */ (['before', 'after'])) {
+      if (!capped.has(side)) observer.observe(edges[side]);
+    }
+  }
+
   return {
     root,
     popover: details.root,
-    tick(date) {
-      for (const update of updates) update(date);
+    /** @param {Date} date clock time @param {Date} offsetInstant */
+    tick(date, offsetInstant) {
+      currentOffset = offsetInstant;
+      for (const update of updates) update(date, offsetInstant);
       placeLine(date);
       refresh();
     },
-    scrollToNow,
-    leftInstant() {
-      const m = measure();
-      if (!m) return null;
-      return new Date(grid.start.getTime() + (root.scrollLeft / m.column) * HOUR);
-    },
-    showInstant(instant) {
+    /**
+     * Scroll so `instant` sits a third of the way across the visible track area.
+     * @param {Date} instant
+     */
+    scrollTo(instant) {
       const m = measure();
       if (!m) return;
-      root.scrollLeft = columnsAt(grid.start, instant) * m.column;
+      root.scrollLeft = nowScrollLeft({ ...m, linePx: columnsAt(shown.start, instant) * m.column });
       refresh();
     },
+    /** Start (or restart) lazy extension. */
+    watch() {
+      window.addEventListener('resize', watch);
+      watch();
+    },
+    scrollToNow,
+    /** Whether the current instant is inside the window. */
+    hasNow: () => inWindow(current),
     refresh,
     setHourCycle(next) {
       cycle = next;
       for (const [el, cell, day] of hourCells) labelHourCell(el, cell, cycle, day);
       for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle);
-      for (const update of updates) update(current);
+      for (const update of updates) update(current, currentOffset);
       fitLabels();
     },
+    /** Stop lazy extension and label fitting. */
     destroy() {
+      window.removeEventListener('resize', watch);
+      observer?.disconnect();
+      observer = null;
       resize.disconnect();
     },
   };

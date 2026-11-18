@@ -21,6 +21,12 @@ export const strings = /** @satisfies {Strings} */ ({
     /** The title bar 12/24 toggle; pressed while 24-hour times show. */
     hourToggle: '24-hour',
   },
+  /** The date control and the Today button in the toolbar. */
+  date: {
+    today: 'Today',
+    other: 'Date',
+    todayButton: 'Today',
+  },
   sheet: {
     close: 'Close',
   },

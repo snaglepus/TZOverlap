@@ -153,7 +153,14 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(skip).toBeFocused();
   await expect(skip).toBeInViewport();
 
+  // The date control (one stop per date part), the 24-hour toggle, then Settings:
+  // Today is hidden.
   await page.keyboard.press('Tab');
+  const date = page.getByLabel('Today', { exact: true });
+  await expect(date).toBeFocused();
+  for (let i = 0; i < 5 && (await date.evaluate((el) => el === document.activeElement)); i++) {
+    await page.keyboard.press('Tab');
+  }
   await expect(page.getByRole('button', { name: '24-hour' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
@@ -239,8 +246,9 @@ test('storage: a theme change in either tab keeps the timeline scroll and focus'
 
   const region = grid(page);
   await region.focus();
+  // 200px on from the opening position: clear of both extension margins.
   await region.evaluate((el) => {
-    el.scrollLeft = 200;
+    el.scrollLeft += 200;
   });
   const scrollLeft = () => region.evaluate((el) => el.scrollLeft);
   const before = await scrollLeft();

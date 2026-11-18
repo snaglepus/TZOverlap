@@ -148,6 +148,30 @@ export function field({ label, name, placeholder, help, suggestions }) {
 }
 
 /**
+ * Labelled native date input (`<input type="date">`), value "YYYY-MM-DD".
+ * The label sits beside the input, so it fits the toolbar.
+ * @param {{ label: string, name: string, value: string, min?: string, max?: string }} options
+ */
+export function dateField({ label, name, value, min, max }) {
+  const id = uid(name);
+  const input = h('input', {
+    class: 'input date-field__input',
+    attrs: { id, name, type: 'date', min, max },
+  });
+  input.value = value;
+  const labelEl = h('label', { class: 'date-field__label', text: label, attrs: { for: id } });
+  const root = h('div', { class: 'date-field' }, [labelEl, input]);
+  return {
+    root,
+    input,
+    /** @param {string} text */
+    setLabel(text) {
+      labelEl.textContent = text;
+    },
+  };
+}
+
+/**
  * Card: one task or view, with an <h2> title.
  * @param {{ title: string, actions?: Child[], children?: Child[] }} options
  */

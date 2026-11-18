@@ -10,7 +10,9 @@ TZ Overlap is a lightweight, client-side-only web app for people who schedule
 across time zones: distributed teams, people with friends and family abroad,
 and anyone booking a call with several regions. It shows the user's own time
 zone plus up to seven others as horizontal, scrollable timelines aligned on the
-same moment. A heat scale shows which hours are ideal, acceptable (the shoulder
+same moment. The timelines open on yesterday to tomorrow of a chosen date
+(today by default, picked in the toolbar) and load more days as you scroll, up
+to 14 either side. A heat scale shows which hours are ideal, acceptable (the shoulder
 hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
 to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
@@ -111,7 +113,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     timezones.js        Intl-based tz primitives (validation, offsets, formatting)
     zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
     time-engine.js      offset transitions, zone gaps, per-zone hour cells, DST status
-    grid.js             grid model: home yesterday–tomorrow window, positioned hour cells, Everyone segments
+    grid.js             grid model: anchor-date window (a day either side, extended up to 14),
+                        anchor and extension helpers, positioned hour cells, Everyone segments
     time-format.js      formatTime() compact/full in 12- or 24-hour; resolves `auto` from the locale
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
@@ -127,14 +130,15 @@ src/                    the app (served as-is in dev; bundled for prod)
     install.js          installGuidance(): user agent + standalone flags → install guidance kind
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
-    components.js       shared components: button, icon, field, card, appShell, emptyState,
-                        errorState, sheet, popover, createToaster (toast), createBanner, radioGroup,
-                        switchControl
+    components.js       shared components: button, icon, field, dateField, card, appShell,
+                        emptyState, errorState, sheet, popover, createToaster (toast), createBanner,
+                        radioGroup, switchControl
     theme.js            light/dark controller
     app.js              the timelines page: grid, Add city button, first-run prompt, limit note;
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
-    grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line
+    grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
+                        lazy extension (IntersectionObserver)
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
                         Treat weekends as unavailable, Install and Reset all data
     install.js          install guidance: beforeinstallprompt capture, hint card, iOS sheet,

@@ -2,13 +2,26 @@
 // shared components in ./components.js and the tokens in src/styles/.
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
-import { buildGrid } from '../lib/grid.js';
+import {
+  DEFAULT_DAYS,
+  MAX_DATE,
+  MIN_DATE,
+  anchorStart,
+  buildGrid,
+  extendExtent,
+  formatAnchor,
+  headerInstant,
+  initialExtent,
+  parseAnchor,
+  sameAnchor,
+  todayAnchor,
+} from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
 import { addCitySheet } from './add-city.js';
-import { appShell, button, card, emptyState, errorState } from './components.js';
+import { appShell, button, card, dateField, emptyState, errorState } from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
 import { installController } from './install.js';
@@ -20,6 +33,9 @@ import { strings } from './strings.js';
  * @typedef {ReturnType<typeof import('./theme.js').createTheme>} ThemeController
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../lib/suitability.js').Rating} Rating
+ * @typedef {import('../lib/grid.js').Anchor} Anchor
+ * @typedef {import('../lib/grid.js').Extent} Extent
+ * @typedef {import('../lib/zones.js').Zone} Zone
  * @typedef {import('./grid.js').GridView} GridView
  * @typedef {import('../lib/install.js').InstallKind} InstallKind
  */
@@ -65,7 +81,7 @@ export function mountApp(
     disabled: true,
     onClick: () => {
       const hadFocus = document.activeElement === nowButton;
-      view?.scrollToNow({ animate: true });
+      goToNow();
       // The button disables itself once the line is back; keep keyboard focus.
       if (hadFocus) view?.root.focus({ preventScroll: true });
     },
@@ -76,6 +92,35 @@ export function mountApp(
     iconOnly: true,
     variant: 'ghost',
     onClick: () => settings.open(settingsButton),
+  });
+  // The anchor date (home zone) and the days shown either side of it; the
+  // first render sets both.
+  const homeZone = () => /** @type {Zone} */ ({ kind: 'iana', tz: home.current() });
+  let anchor = todayAnchor(homeZone(), now());
+  /** @type {Extent} */
+  let extent = { before: DEFAULT_DAYS, after: DEFAULT_DAYS };
+  const dateControl = dateField({
+    label: strings.date.today,
+    name: 'date',
+    value: formatAnchor(anchor),
+    min: MIN_DATE,
+    max: MAX_DATE,
+  });
+  const todayButton = button({
+    label: strings.date.todayButton,
+    variant: 'ghost',
+    onClick: () => {
+      resetTo(todayAnchor(homeZone(), now()));
+      dateControl.input.focus();
+    },
+  });
+  todayButton.hidden = true;
+  dateControl.input.addEventListener('change', () => {
+    const next = parseAnchor(dateControl.input.value, homeZone());
+    if (next && !sameAnchor(next, anchor)) resetTo(next);
+  });
+  dateControl.input.addEventListener('blur', () => {
+    dateControl.input.value = formatAnchor(anchor);
   });
   // Title bar 12/24 toggle, desktop only (app.css); pressed while 24-hour shows.
   const hourToggle = button({
@@ -89,7 +134,7 @@ export function mountApp(
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [hourToggle, nowButton, settingsButton],
+    actions: [dateControl.root, todayButton, hourToggle, nowButton, settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
   const install = installController({ store, kind: installKind, main: shell.main });
@@ -110,40 +155,68 @@ export function mountApp(
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
+  /** The home zone of the last render. */
+  let renderedHome = '';
   /** @type {GridView | null} */
   let view = null;
-  /** Every render builds the same window, so a saved scroll instant stays inside it. */
-  const anchor = now();
   /** @type {HTMLButtonElement | null} */
   let addButton = null;
 
-  function render() {
-    const { zones, settings } = store.getState();
-    const homeZone = home.current();
-    const key = JSON.stringify([
-      homeZone,
-      zones.map((z) => [z.id, z.kind, z.kind === 'iana' ? z.tz : z.minutes, z.label, z.country]),
-      settings.weekendsUnavailable,
-    ]);
-    if (key === renderedKey) return;
-    renderedKey = key;
+  /** Label and Today button against today's date at `current`. @param {Date} current */
+  function syncDate(current) {
+    const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
+    dateControl.setLabel(isToday ? strings.date.today : strings.date.other);
+    todayButton.hidden = isToday;
+  }
 
+  /** Move the anchor, reset the extent, rebuild and scroll. @param {Anchor} next */
+  function resetTo(next) {
+    anchor = next;
+    extent = initialExtent(homeZone(), anchor);
+    dateControl.input.value = formatAnchor(anchor);
+    showGrid(null);
+    syncDate(now());
+  }
+
+  /** Now button and N: scroll to the now line, or back to today when it isn't in the window. */
+  function goToNow() {
+    if (view?.hasNow()) view.scrollToNow({ animate: true });
+    else resetTo(todayAnchor(homeZone(), now()));
+  }
+
+  /**
+   * Build the grid for the anchor and extent and put it in the card. With
+   * `scrollLeft`, keep that position; otherwise scroll to the current instant
+   * (anchor today) or the start of the anchor date.
+   * @param {number | null} scrollLeft
+   */
+  function showGrid(scrollLeft) {
+    const { zones, settings } = store.getState();
+    const tz = home.current();
     // A stored copy of the home zone stays hidden; its label names the home row.
-    const isHome = (/** @type {StoredZone} */ z) => z.kind === 'iana' && z.tz === homeZone;
+    const isHome = (/** @type {StoredZone} */ z) => z.kind === 'iana' && z.tz === tz;
     const shown = zones.filter((z) => !isHome(z));
-    const grid = buildGrid({
-      homeZone: { kind: 'iana', tz: homeZone },
-      zones: shown,
-      now: anchor,
-      weekendsUnavailable: settings.weekendsUnavailable,
-    });
-    // Keep the instant at the left of the visible track across the rebuild.
-    const left = view?.root.isConnected ? view.leftInstant() : null;
+    const build = () =>
+      buildGrid({
+        homeZone: homeZone(),
+        zones: shown,
+        anchor,
+        ...extent,
+        weekendsUnavailable: settings.weekendsUnavailable,
+      });
+    const current = now();
     view?.destroy();
     view = timelineGrid({
-      grid,
+      grid: build(),
       zones: shown,
-      now: now(),
+      now: current,
+      offsetAt: headerInstant(homeZone(), anchor, current),
+      extend: (side) => {
+        const next = extendExtent(extent, side);
+        if (!next) return null;
+        extent = next;
+        return build();
+      },
       hourCycle: shownCycle,
       onRemove: (zone) => remove(zone),
       homeLabel: zones.find(isHome)?.label,
@@ -151,6 +224,7 @@ export function mountApp(
       onNowVisible: (visible) => {
         nowButton.disabled = visible;
       },
+      onGoToNow: goToNow,
     });
     const body = [view.root, view.popover];
     addButton = null;
@@ -176,7 +250,33 @@ export function mountApp(
       }
     }
     timelinesCard.body.replaceChildren(...body);
-    if (left) view.showInstant(left);
+    if (scrollLeft !== null) {
+      view.root.scrollLeft = scrollLeft;
+      view.refresh();
+    } else {
+      const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
+      view.scrollTo(isToday ? current : anchorStart(homeZone(), anchor));
+    }
+    view.watch();
+  }
+
+  function render() {
+    const { zones, settings } = store.getState();
+    const tz = home.current();
+    const key = JSON.stringify([
+      tz,
+      zones.map((z) => [z.id, z.kind, z.kind === 'iana' ? z.tz : z.minutes, z.label, z.country]),
+      settings.weekendsUnavailable,
+    ]);
+    if (key === renderedKey) return;
+    renderedKey = key;
+    // Same home: keep the anchor, extent and scroll. A new home opens on its today.
+    if (view && tz === renderedHome) {
+      showGrid(view.root.scrollLeft);
+      return;
+    }
+    renderedHome = tz;
+    resetTo(todayAnchor(homeZone(), now()));
   }
 
   /** The cycle the grid and toggle show; a change rewrites them in place. */
@@ -217,7 +317,9 @@ export function mountApp(
     setTimeout(
       () => {
         checkHome();
-        view?.tick(now());
+        const current = now();
+        view?.tick(current, headerInstant(homeZone(), anchor, current));
+        syncDate(current);
         scheduleTick();
       },
       MINUTE_MS - (now().getTime() % MINUTE_MS),
@@ -248,16 +350,15 @@ export function mountApp(
   }
 
   const launch = home.check();
+  shell.main.append(timelinesCard.root);
+  root.replaceChildren(shell.root, settings.root, addCity.root, ...install.roots);
+  // After mounting: the grid is measured to set its scroll position.
   store.subscribe(render);
   store.subscribe(syncHourCycle);
   render();
   scheduleTick();
   document.addEventListener('keydown', onKeydown);
-  shell.main.append(timelinesCard.root);
-  root.replaceChildren(shell.root, settings.root, addCity.root, ...install.roots);
   install.start();
-  // TS narrows `view` to null here; render() above has set it.
-  /** @type {GridView | null} */ (view)?.scrollToNow();
   window.addEventListener('resize', () => view?.refresh());
   // A later task than the region's mount, so screen readers announce it.
   if (store.wasReset()) {

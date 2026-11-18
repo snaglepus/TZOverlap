@@ -116,6 +116,29 @@ for (const viewport of [null, { width: 390, height: 844 }]) {
   });
 }
 
+for (const viewport of [null, { width: 390, height: 844 }]) {
+  test(`with the install hint above the timelines, the now line still opens a third of the way in (${viewport ? '390px' : 'desktop'})`, async ({
+    page,
+  }) => {
+    if (viewport) await page.setViewportSize(viewport);
+    await seedZones(page, [TOKYO]);
+    // Offer install as the page finishes parsing, so the hint is in place at mount.
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const event = new Event('beforeinstallprompt', { cancelable: true });
+        Object.assign(event, { prompt: () => Promise.resolve() });
+        window.dispatchEvent(event);
+      });
+    });
+    await page.goto('/');
+    const hint = page.getByRole('main').getByRole('region', { name: 'Install TZ Overlap' });
+    await expect(hint).toBeVisible();
+    await expect(page.locator('[role="row"]')).toHaveCount(3);
+    await expectLineAtOneThird(page);
+    await expect(nowButton(page)).toBeDisabled();
+  });
+}
+
 test('Now and the N key bring the line back', async ({ page }) => {
   await seedZones(page, [TOKYO]);
   await page.goto('/');
@@ -268,10 +291,10 @@ test.describe('rebuilds keep the scroll position', () => {
         .first()
         .getAttribute('data-start');
     const start = await firstCell();
-    // Yesterday 06:00 at the visible left edge.
-    await scrollTo(page, 6 * (await columnWidth(page)));
+    // Yesterday 08:00 at the visible left edge: clear of the lazy-extension margin.
+    await scrollTo(page, 8 * (await columnWidth(page)));
     const before = await visibleLeftInstant(page);
-    expect(new Date(before).toISOString()).toBe('2026-06-14T05:00:00.000Z');
+    expect(new Date(before).toISOString()).toBe('2026-06-14T07:00:00.000Z');
 
     await page.clock.runFor(180_000);
     await expect(page.locator('[data-zone="Europe/London"] .grid__details .grid__time')).toHaveText(

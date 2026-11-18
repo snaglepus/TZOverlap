@@ -239,3 +239,59 @@ test('cross-tab: a re-render while open sends focus to the new Add city button',
   await expect(sheet(page)).toBeHidden();
   await expect(addButton(page)).toBeFocused();
 });
+
+for (const width of [320, 375]) {
+  for (const scheme of /** @type {const} */ (['light', 'dark'])) {
+    test(`phone layout: results don't overlap at ${width}px in ${scheme} theme`, async ({
+      page,
+    }) => {
+      await seedZones(page, seeded(['Europe/London']));
+      await page.setViewportSize({ width, height: 700 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto('/');
+      await addButton(page).click();
+      await search(page).fill('Lon');
+      await expect(results(page).first()).toContainText('Added');
+
+      const layout = await results(page).evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const parts = [
+            ...button.querySelectorAll(
+              '.add-city__primary, .add-city__secondary, .add-city__added, .add-city__time, .add-city__offset',
+            ),
+          ].map((el) => {
+            // Text is measured by its own extent, which overflows a squeezed box;
+            // the pill by its border box.
+            if (el.classList.contains('add-city__added')) return el.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            return range.getBoundingClientRect();
+          });
+          const overlaps = parts.some((a, i) =>
+            parts
+              .slice(i + 1)
+              .some(
+                (b) =>
+                  a.left < b.right - 1 &&
+                  b.left < a.right - 1 &&
+                  a.top < b.bottom - 1 &&
+                  b.top < a.bottom - 1,
+              ),
+          );
+          const box = button.getBoundingClientRect();
+          const inside = parts.every((r) => r.left >= box.left && r.right <= box.right);
+          return { overlaps, inside, height: box.height };
+        }),
+      );
+      expect(layout.length).toBeGreaterThan(0);
+      for (const result of layout) {
+        expect(result.overlaps).toBe(false);
+        expect(result.inside).toBe(true);
+        expect(result.height).toBeGreaterThanOrEqual(44);
+      }
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+      ).toBeLessThanOrEqual(0);
+    });
+  }
+}

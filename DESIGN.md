@@ -166,8 +166,9 @@ durations become `0ms` (handled in `tokens.css`).
 from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
 `--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
-toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
-safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+toasts) · `--toolbar-height` 105px (phone bottom toolbar before the safe-area
+inset: two `--control-height` rows, the `--space-2` row gap, `--space-1`
+padding above and below, and the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--weekend-band-width` 4px (top band on weekend hour cells) ·
 `--day-divider-width` 2px (midnight divider line) ·
@@ -279,6 +280,15 @@ slot. Errors set `aria-invalid="true"` and are linked with `aria-describedby`;
 the error text is in a polite live region. Use for every text entry. Supports a
 `<datalist>` of suggestions.
 
+### Date field — `dateField()` · `.date-field`, `.input`
+
+A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
+optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
+text. The label sits beside the input in `--font-size-sm`. In the bottom
+toolbar (below `--bp-md`) the field takes the whole first row, so the buttons
+fit the second row at 320px. Use for the toolbar's date control (labelled
+"Today" while the timelines show today, "Date" otherwise).
+
 ### Card — `card()` · `.card`
 
 Surface with `--radius-lg`, hairline border and `--shadow-sm`. Has an `<h2>`
@@ -293,15 +303,17 @@ Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
 toolbar, `<main id="main">` constrained to `--content-max-width` and opening
 with the page's one banner region (returned as `banner`), footer, and the
 page's one toast region (returned as `toaster`). The toolbar
-(`role="group"`, "Toolbar") holds the `actions` (on the timelines page: a ghost
-**Now** button, named "Go to now", then Settings), comes right after the brand in
-DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
-bottom of the viewport on a surface with a top hairline, padded by the bottom,
-left and right safe-area insets, and the shell pads its bottom to match; from
-`--bp-md` it sits in the title bar at the end. On the timelines page the
-actions are the "24-hour" toggle (a ghost pressed-state Button, pressed while
-24-hour times show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`, where
-the toolbar is in the title bar) and the Settings gear. The title bar pads its top by
+(`role="group"`, "Toolbar") holds the `actions` (on the timelines page: the Date
+field, a ghost "Today" button that is hidden while the date shown is today, the
+"24-hour" toggle (a ghost pressed-state Button, pressed while 24-hour times
+show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`, where the toolbar is
+in the title bar), a ghost **Now** button, named "Go to now", then Settings),
+comes right after the brand in DOM order, and is omitted when there are none.
+Below `--bp-md` it is fixed to the bottom of the viewport on a surface with a
+top hairline, wraps its controls onto two rows (the Date field first, the
+buttons right-aligned below), is padded by the bottom, left and right safe-area
+insets, and the shell pads its bottom to match; from `--bp-md` it sits in the
+title bar at the end. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
 renders inside exactly one shell.
@@ -402,7 +414,9 @@ listed under one `<h3>` per region (alphabetical), by population rank. Each
 result is a full-width plain `<button>` at least `--control-height` tall: name
 over a muted secondary line (country or full abbreviation name), then local
 time and offset in fixed-width, end-aligned columns of `--font-mono` tabular
-numerals, so they line up down the list. A zone already on the board
+numerals, so they line up down the list. Below `--bp-md` the name takes the
+full first line and the Added marker, time and offset share a second line
+under it. A zone already on the board
 (stored or home) shows a pill "Added" marker that is part of its accessible
 name; choosing it changes nothing and a polite note says so. On desktop
 (`(hover: hover) and (pointer: fine)`) the search field gets focus on open;
@@ -423,8 +437,13 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
-Everyone, then the added zones in order. It covers yesterday, today and
-tomorrow in the home zone. Row headers stay sticky on the left; names truncate
+Everyone, then the added zones in order. It opens on yesterday to tomorrow of
+the anchor date in the home zone (today, or the date picked in the toolbar),
+with the current instant (or the start of a picked date) a third of the way in.
+Scrolling within 6 columns of either end adds a whole home-zone day on that
+side (an IntersectionObserver on invisible `.grid__edge` markers), up to 14
+days either side of the anchor, and adding days on the left keeps the content
+still. Header clocks show the current time; offsets follow the date shown. Row headers stay sticky on the left; names truncate
 with an ellipsis, and the full name is always in the accessible name. Each zone
 header has the name (the home row is the plain city, "Sydney", after a
 `location` symbol, with no remove control), the live local time, the short date
@@ -464,18 +483,21 @@ the sticky headers, so it passes under the header column. The minute tick moves
 it by updating `--now-left` only; cells are never rebuilt. On load the grid
 scrolls so the line sits one third of the way across the visible track (the
 part right of the headers). The toolbar's Now button, and N with focus in the
-grid, bring it back; Now is disabled while the line is on screen. A rebuild
-(zone added or removed, weekend setting, another tab) keeps the window and the
-instant at the left of the visible track.
+grid, bring it back; Now is disabled while the line is on screen. While another
+date is shown and now is outside the window, the line is hidden and Now goes
+back to today, like the Today button. Lazy extension moves the line with the
+window. A rebuild (zone added or removed, weekend setting, another tab) keeps
+the anchor date, the days loaded and the scroll position.
 
 Hour cells show the compact time in a `.grid__label` element. After each build,
-12/24-hour switch and size change of the grid (a `ResizeObserver`, which also
-catches root font-size changes), the grid measures the widest label (with the
-repeat marker) plus `--space-1` on each side against one column. If it doesn't
-fit, the grid gets `data-labels="alternate"` and labels on odd hours get
-`visibility: hidden`: every second label shows. Text is never shrunk to fit.
-Hidden labels stay in the cell's `aria-label`. Switching the hour cycle
-rewrites every time in place, keeping the scroll position and focus.
+lazy extension, 12/24-hour switch and size change of the grid (a
+`ResizeObserver`, which also catches root font-size changes), the grid measures
+the widest label (with the repeat marker) plus `--space-1` on each side against
+one column. If it doesn't fit, the grid gets `data-labels="alternate"` and
+labels on odd hours get `visibility: hidden`: every second label shows. Text is
+never shrunk to fit. Hidden labels stay in the cell's `aria-label`. Switching
+the hour cycle rewrites every time in place, keeping the scroll position and
+focus.
 Chrome is solid: no translucent materials and no `backdrop-filter` or blur
 anywhere, including behind sheets.
 
