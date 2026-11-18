@@ -1,6 +1,25 @@
+# Dependencies
 node_modules/
+
+# Local config (copy .env.example to .env)
 .env
+.env.*
+!.env.example
+
+# Build output
 dist/
 dist-perf/
+
+# Test output
 test-results/
 playwright-report/
+blob-report/
+coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea/
