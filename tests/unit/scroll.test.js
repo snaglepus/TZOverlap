@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   CLICK_SLOP_PX,
+  EDGE_SCROLL_MAX_STEP_PX,
+  EDGE_SCROLL_ZONE_PX,
   columnsAt,
+  edgeScrollStep,
   instantAt,
   isLineVisible,
   keyStep,
@@ -126,5 +129,48 @@ describe('keyStep', () => {
       assert.equal(keyStep({ key, shiftKey: false }), null, key);
       assert.equal(keyStep({ key, shiftKey: true }), null, key);
     }
+  });
+});
+
+describe('edgeScrollStep', () => {
+  const top = 0;
+  const bottom = 600;
+
+  it('uses a 48 px zone and at most 16 px a frame', () => {
+    assert.equal(EDGE_SCROLL_ZONE_PX, 48);
+    assert.equal(EDGE_SCROLL_MAX_STEP_PX, 16);
+  });
+
+  it('is 0 between the edge zones', () => {
+    assert.equal(edgeScrollStep(300, top, bottom), 0);
+    assert.equal(edgeScrollStep(top + EDGE_SCROLL_ZONE_PX, top, bottom), 0);
+    assert.equal(edgeScrollStep(bottom - EDGE_SCROLL_ZONE_PX, top, bottom), 0);
+  });
+
+  it('scrolls up near the top, faster deeper in', () => {
+    const shallow = edgeScrollStep(top + 40, top, bottom);
+    const deep = edgeScrollStep(top + 4, top, bottom);
+    assert.ok(shallow < 0);
+    assert.ok(deep < shallow);
+    assert.ok(deep >= -EDGE_SCROLL_MAX_STEP_PX);
+  });
+
+  it('scrolls down near the bottom, faster deeper in', () => {
+    const shallow = edgeScrollStep(bottom - 40, top, bottom);
+    const deep = edgeScrollStep(bottom - 4, top, bottom);
+    assert.ok(shallow > 0);
+    assert.ok(deep > shallow);
+    assert.ok(deep <= EDGE_SCROLL_MAX_STEP_PX);
+  });
+
+  it('is capped past either edge', () => {
+    assert.equal(edgeScrollStep(top - 200, top, bottom), -EDGE_SCROLL_MAX_STEP_PX);
+    assert.equal(edgeScrollStep(bottom + 200, top, bottom), EDGE_SCROLL_MAX_STEP_PX);
+    assert.equal(edgeScrollStep(top, top, bottom), -EDGE_SCROLL_MAX_STEP_PX);
+    assert.equal(edgeScrollStep(bottom, top, bottom), EDGE_SCROLL_MAX_STEP_PX);
+  });
+
+  it('measures from the given top, such as a toolbar edge', () => {
+    assert.equal(edgeScrollStep(400, 0, 420), edgeScrollStep(580, 0, 600));
   });
 });

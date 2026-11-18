@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { canMove, moveTarget } from '../../src/lib/row-order.js';
+import { canMove, dropIndex, dropTarget, moveTarget, rowShift } from '../../src/lib/row-order.js';
 import { createStore } from '../../src/lib/store.js';
 
 /** @typedef {import('../../src/lib/store.js').StoredZone} StoredZone */
@@ -75,5 +75,111 @@ describe('canMove', () => {
     assert.equal(canMove(zones, HOME, 'c', 'up'), true);
     assert.equal(canMove(zones, HOME, 'c', 'down'), false);
     assert.equal(canMove(zones, HOME, 'nope', 'up'), false);
+  });
+});
+
+// Rows of 40, 80, 40 and 60 px: midpoints 20, 80, 140 and 190.
+const rects = [
+  { top: 0, bottom: 40 },
+  { top: 40, bottom: 120 },
+  { top: 120, bottom: 160 },
+  { top: 160, bottom: 220 },
+];
+
+describe('dropIndex', () => {
+  it('is 0 above every row and the last index below every row', () => {
+    assert.equal(dropIndex(rects, 2, -500), 0);
+    assert.equal(dropIndex(rects, 0, -500), 0);
+    assert.equal(dropIndex(rects, 1, 5000), 3);
+    assert.equal(dropIndex(rects, 3, 5000), 3);
+  });
+
+  it('is the row itself at its own centre', () => {
+    rects.forEach(({ top, bottom }, i) => assert.equal(dropIndex(rects, i, (top + bottom) / 2), i));
+  });
+
+  it('changes at a neighbour midpoint', () => {
+    // Row 2 dragged up past row 1's midpoint (80), and row 0 down past it.
+    assert.equal(dropIndex(rects, 2, 81), 2);
+    assert.equal(dropIndex(rects, 2, 79), 1);
+    assert.equal(dropIndex(rects, 0, 79), 0);
+    assert.equal(dropIndex(rects, 0, 81), 1);
+    // Row 1 dragged down past row 3's midpoint (190).
+    assert.equal(dropIndex(rects, 1, 189), 2);
+    assert.equal(dropIndex(rects, 1, 191), 3);
+  });
+});
+
+describe('rowShift', () => {
+  it('moves the rows passed going down up by one', () => {
+    assert.deepEqual(
+      [0, 1, 2, 3].map((i) => rowShift(0, 2, i)),
+      [0, -1, -1, 0],
+    );
+  });
+
+  it('moves the rows passed going up down by one', () => {
+    assert.deepEqual(
+      [0, 1, 2, 3].map((i) => rowShift(3, 1, i)),
+      [0, 1, 1, 0],
+    );
+  });
+
+  it('moves nothing in place', () => {
+    assert.deepEqual(
+      [0, 1, 2, 3].map((i) => rowShift(2, 2, i)),
+      [0, 0, 0, 0],
+    );
+  });
+});
+
+describe('dropTarget', () => {
+  /**
+   * The shown labels after dropping `label` at `position` with the real store,
+   * with the hidden home copy at `homeAt` in the stored list.
+   * @param {number} homeAt
+   * @param {string} label
+   * @param {number} position
+   */
+  function droppedAfter(homeAt, label, position) {
+    const list = [
+      { id: 'a', tz: 'Asia/Tokyo' },
+      { id: 'b', tz: 'Europe/London' },
+      { id: 'c', tz: 'America/New_York' },
+    ];
+    list.splice(homeAt, 0, { id: 'h', tz: HOME });
+    const store = createStore();
+    for (const { tz, id } of list) store.add({ kind: 'iana', tz, label: id });
+    const stored = store.getState().zones;
+    const target = stored.find((z) => z.label === label);
+    assert.ok(target);
+    const drop = dropTarget(stored, HOME, target.id, position);
+    assert.ok(drop);
+    assert.equal(drop.position, position + 1);
+    assert.equal(drop.count, 3);
+    store.move(target.id, drop.toIndex);
+    const after = store.getState().zones;
+    assert.equal(after.length, 4);
+    return after.filter((z) => !(z.kind === 'iana' && z.tz === HOME)).map((z) => z.label);
+  }
+
+  for (const homeAt of [0, 1, 2, 3]) {
+    it(`keeps the other rows in order with the home copy at ${homeAt}`, () => {
+      assert.deepEqual(droppedAfter(homeAt, 'c', 0), ['c', 'a', 'b']);
+      assert.deepEqual(droppedAfter(homeAt, 'c', 1), ['a', 'c', 'b']);
+      assert.deepEqual(droppedAfter(homeAt, 'a', 2), ['b', 'c', 'a']);
+      assert.deepEqual(droppedAfter(homeAt, 'a', 1), ['b', 'a', 'c']);
+      assert.deepEqual(droppedAfter(homeAt, 'b', 0), ['b', 'a', 'c']);
+      assert.deepEqual(droppedAfter(homeAt, 'b', 2), ['a', 'c', 'b']);
+    });
+  }
+
+  it('returns null in place, out of range, for an unknown id or the hidden home copy', () => {
+    assert.equal(dropTarget(zones, HOME, 'b', 1), null);
+    assert.equal(dropTarget(zones, HOME, 'a', 0), null);
+    assert.equal(dropTarget(zones, HOME, 'a', 3), null);
+    assert.equal(dropTarget(zones, HOME, 'a', -1), null);
+    assert.equal(dropTarget(zones, HOME, 'nope', 0), null);
+    assert.equal(dropTarget(zones, HOME, 'h', 0), null);
   });
 });
