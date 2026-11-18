@@ -83,7 +83,7 @@ slots are bold, and every slot has a text band name for assistive tech.
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `--font-sans`                                        | `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` |
 | `--font-mono`                                        | `ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace`              |
-| `--font-size-xs` / `sm` / `md` / `lg` / `xl` / `2xl` | `0.75` / `0.875` / `1` / `1.25` / `1.5` / `2rem`                                    |
+| `--font-size-xs` / `sm` / `md` / `lg` / `xl` / `2xl` | `0.8125` / `0.875` / `1.0625` / `1.25` / `1.5` / `2rem`                             |
 | `--line-height-tight` / `--line-height-base`         | `1.2` / `1.5`                                                                       |
 | `--font-weight-regular` / `medium` / `bold`          | `400` / `500` / `650`                                                               |
 
@@ -91,6 +91,10 @@ Usage: page title `2xl` bold; card titles `lg` bold; body `md`; help text,
 offsets and legend `sm` muted; slot hours `sm` in `--font-mono` with
 `font-variant-numeric: tabular-nums`. Never go below `xs`, and only use `xs` for
 non-essential annotations (day-shift markers). Sentence case everywhere.
+
+Phone minimums: body text 17px (`md`, 1.0625rem); hour labels and secondary
+text at least 13px, so `xs` (0.8125rem) is the floor; nothing below 11px. All
+sizes in rem.
 
 ### 3.3 Spacing (4px grid)
 
@@ -153,6 +157,7 @@ durations become `0ms` (handled in `tokens.css`).
 - One `<h1>` per page (the app name in the shell). Card titles are `<h2>`.
 - Clock times, offsets and hour numbers: `--font-mono` + tabular numerals.
 - Max line length for prose: 65ch.
+- All user-visible text lives in `src/ui/strings.js` (en-AU), never inline.
 
 ## 6. Shared components
 
