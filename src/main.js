@@ -31,14 +31,20 @@ try {
   if (!hasTimeZoneSupport()) {
     mountFatalError(root, strings.fatal.noTimeZones);
   } else {
-    const storage = safeStorage();
+    const persist = navigator.storage?.persist ? () => navigator.storage.persist() : undefined;
+    const store = createStore({ storage: safeStorage(), persist });
     const theme = createTheme({
       root: document.documentElement,
-      storage,
+      store,
       media: window.matchMedia('(prefers-color-scheme: dark)'),
     });
-    const store = createStore({ localZone: getLocalTimeZone(), storage });
-    mountApp(root, { store, theme, suggestions: zoneSuggestions() });
+    mountApp(root, { store, theme, homeZone: getLocalTimeZone(), suggestions: zoneSuggestions() });
+    // Save before the page goes away, and follow other tabs' writes.
+    window.addEventListener('pagehide', () => store.flush());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') store.flush();
+    });
+    window.addEventListener('storage', (event) => store.handleStorageEvent(event));
   }
 } catch {
   mountFatalError(root, strings.fatal.startFailed);

@@ -169,6 +169,86 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(page.getByRole('button', { name: 'Remove Tokyo' })).toBeFocused();
 });
 
+test('storage: migrates the legacy keys once and keeps changes across reloads', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  // Seed the pre-versioned keys before the first load only.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('tz-overlap:zones:v1', JSON.stringify(['Asia/Tokyo', 'America/New_York']));
+    localStorage.setItem('tz-overlap:theme', 'dark');
+  });
+  const html = page.locator('html');
+  const zoneRows = () =>
+    page
+      .locator('tbody tr[data-zone]:not([data-zone="overlap"])')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-zone')));
+
+  // theme-init.js alone reads the legacy theme before first paint.
+  await page.route('**/main.js', (route) => route.abort());
+  await page.goto('/');
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+
+  await page.unroute('**/main.js');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(zoneRows).toEqual(['Europe/London', 'Asia/Tokyo', 'America/New_York']);
+  const legacy = await page.evaluate(() => [
+    localStorage.getItem('tz-overlap:zones:v1'),
+    localStorage.getItem('tz-overlap:theme'),
+  ]);
+  expect(legacy).toEqual([null, null]);
+
+  await addZone(page, 'Europe/Berlin');
+  await expect(page.getByTestId('announcer')).toHaveText('Added Berlin.');
+  await page.getByRole('button', { name: 'Remove Tokyo' }).click();
+  await expect(page.getByTestId('announcer')).toHaveText('Removed Tokyo.');
+  await page.reload();
+  await expect.poll(zoneRows).toEqual(['Europe/London', 'America/New_York', 'Europe/Berlin']);
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+});
+
+test('storage: a theme change in either tab keeps the timeline scroll and focus', async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  await addZone(page, 'Asia/Tokyo');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('tzoverlap.state')))
+    .toContain('Asia/Tokyo');
+
+  const other = await context.newPage();
+  await other.clock.setFixedTime(NOW);
+  await other.emulateMedia({ colorScheme: 'light' });
+  await other.goto('/');
+  await expect(other.locator('tr[data-zone="Asia/Tokyo"]')).toBeVisible();
+
+  const region = page.locator('.timeline');
+  await region.focus();
+  await region.evaluate((el) => {
+    el.scrollLeft = 200;
+  });
+  const scrollLeft = () => region.evaluate((el) => el.scrollLeft);
+  const before = await scrollLeft();
+  expect(before).toBeGreaterThan(0);
+
+  await other.getByRole('button', { name: 'Dark theme' }).click();
+  await expect(other.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(await scrollLeft()).toBe(before);
+  await expect(region).toBeFocused();
+
+  await page.getByRole('button', { name: 'Dark theme' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  expect(await scrollLeft()).toBe(before);
+  await expect(other.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
 test('layout: no sideways page scroll on a phone; timeline scrolls inside its region', async ({
   page,
 }) => {
