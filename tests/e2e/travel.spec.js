@@ -182,7 +182,15 @@ test('a stored copy of home stays hidden and comes back after moving away', asyn
   await focus(page);
   await expect(page.getByText(TRAVEL_TOAST)).toBeVisible();
   expect(await rowZones(page)).toEqual(['America/Los_Angeles', 'everyone', 'Europe/London']);
-  await expect(page.getByText('You can add 5 more.')).toBeVisible();
+  // The sheet follows the new home: Sydney is no longer Added, Los Angeles is.
+  await page.getByRole('button', { name: 'Add city' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Add city' });
+  const search = sheet.getByLabel('Search cities, countries or offsets');
+  await search.fill('Sydney');
+  await expect(sheet.getByRole('button', { name: /^Sydney/ }).first()).not.toContainText('Added');
+  await search.fill('Los Angeles');
+  await expect(sheet.getByRole('button', { name: /^Los Angeles.*Added/ })).toBeVisible();
+  await page.keyboard.press('Escape');
   const stored = await storedState(page);
   expect(stored.zones.map((/** @type {{ tz: string }} */ z) => z.tz)).toEqual([
     'Europe/London',

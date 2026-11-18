@@ -177,7 +177,7 @@ test('sheet: bottom sheet on a phone, centred modal on a desktop', async ({ page
 test('reset: confirm, cancel changes nothing', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
-  await addZone(page, 'Asia/Tokyo');
+  await addZone(page, 'Tokyo');
   const html = page.locator('html');
   let dialog = await openSettings(page);
   await dialog.getByRole('radio', { name: 'Dark', exact: true }).check();
@@ -216,7 +216,7 @@ test('reset: Reset everything clears zones and settings, here and after a reload
 }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
-  await addZone(page, 'Asia/Tokyo');
+  await addZone(page, 'Tokyo');
   const html = page.locator('html');
   const dialog = await openSettings(page);
   await dialog.getByRole('radio', { name: 'Dark', exact: true }).check();

@@ -7,12 +7,16 @@ import { expect } from '@playwright/test';
 export const NOW = new Date('2026-06-15T13:30:00Z');
 
 /**
+ * Add a zone through the Add city sheet: search for `query`, choose the first result.
  * @param {import('@playwright/test').Page} page
- * @param {string} zone
+ * @param {string} query
  */
-export async function addZone(page, zone) {
-  await page.getByLabel('Time zone', { exact: true }).fill(zone);
-  await page.getByLabel('Time zone', { exact: true }).press('Enter');
+export async function addZone(page, query) {
+  await page.getByRole('button', { name: 'Add city', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add city' });
+  await dialog.getByLabel('Search cities, countries or offsets').fill(query);
+  await dialog.locator('.add-city__result').first().click();
+  await expect(dialog).toBeHidden();
 }
 
 /** @param {import('@playwright/test').Page} page */
