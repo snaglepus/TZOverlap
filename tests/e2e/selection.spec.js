@@ -407,7 +407,12 @@ test.describe('a duration change refreshes the slot name', () => {
     await dialog.getByRole('button', { name: 'Reset everything' }).click();
     await expect(dialog).toBeHidden();
     await expect(slot).toHaveAttribute('aria-label', /Best for everyone/);
-    await slot.focus();
+    // The sheet hands focus back to Settings as it closes; then go back to the slot.
+    await expect(async () => {
+      await slot.focus();
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      await expect(slot).toBeFocused({ timeout: 200 });
+    }).toPass();
     await page.keyboard.press('Enter');
     await expect(band(page)).toHaveAttribute('data-duration', '60');
     await expect(bar(page)).toContainText('Best for all');
