@@ -39,13 +39,14 @@
   list-style: none;
 }
 
-/* Fixed trailing columns, so times and offsets line up down the list. Phones
-   put the name on its own line, with the Added pill, time and offset under it. */
+/* Phones put the name on its own line, with the Added pill, time and offset
+   under it: minimum widths line the times and offsets up down the list, and
+   when they don't fit (large text) the offset wraps to its own line, at the
+   end. From --bp-md: fixed trailing grid columns. */
 .add-city__result {
-  display: grid;
-  grid-template-columns: minmax(var(--space-0), 1fr) var(--space-7) calc(
-      var(--space-8) + var(--space-3)
-    );
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--space-1) var(--space-3);
   width: 100%;
@@ -65,6 +66,7 @@
 
 .add-city__name {
   display: flex;
+  flex-basis: 100%;
   grid-column: 1 / -1;
   flex-direction: column;
   min-width: var(--space-0);
@@ -83,6 +85,7 @@
   grid-row: 2;
   grid-column: 1;
   justify-self: start;
+  margin-inline-end: auto;
   padding-inline: var(--space-2);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-pill);
@@ -98,16 +101,19 @@
 .add-city__time {
   grid-row: 2;
   grid-column: 2;
+  min-width: var(--space-7);
 }
 
 .add-city__offset {
   grid-row: 2;
   grid-column: 3;
+  min-width: calc(var(--space-8) + var(--space-3));
   color: var(--color-text-muted);
 }
 
 @media (min-width: 40rem) {
   .add-city__result {
+    display: grid;
     grid-template-columns: minmax(var(--space-0), 1fr) auto var(--space-7) calc(
         var(--space-8) + var(--space-3)
       );
@@ -126,6 +132,7 @@
 
   .add-city__added {
     grid-column: 2;
+    margin-inline-end: var(--space-0);
   }
 
   .add-city__time {
@@ -713,9 +720,11 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 /* Its button's label wraps when the button alone is wider than the message
-   (large text on a phone), rather than widening the page. */
+   (large text on a phone), rather than widening the page; its padding shrinks
+   with the phone gutter, so the wrapped label takes fewer lines. */
 .no-overlap .btn {
   min-width: var(--space-0);
+  padding-inline: var(--phone-gutter);
   white-space: normal;
   overflow-wrap: anywhere;
 }

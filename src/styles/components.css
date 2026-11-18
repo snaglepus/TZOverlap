@@ -248,12 +248,14 @@
 }
 
 /* ---------- Date field ---------- */
-/* The label beside the input. Below --bp-md the field takes the bottom
+/* The label beside the input; when both don't fit (large text on a phone), the
+   input wraps under the label. Below --bp-md the field takes the bottom
    toolbar's first row, so the buttons on the second row fit 320px. */
 .date-field {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   min-width: var(--space-0);
 }
 
@@ -269,6 +271,8 @@
 
 .date-field__input {
   width: auto;
+  min-width: var(--space-0);
+  max-width: 100%;
   padding-inline: var(--space-2);
 }
 
@@ -393,6 +397,7 @@
 
 .sheet__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -400,7 +405,15 @@
 }
 
 .sheet__title {
+  min-width: var(--space-0);
   font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
+}
+
+/* When the title and Close don't fit one line (large text), Close wraps to
+   the end of a second line. */
+.sheet__header > .btn {
+  margin-inline-start: auto;
 }
 
 .sheet__body {
@@ -422,15 +435,17 @@
 
 /* ---------- Popover ---------- */
 /* Native popover in the top layer. JS sets --popover-left / --popover-top in px
-   (unitless, so multiplied by --hairline) to anchor it inside the viewport. */
+   (unitless, so multiplied by --hairline) to anchor it inside the viewport, and
+   --popover-room, the height above the phone's fixed toolbar (else the
+   viewport's), which caps it. */
 .popover {
   position: fixed;
   inset: auto;
   left: calc(var(--popover-left, 0) * var(--hairline));
   top: calc(var(--popover-top, 0) * var(--hairline));
   max-width: min(var(--sheet-max-width), 100%);
-  /* Never taller than the viewport (large text on a short phone): it scrolls. */
-  max-height: 100%;
+  /* Never taller than its room (large text on a short phone): it scrolls. */
+  max-height: calc(var(--popover-room) * var(--hairline));
   overflow-y: auto;
   margin: var(--space-0);
   padding: var(--space-3) var(--space-4);

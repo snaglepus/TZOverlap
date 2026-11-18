@@ -342,7 +342,9 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
 optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
-text. The label sits beside the input in `--font-size-sm`. In the bottom
+text. The label sits beside the input in `--font-size-sm`; when both don't fit
+(large text on a phone) the input wraps under the label and may shrink to the
+field's width. In the bottom
 toolbar (below `--bp-md`) the field takes the whole first row, so the buttons
 fit the second row at 320px. Use for the toolbar's date control (labelled
 "Today" while the timelines show today, "Date" otherwise).
@@ -384,7 +386,9 @@ renders inside exactly one shell.
 ### Sheet — `sheet()` · `.sheet`
 
 A native modal `<dialog>` (`showModal()`) labelled by its `<h2>` title, with a
-ghost "Close" button in its header and a scrolling body. Below `--bp-md` it is a
+ghost "Close" button in its header and a scrolling body. When the title and
+Close don't fit one line (large text), Close wraps to the end of a second line
+and the title wraps between words. Below `--bp-md` it is a
 full-width bottom sheet with rounded top corners and a safe-area bottom pad;
 from `--bp-md` a centred modal up to `--sheet-max-width`. Height is capped at
 every width. Solid `--color-surface`, hairline border, `--shadow-md`;
@@ -402,7 +406,9 @@ hairline border, `--radius-md`, `--shadow-md`, `sm` text with an optional
 `.popover__title` line. `open(anchor)` places it below the anchor (above when
 there is no room) and keeps it inside the viewport and above the phone's fixed
 bottom toolbar, following page scroll and resize; it is never taller than the
-viewport (it scrolls); positions go in as `--popover-left` / `--popover-top`. Esc closes it and
+room above that toolbar (the viewport without one), and scrolls when its
+content is; positions go in as `--popover-left` / `--popover-top`, the room as
+`--popover-room`. Esc closes it and
 returns focus to the anchor; a click outside closes it. The anchor gets
 `aria-expanded`; give it `aria-controls` with the popover's id, and in its click
 handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One
@@ -555,7 +561,8 @@ over a muted secondary line (country or full abbreviation name), then local
 time and offset in fixed-width, end-aligned columns of `--font-mono` tabular
 numerals, so they line up down the list. Below `--bp-md` the name takes the
 full first line and the Added marker, time and offset share a second line
-under it. A zone already on the board
+under it (the time and offset at minimum widths, so they still line up); when
+they don't fit (large text) the offset wraps to its own line at the end. A zone already on the board
 (stored or home) shows a pill "Added" marker that is part of its accessible
 name; choosing it changes nothing and a polite note says so. On desktop
 (`(hover: hover) and (pointer: fine)`) the search field gets focus on open;
@@ -591,8 +598,10 @@ Large text (PRD 6.7): the row header column is at most 40% of the viewport
 A header time wider than the header (12-hour times at 200% in a 128px header)
 wraps between words ("12:00 / pm"), never inside one; city names keep their
 one-line ellipsis. The no-overlap message's button lets its label wrap rather
-than widen the page, and the Popover is never taller than the viewport (it
-scrolls). At 320×568 with 200% text the phone toolbar wraps to four rows,
+than widen the page, with its padding shrunk to `--phone-gutter`; the Popover
+is never taller than the room above the phone toolbar (it scrolls); the Date
+field, Sheet headers and Add city results wrap rather than run past the
+screen edge. At 320×568 with 200% text the phone toolbar wraps to four rows,
 which leaves less room above it than a toast needs; the toast then covers the
 toolbar's first row until it goes.
 

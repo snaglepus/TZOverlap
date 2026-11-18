@@ -93,6 +93,23 @@ async function populate(page, fontSize) {
   await toast(page).hover();
 }
 
+/**
+ * Descendants of `scope` (fixed or clipped, so page overflow misses them) that
+ * pass its inline edges by more than 1 px.
+ * @param {Locator} scope
+ */
+const outside = (scope) =>
+  scope.evaluate((root) => {
+    const box = root.getBoundingClientRect();
+    return [...root.querySelectorAll('*')]
+      .filter((el) => el.checkVisibility() && !el.closest('.visually-hidden'))
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && (r.left < box.left - 1 || r.right > box.right + 1);
+      })
+      .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
+  });
+
 /** @param {Page} page */
 const pageOverflow = (page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -331,6 +348,8 @@ for (const viewport of VIEWPORTS) {
               );
             }
             expect(await headerOverlaps(page)).toEqual([]);
+            // The fixed phone toolbar: every part inside the viewport.
+            expect(await outside(page.getByRole('group', { name: 'Toolbar' }))).toEqual([]);
             await expectTwoLinesAtMost(page.locator('main > .banner .banner__message'));
             await expectTwoLinesAtMost(page.locator('.toast__message'));
           }
@@ -403,6 +422,12 @@ for (const viewport of VIEWPORTS) {
           await page.keyboard.press('Enter');
           const popover = page.getByRole('group', { name: 'Time zone details' });
           await expect(popover).toBeVisible();
+          // Above the fixed toolbar, scrolling when taller than the room there.
+          const [pop, bar] = await Promise.all([
+            popover.boundingBox(),
+            page.getByRole('group', { name: 'Toolbar' }).boundingBox(),
+          ]);
+          expect(pop && bar && pop.y + pop.height <= bar.y + 1).toBe(true);
           await expectReachable(popover, { size });
           await page.keyboard.press('Escape');
           await expect(popover).toBeHidden();
@@ -424,6 +449,7 @@ for (const viewport of VIEWPORTS) {
             if (name === 'Add city')
               await expect(dialog.locator('.add-city__result').first()).toBeVisible();
             await expectReachable(dialog, { size });
+            expect(await outside(dialog)).toEqual([]);
             expect(await pageOverflow(page)).toBe(0);
             await page.keyboard.press('Escape');
             await expect(dialog).toBeHidden();
