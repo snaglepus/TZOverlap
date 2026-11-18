@@ -7,12 +7,14 @@
 // A click or tap on a track, or Enter/Space on a home hour cell (the roving
 // keyboard slots), selects a slot: the band and the headers' selected times.
 
+import { changeSentence, describeChange, dstStatus } from '../lib/dst.js';
 import { greyedSpans, qualifies } from '../lib/filter.js';
 import { EXTEND_COLUMNS } from '../lib/grid.js';
 import {
   dayDifference,
   dayDifferenceLabel,
   dayLabel,
+  dayMonth,
   fullDate,
   offsetLine,
   rowName,
@@ -51,6 +53,25 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/filter.js').Span} Span
  */
 
+const HOUR_MS = 3600000;
+
+/**
+ * Put `nodes` at the end of `parent` (before `before` when it is there) while
+ * `show`, else take them out; nodes already in place are left alone.
+ * @param {HTMLElement} parent
+ * @param {HTMLElement[]} nodes
+ * @param {boolean} show
+ * @param {HTMLElement | null} before
+ */
+function place(parent, nodes, show, before) {
+  for (const node of nodes) {
+    if (!show) node.remove();
+    else if (node.parentNode !== parent) {
+      parent.insertBefore(node, before?.parentNode === parent ? before : null);
+    }
+  }
+}
+
 /**
  * The full time ("2:30 pm" or "14:30") in `zone` at `date`.
  * @param {Zone} zone
@@ -65,6 +86,9 @@ function clock(zone, date, cycle) {
 function smoothBehavior() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
 }
+
+/** The --bp-md breakpoint (tokens.css), where the phone and wide header triggers swap. */
+const WIDE = '(min-width: 40rem)';
 
 /** @param {Zone} zone */
 function zoneKey(zone) {
@@ -252,12 +276,14 @@ function trackContent({ zone, cells, midnights }, cycle, hourCells) {
  * @param {HTMLElement} track
  * @param {string} key data-zone value
  * @param {string} [modifier]
+ * @param {string} [id] stored zone id of a user row
  */
-function row(header, track, key, modifier = '') {
-  return h('div', { class: `grid__row${modifier}`, attrs: { role: 'row', 'data-zone': key } }, [
-    h('div', { class: 'grid__header', attrs: { role: 'rowheader' } }, header),
-    track,
-  ]);
+function row(header, track, key, modifier = '', id = undefined) {
+  return h(
+    'div',
+    { class: `grid__row${modifier}`, attrs: { role: 'row', 'data-zone': key, 'data-id': id } },
+    [h('div', { class: 'grid__header', attrs: { role: 'rowheader' } }, header), track],
+  );
 }
 
 /** The home row's location symbol, named for screen readers. */
@@ -285,8 +311,16 @@ function homeSymbol() {
  *   slot: () => Date | null,
  *   homeName: string,
  *   setFilter: (filter: Filter) => void,
+ *   focusRow: (id: string) => boolean,
  *   destroy: () => void,
  * }} GridView
+ * @typedef {import('../lib/row-order.js').Direction} Direction
+ * @typedef {{
+ *   canMove: (zone: StoredZone, direction: Direction) => boolean,
+ *   change: (zone: StoredZone) => void,
+ *   move: (zone: StoredZone, direction: Direction) => void,
+ *   remove: (zone: StoredZone) => void,
+ * }} RowActions
  */
 
 /**
@@ -296,7 +330,8 @@ function homeSymbol() {
  * the label of a hidden stored copy of the home zone, if any; `cities` is the
  * city data when it is already loaded; `hourCycle` is the resolved 12/24-hour
  * cycle; `filter` greys out the instants whose Everyone rating it excludes.
- * `onNowVisible` is told whenever the now line comes into or goes out of
+ * `actions` are the user rows' popover actions; each runs after the popover
+ * closes. `onNowVisible` is told whenever the now line comes into or goes out of
  * view, and `onGoToNow` runs on N (by default scrollToNow). `onSelect` gets the
  * instant clicked or tapped, or a home cell's start on Enter/Space. The roving
  * slot is the home cell starting at `slot`, else the one holding `now`, else
@@ -312,7 +347,7 @@ function homeSymbol() {
  *   extend: (side: Side) => Grid | null,
  *   hourCycle: HourCycle,
  *   filter: Filter,
- *   onRemove: (zone: StoredZone) => void,
+ *   actions: RowActions,
  *   homeLabel?: string,
  *   cities?: readonly City[],
  *   onNowVisible?: (visible: boolean) => void,
@@ -333,7 +368,7 @@ export function timelineGrid({
   extend,
   hourCycle,
   filter: initialFilter,
-  onRemove,
+  actions,
   homeLabel,
   cities,
   onNowVisible = () => {},
@@ -345,8 +380,20 @@ export function timelineGrid({
   slot: preferredSlot = null,
 }) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
-  // One details popover for every phone header, filled from the one that opened it.
-  const details = popover({ label: strings.timelines.details });
+  // One popover for every header trigger, filled from the row that opened it:
+  // the details, then a user row's actions.
+  /** @type {{ trigger: () => HTMLElement, hidden: () => HTMLElement | null } | null} */
+  let openRow = null;
+  const details = popover({
+    label: strings.timelines.details,
+    onClose: () => {
+      openRow = null;
+    },
+  });
+  const detailsPart = h('div', { class: 'popover__details' });
+  /** Visible trigger of each user row, by stored id. @type {Map<string, () => HTMLElement>} */
+  const rowTriggers = new Map();
+  const wide = window.matchMedia(WIDE);
   /** @type {((date: Date, offsetAt: Date) => void)[]} */
   const updates = [];
   /** @type {[HTMLElement, GridCell, string | undefined][]} */
@@ -365,12 +412,21 @@ export function timelineGrid({
   /** @type {string[]} Each row's full name, home first. */
   const names = [];
   let filter = initialFilter;
+  // Every row's names, for the DST sentences' gaps to home.
+  const named = grid.rows.map(({ zone }, i) => {
+    const stored = i === 0 ? null : zones[i - 1];
+    const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
+    return { zone, name: full, display };
+  });
+  const homeNamed = /** @type {import('../lib/dst.js').NamedZone} */ (named[0]);
 
   const zoneRows = grid.rows.map((gridRow, i) => {
     const { zone } = gridRow;
     const stored = i === 0 ? null : zones[i - 1];
     const isHome = !stored;
-    const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
+    const self = /** @type {import('../lib/dst.js').NamedZone} */ (named[i]);
+    const { name: full, display } = self;
+    const dst = zone.kind !== 'fixed';
     names.push(full);
 
     // Shows `display`; screen readers get `full`.
@@ -392,56 +448,84 @@ export function timelineGrid({
     });
     const badge = h('span', { class: 'grid__badge', attrs: { 'aria-hidden': 'true' } });
     const badgeLong = h('span', { class: 'visually-hidden' });
-    const trigger = h(
-      'button',
-      {
-        class: 'grid__trigger',
-        attrs: { type: 'button', 'aria-expanded': 'false', 'aria-controls': details.root.id },
-      },
-      [
-        h('span', { class: 'grid__line' }, [
-          isHome ? homeSymbol() : null,
-          h('span', { class: 'grid__name' }, nameText()),
-        ]),
-        h('span', { class: 'grid__line grid__clock' }, [
-          selectedPrefix,
-          buttonTime,
-          badge,
-          badgeLong,
-        ]),
-      ],
-    );
+    // DST and clock-change chips, aria-hidden with their long wording as hidden text.
+    const dstChip = h('span', {
+      class: 'grid__dst',
+      text: strings.dst.badge,
+      attrs: { 'aria-hidden': 'true' },
+    });
+    const dstLong = h('span', { class: 'visually-hidden', text: strings.dst.badgeLong });
+    const warningChip = h('span', { class: 'grid__warning', attrs: { 'aria-hidden': 'true' } }, [
+      icon('alert'),
+    ]);
+    const warningLong = h('span', { class: 'visually-hidden' });
+    const clockLine = h('span', { class: 'grid__line grid__clock' }, [
+      selectedPrefix,
+      buttonTime,
+      badge,
+      badgeLong,
+    ]);
+    const triggerAttrs = {
+      type: 'button',
+      'aria-expanded': 'false',
+      'aria-controls': details.root.id,
+    };
+    const trigger = h('button', { class: 'grid__trigger', attrs: triggerAttrs }, [
+      h('span', { class: 'grid__line' }, [
+        isHome ? homeSymbol() : null,
+        h('span', { class: 'grid__name' }, nameText()),
+      ]),
+      clockLine,
+    ]);
 
-    // From --bp-md: every detail inline.
+    // From --bp-md: every detail inline; a button for user rows.
     const time = h('span', { class: 'grid__time' });
     const day = h('span', { class: 'grid__day' });
     const date = h('span');
     const offset = h('span');
+    const dstMeta = h('span', { class: 'grid__dst', text: strings.dst.badge });
+    // The home row's warning is its own button; a user row's sits inside its
+    // wide trigger, so it is a chip named by hidden text.
+    const warningText = h('span', { attrs: isHome ? {} : { 'aria-hidden': 'true' } });
+    const warningMetaLong = h('span', { class: 'visually-hidden' });
+    const warning = isHome
+      ? h('button', { class: 'grid__warning', attrs: triggerAttrs }, [icon('alert'), warningText])
+      : h('span', { class: 'grid__warning' }, [icon('alert'), warningText, warningMetaLong]);
+    const meta = h('span', { class: 'grid__meta' }, [
+      time,
+      day,
+      date,
+      offset,
+      zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
+    ]);
     const selectedTime = h('span', { class: 'grid__selected-time' });
     const selectedLine = h('span', { class: 'grid__selected' }, [
       strings.selection.headerPrefix,
       selectedTime,
     ]);
-    const inline = h('div', { class: 'grid__details' }, [
+    const inline = h('span', { class: 'grid__details' }, [
       h('span', { class: 'grid__line' }, [
         isHome ? homeSymbol() : null,
         h('span', { class: 'grid__name' }, nameText()),
       ]),
-      h('span', { class: 'grid__meta' }, [
-        time,
-        day,
-        date,
-        offset,
-        zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
-      ]),
+      meta,
       selectedLine,
     ]);
+
+    const wideTrigger = stored
+      ? h('button', { class: 'grid__trigger grid__trigger--wide', attrs: triggerAttrs }, [inline])
+      : null;
+    // The trigger shown at the current width, and the one hidden.
+    const visible = () => (wideTrigger && wide.matches ? wideTrigger : trigger);
+    const hidden = () => (!wideTrigger ? null : wide.matches ? trigger : wideTrigger);
+    const isOpen = () =>
+      details.isOpenFor(trigger) || (wideTrigger !== null && details.isOpenFor(wideTrigger));
 
     /** @param {Date} at @param {Date} offsetInstant */
     function fill(at, offsetInstant) {
       const diff = dayDifferenceLabel(dayDifference(zone, homeZone, at));
-      details.body.replaceChildren();
-      append(details.body, [
+      detailsPart.replaceChildren();
+      append(detailsPart, [
         h('p', { class: 'popover__title', text: full }),
         h('p', { class: 'grid__time', text: clock(zone, at, cycle) }),
         selected
@@ -451,17 +535,97 @@ export function timelineGrid({
         h('p', { text: fullDate(zone, at) }),
         h('p', { text: offsetLine(zone, offsetInstant) }),
         zone.kind === 'fixed' ? h('p', { text: strings.timelines.noDst }) : null,
+        status?.observing ? h('p', { text: strings.dst.badgeLong }) : null,
+        sentence ? h('p', { text: sentence }) : null,
       ]);
     }
 
-    trigger.addEventListener('click', () => {
-      if (details.isOpenFor(trigger)) {
-        details.close();
-        return;
-      }
+    // The status at the header instant, recomputed once per UTC hour or when its change arrives.
+    /** @type {{ observing: boolean, change: import('../lib/time-engine.js').Transition | null } | null} */
+    let status = null;
+    let statusHour = NaN;
+    let sentence = '';
+    /** @param {Date} offsetInstant */
+    function syncStatus(offsetInstant) {
+      const t = offsetInstant.getTime();
+      const hour = Math.floor(t / HOUR_MS);
+      const due = status?.change && t >= status.change.at.getTime();
+      if (status && hour === statusHour && !due) return;
+      status = dstStatus(zone, offsetInstant);
+      statusHour = hour;
+      const others = named.filter((other) => other !== self && other !== homeNamed);
+      sentence = status.change
+        ? changeSentence(
+            describeChange({ zone: self, transition: status.change, home: homeNamed, others }),
+          ).long
+        : '';
+    }
+
+    function fillWarning() {
+      details.body.replaceChildren();
+      append(details.body, [
+        h('p', { class: 'popover__title', text: full }),
+        h('p', { text: sentence }),
+      ]);
+    }
+
+    if (isHome) {
+      warning.addEventListener('click', () => {
+        if (details.isOpenFor(warning)) {
+          details.close();
+          return;
+        }
+        fillWarning();
+        details.open(warning);
+        openRow = { trigger: () => trigger, hidden: () => warning };
+      });
+    }
+
+    /** @param {StoredZone} zone */
+    function actionList(zone) {
+      /**
+       * @param {string} label
+       * @param {() => void} run
+       * @param {boolean} [disabled]
+       */
+      const action = (label, run, disabled = false) =>
+        button({
+          label,
+          variant: 'ghost',
+          size: 'sm',
+          disabled,
+          onClick: () => {
+            details.close();
+            run();
+          },
+        });
+      const { change, moveUp, moveDown, delete: remove } = strings.timelines.actions;
+      return h('div', { class: 'popover__actions' }, [
+        action(change, () => actions.change(zone)),
+        action(moveUp, () => actions.move(zone, 'up'), !actions.canMove(zone, 'up')),
+        action(moveDown, () => actions.move(zone, 'down'), !actions.canMove(zone, 'down')),
+        action(remove, () => actions.remove(zone)),
+      ]);
+    }
+
+    /** @param {HTMLElement} from */
+    function open(from) {
       fill(current, currentOffset);
-      details.open(trigger);
-    });
+      const list = stored ? actionList(stored) : null;
+      details.body.replaceChildren(detailsPart);
+      if (list) details.body.append(list);
+      details.open(from);
+      openRow = { trigger: visible, hidden };
+      list?.querySelector(/** @type {'button'} */ ('button:enabled'))?.focus();
+    }
+
+    /** @param {HTMLElement} from */
+    const toggle = (from) => {
+      if (details.isOpenFor(from)) details.close();
+      else open(from);
+    };
+    trigger.addEventListener('click', () => toggle(trigger));
+    wideTrigger?.addEventListener('click', () => toggle(wideTrigger));
 
     /** @param {Date} at @param {Date} offsetInstant */
     function update(at, offsetInstant) {
@@ -483,7 +647,28 @@ export function timelineGrid({
       day.hidden = !diff;
       date.textContent = shortDate(zone, at);
       offset.textContent = offsetLine(zone, offsetInstant);
-      if (details.isOpenFor(trigger)) fill(at, offsetInstant);
+      if (dst) {
+        syncStatus(offsetInstant);
+        const change = status?.change;
+        const observing = Boolean(status?.observing);
+        // Badges are in the DOM only while shown, DST before the warning.
+        place(clockLine, [dstChip, dstLong], observing, warningChip);
+        place(meta, [dstMeta], observing, warning);
+        place(clockLine, [warningChip, warningLong], Boolean(change), null);
+        place(meta, [warning], Boolean(change), null);
+        if (change) {
+          const label = strings.dst.warning(shortDate(zone, change.at));
+          warningLong.textContent = label;
+          warningMetaLong.textContent = label;
+          if (isHome) warning.setAttribute('aria-label', label);
+          warningText.textContent = dayMonth(zone, change.at);
+        }
+        if (details.isOpenFor(warning)) {
+          if (change) fillWarning();
+          else details.close();
+        }
+      }
+      if (isOpen()) fill(at, offsetInstant);
     }
     update(now, offsetAt);
     updates.push(update);
@@ -491,23 +676,16 @@ export function timelineGrid({
     const track = h('div', { class: 'grid__track' }, trackContent(gridRow, cycle, hourCells));
     tracks.push(track);
 
-    return row(
-      [
-        trigger,
-        inline,
-        stored
-          ? button({
-              label: strings.timelines.removeLabel,
-              variant: 'ghost',
-              size: 'sm',
-              ariaLabel: strings.timelines.remove(stored.label),
-              onClick: () => onRemove(stored),
-            })
-          : null,
-      ],
-      track,
-      zoneKey(zone),
-    );
+    const el = row([trigger, wideTrigger ?? inline], track, zoneKey(zone), '', stored?.id);
+    if (stored) {
+      rowTriggers.set(stored.id, visible);
+      // Right-click anywhere in a user row's header opens its popover.
+      el.firstElementChild?.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        open(visible());
+      });
+    }
+    return el;
   });
 
   const everyoneTrack = h(
@@ -919,6 +1097,18 @@ export function timelineGrid({
     }
   }
 
+  // Crossing --bp-md hides the open popover's anchor: close it, and keep focus
+  // on the row's visible trigger.
+  function onWide() {
+    if (!openRow) return;
+    const { trigger, hidden } = openRow;
+    const focused = document.activeElement;
+    const refocus = details.root.contains(focused) || focused === hidden();
+    details.close();
+    if (refocus) trigger().focus();
+  }
+  wide.addEventListener('change', onWide);
+
   return {
     root,
     popover: details.root,
@@ -976,8 +1166,16 @@ export function timelineGrid({
       placeMasks();
       for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle, filter);
     },
-    /** Stop lazy extension and label fitting. */
+    /** Focus the visible header trigger of user row `id`; false when there is none. */
+    focusRow(id) {
+      const trigger = rowTriggers.get(id);
+      if (!trigger) return false;
+      trigger().focus();
+      return true;
+    },
+    /** Stop lazy extension, label fitting and the breakpoint listener. */
     destroy() {
+      wide.removeEventListener('change', onWide);
       window.removeEventListener('resize', watch);
       observer?.disconnect();
       observer = null;

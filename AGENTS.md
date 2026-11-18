@@ -134,7 +134,9 @@ src/                    the app (served as-is in dev; bundled for prod)
                         cityDataIfLoaded(): the data once loaded, else null
     row-header.js       row header text: names, day difference, dates, abbreviation and offset line
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
+    dst.js              DST badges status, clock changes between dates, banner sentences
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
+    row-order.js        Move up / Move down: store.move index and position among shown user rows
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps,
                         instantAt() and CLICK_SLOP_PX for click-to-select
     selection.js        selection state: snapToSlot(), createSelection(), createSelectionState()
@@ -154,7 +156,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
-                        lazy extension (IntersectionObserver); click/tap selection, the selection
+                        lazy extension (IntersectionObserver), row actions popover
+                        (Change, Move up, Move down, Delete); click/tap selection, the selection
                         band, header selected times, roving home-cell keyboard slots
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
                         Treat weekends as unavailable, Install and Reset all data

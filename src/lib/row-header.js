@@ -97,6 +97,15 @@ export function shortDate(zone, date) {
 }
 
 /**
+ * "17 Nov": the zone's local day and month at `date`.
+ * @param {Zone} zone
+ * @param {Date} date
+ */
+export function dayMonth(zone, date) {
+  return joinParts(shortDateFormat, localDay(zone, date), ['day', 'month']);
+}
+
+/**
  * "Wed 18": the zone's local weekday and day at `date`, for midnight dividers.
  * @param {Zone} zone
  * @param {Date} date

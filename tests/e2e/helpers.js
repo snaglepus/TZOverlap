@@ -19,6 +19,19 @@ export async function addZone(page, query) {
   await expect(dialog).toBeHidden();
 }
 
+/**
+ * Delete a user row through its header popover.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} zone data-zone value
+ */
+export async function deleteZone(page, zone) {
+  await page.locator(`[role="row"][data-zone="${zone}"] .grid__trigger:visible`).click();
+  await page
+    .getByRole('group', { name: 'Time zone details' })
+    .getByRole('button', { name: 'Delete' })
+    .click();
+}
+
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 /**

@@ -546,7 +546,7 @@ test.describe('phone', () => {
           ).toBe(true);
 
           for (const [zone, time] of Object.entries(times)) {
-            const trigger = row(page, zone).locator('.grid__trigger');
+            const trigger = row(page, zone).locator('.grid__trigger:not(.grid__trigger--wide)');
             const shown = trigger.locator('.grid__time');
             await expect(shown).toHaveText(time);
             await expect(shown).toHaveAttribute('data-selected', 'true');

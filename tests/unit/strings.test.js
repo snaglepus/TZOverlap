@@ -15,6 +15,7 @@ const callers = [
   'ui/install.js',
   'ui/selection-bar.js',
   'lib/selection-details.js',
+  'lib/dst.js',
 ];
 
 /** @typedef {Record<string, unknown>} Tree */
@@ -91,6 +92,11 @@ describe('strings', () => {
   it('keeps the existing wording', () => {
     assert.equal(strings.addCity.added('New York'), 'Added New York.');
     assert.equal(strings.addCity.removed('Tokyo'), 'Removed Tokyo.');
+    assert.equal(strings.addCity.restored('Tokyo'), 'Restored Tokyo.');
+    assert.equal(strings.addCity.changeTitle('Tokyo'), 'Change Tokyo');
+    assert.equal(strings.addCity.changed('Tokyo', 'London'), 'Changed Tokyo to London.');
+    assert.equal(strings.timelines.moved('London', 2, 5), 'London moved to position 2 of 5');
+    assert.equal(strings.toasts.undo, 'Undo');
     assert.equal(strings.timelines.everyone, 'Everyone');
     assert.equal(strings.timelines.noDst, 'No DST');
     assert.equal(strings.timelines.repeatTitle, 'Clocks go back — this hour repeats');
