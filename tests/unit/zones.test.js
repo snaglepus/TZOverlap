@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  ianaZoneFromInput,
+  isZoneAdded,
   parseFixedOffset,
   zoneAbbreviation,
   zoneLocalParts,
@@ -155,29 +155,32 @@ describe('fixed offsets stay arithmetic', () => {
   });
 });
 
-describe('ianaZoneFromInput', () => {
-  it('rejects empty input', () => {
-    assert.deepEqual(ianaZoneFromInput('   ', 'Europe/London'), { ok: false, error: 'empty' });
+describe('isZoneAdded', () => {
+  /** @type {import('../../src/lib/zones.js').Zone[]} */
+  const stored = [
+    { kind: 'iana', tz: 'Asia/Tokyo' },
+    { kind: 'fixed', minutes: 330 },
+  ];
+
+  it('matches a stored IANA zone', () => {
+    assert.equal(isZoneAdded({ kind: 'iana', tz: 'Asia/Tokyo' }, stored, 'Europe/London'), true);
+    assert.equal(isZoneAdded({ kind: 'iana', tz: 'Asia/Seoul' }, stored, 'Europe/London'), false);
   });
 
-  it('rejects an unknown zone', () => {
-    assert.deepEqual(ianaZoneFromInput('Mars/Olympus', 'Europe/London'), {
-      ok: false,
-      error: 'invalid',
-    });
+  it('matches a stored fixed offset', () => {
+    assert.equal(isZoneAdded({ kind: 'fixed', minutes: 330 }, stored, 'Europe/London'), true);
+    assert.equal(isZoneAdded({ kind: 'fixed', minutes: 345 }, stored, 'Europe/London'), false);
   });
 
-  it('rejects the home zone as a duplicate', () => {
-    assert.deepEqual(ianaZoneFromInput(' europe/london ', 'Europe/London'), {
-      ok: false,
-      error: 'duplicate',
-    });
+  it('matches the home zone', () => {
+    assert.equal(isZoneAdded({ kind: 'iana', tz: 'Europe/London' }, [], 'Europe/London'), true);
   });
 
-  it('trims and canonicalises the input', () => {
-    assert.deepEqual(ianaZoneFromInput('  asia/tokyo ', 'Europe/London'), {
-      ok: true,
-      zone: { kind: 'iana', tz: 'Asia/Tokyo' },
-    });
+  it('never treats an IANA zone as equal to a fixed one', () => {
+    assert.equal(isZoneAdded({ kind: 'iana', tz: 'Asia/Kolkata' }, stored, 'Europe/London'), false);
+    assert.equal(
+      isZoneAdded({ kind: 'fixed', minutes: 0 }, [{ kind: 'iana', tz: 'UTC' }], 'UTC'),
+      false,
+    );
   });
 });

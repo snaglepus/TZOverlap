@@ -397,3 +397,114 @@ describe('anchor helpers', () => {
     );
   });
 });
+
+describe('buildGrid weekends', () => {
+  const london = iana('Europe/London');
+  // Saturday 13 June 2026, 12:00 in London: the window is Fri 12 to Sun 14.
+  const SATURDAY = at('2026-06-13T11:00:00Z');
+  /** @type {Zone & { country: string }} */
+  const riyadh = { kind: 'iana', tz: 'Asia/Riyadh', country: 'SA' };
+  /** @type {Zone & { country: string }} */
+  const fixedSa = { kind: 'fixed', minutes: 180, country: 'SA' };
+
+  /**
+   * Local days ("YYYY-MM-DD") of a row's weekend and weekday cells.
+   * @param {Zone} zone
+   * @param {GridCell[]} cells
+   */
+  function days(zone, cells) {
+    /** @param {GridCell} cell */
+    const day = (cell) => {
+      const p = zoneLocalParts(zone, cell.start);
+      return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+    };
+    return {
+      weekend: [...new Set(cells.filter((c) => c.weekend).map(day))],
+      weekday: [...new Set(cells.filter((c) => !c.weekend).map(day))],
+    };
+  }
+
+  it('flags Sat-Sun for London, Fri-Sat for Riyadh and Sat-Sun for a fixed zone', () => {
+    const grid = buildGrid({
+      homeZone: london,
+      zones: [riyadh, fixedSa],
+      anchor: todayAnchor(london, SATURDAY),
+    });
+    const [home, ksa, fix] = grid.rows;
+    assert.ok(home && ksa && fix);
+    assert.deepEqual(days(london, home.cells), {
+      weekend: ['2026-06-13', '2026-06-14'],
+      weekday: ['2026-06-12'],
+    });
+    assert.deepEqual(days(riyadh, ksa.cells), {
+      weekend: ['2026-06-12', '2026-06-13'],
+      weekday: ['2026-06-14', '2026-06-15'],
+    });
+    assert.deepEqual(days(fixedSa, fix.cells), {
+      weekend: ['2026-06-13', '2026-06-14'],
+      weekday: ['2026-06-12', '2026-06-15'],
+    });
+  });
+
+  it('flags the same cells with the setting on or off', () => {
+    const on = buildGrid({
+      homeZone: london,
+      zones: [riyadh],
+      anchor: todayAnchor(london, SATURDAY),
+    });
+    const off = buildGrid({
+      homeZone: london,
+      zones: [riyadh],
+      anchor: todayAnchor(london, SATURDAY),
+      weekendsUnavailable: false,
+    });
+    /** @param {typeof on} grid */
+    const flags = (grid) => grid.rows.map((r) => r.cells.map((c) => c.weekend));
+    assert.deepEqual(flags(on), flags(off));
+    // Only the rating changes: Saturday 10:00 in London.
+    /** @param {typeof on} grid */
+    const ten = (grid) => cellAt(london, grid.rows[0]?.cells ?? [], '2026-06-13', 10);
+    assert.equal(ten(on).rating, 'unsuitable');
+    assert.equal(ten(off).rating, 'best');
+    assert.equal(ten(off).weekend, true);
+  });
+});
+
+describe('buildGrid midnights', () => {
+  it('places each local midnight inside the window, :30 and :45 zones off the columns', () => {
+    const grid = buildGrid({ homeZone: sydney, zones: [kolkata, kathmandu], anchor: NOV_18 });
+    const [home, kol, ktm] = grid.rows;
+    assert.ok(home && kol && ktm);
+    /** @param {import('../../src/lib/grid.js').Midnight[]} list */
+    const lefts = (list) => list.map((m) => m.left);
+    assert.deepEqual(lefts(home.midnights), [0, 24, 48]);
+    assert.equal(home.midnights[0]?.at.toISOString(), '2026-11-16T13:00:00.000Z');
+    // Kolkata (UTC+5:30) midnight is 18:30Z, 5.5 hours after Sydney's 13:00Z.
+    assert.deepEqual(lefts(kol.midnights), [5.5, 29.5, 53.5]);
+    assert.equal(kol.midnights[0]?.at.toISOString(), '2026-11-16T18:30:00.000Z');
+    // Kathmandu (UTC+5:45): a quarter of a column off.
+    assert.deepEqual(lefts(ktm.midnights), [5.25, 29.25, 53.25]);
+    for (const row of grid.rows) {
+      for (const m of row.midnights) {
+        assert.ok(m.at >= grid.start && m.at < grid.end);
+        const p = zoneLocalParts(row.zone, m.at);
+        assert.deepEqual([p.hour, p.minute], [0, 0]);
+      }
+    }
+    assert.equal('midnights' in grid, false);
+    assert.ok(grid.everyone.every((seg) => !('midnights' in seg)));
+  });
+
+  it('starts a day at its first hour when DST skips midnight', () => {
+    // Santiago springs forward at 00:00 on Sun 6 Sep 2026: the day starts at 01:00.
+    const santiago = iana('America/Santiago');
+    const grid = buildGrid({
+      homeZone: santiago,
+      zones: [],
+      anchor: todayAnchor(santiago, at('2026-09-06T15:00:00Z')),
+    });
+    const day = grid.rows[0]?.midnights.find((m) => zoneLocalParts(santiago, m.at).day === 6);
+    assert.ok(day);
+    assert.equal(zoneLocalParts(santiago, day.at).hour, 1);
+  });
+});

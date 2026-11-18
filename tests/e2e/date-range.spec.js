@@ -89,7 +89,10 @@ const probe = (page, zone, scrollTo) =>
     const target = /** @type {Element} */ (el.querySelector(`[data-zone="${zone}"]`));
     const rowBox = target.getBoundingClientRect();
     const x = (headerRight + box.right) / 2;
-    const cell = document.elementFromPoint(x, rowBox.top + rowBox.height / 2);
+    // Skip midnight dividers and day labels drawn over the cells.
+    const cell = document
+      .elementsFromPoint(x, rowBox.top + rowBox.height / 2)
+      .find((e) => e.getAttribute('role') === 'gridcell');
     return {
       start: cell?.getAttribute('data-start') ?? null,
       left: cell?.getBoundingClientRect().left ?? NaN,
@@ -107,7 +110,9 @@ const inVisibleTrack = (page, iso) =>
     const el = /** @type {HTMLElement} */ (document.querySelector('[role="grid"]'));
     const box = el.getBoundingClientRect();
     const header = /** @type {Element} */ (el.querySelector('.grid__header'));
-    const cell = el.querySelector(`[role="row"]:first-child [data-start="${iso}"]`);
+    const cell = el.querySelector(
+      `[role="row"]:first-child [role="gridcell"][data-start="${iso}"]`,
+    );
     if (!cell) return false;
     const r = cell.getBoundingClientRect();
     return r.left >= box.left + header.getBoundingClientRect().width && r.right <= box.right;
@@ -202,15 +207,17 @@ test('date pick: the window moves to that date, with its rules (FR-32)', async (
   await page.goto('/');
   await pickDate(page, '2026-07-15');
   const home = row(page, HOME);
-  await expect(home.locator('[data-start="2026-07-14T14:00:00.000Z"]')).toHaveCount(1);
   await expect(
-    row(page, 'Europe/London').locator('[data-start="2026-07-15T08:00:00.000Z"]'),
+    home.locator('[role="gridcell"][data-start="2026-07-14T14:00:00.000Z"]'),
+  ).toHaveCount(1);
+  await expect(
+    row(page, 'Europe/London').locator('[role="gridcell"][data-start="2026-07-15T08:00:00.000Z"]'),
   ).toHaveText('09');
   await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('UTC+1');
   await expect(home.getByRole('rowheader')).toContainText('UTC+10');
   await expect(home.locator('.grid__details .grid__time')).toHaveText('12:00');
   const all = await page
-    .locator('[role="grid"] [role="row"]:not([data-zone="everyone"]) [data-start]')
+    .locator('[role="grid"] [role="row"]:not([data-zone="everyone"]) [role="gridcell"][data-start]')
     .evaluateAll((els) => els.map((el) => /** @type {string} */ (el.getAttribute('data-start'))));
   expect((await starts(page))[0]).toBe('2026-07-13T14:00:00.000Z');
   expect(all.every((start) => start >= '2026-07-13T14:00:00.000Z')).toBe(true);
@@ -274,7 +281,9 @@ test('bounded DOM: seven zones at the 29-day cap, back under 1,100 after a pick'
   await extendToCap(page, 'start');
   const rows = await page.locator('[role="grid"] [role="row"]').evaluateAll((els) =>
     els.map((el) => {
-      const s = [...el.querySelectorAll('[data-start]')].map((c) => c.getAttribute('data-start'));
+      const s = [...el.querySelectorAll('[role="gridcell"][data-start]')].map((c) =>
+        c.getAttribute('data-start'),
+      );
       return { zone: el.getAttribute('data-zone'), count: s.length, unique: new Set(s).size };
     }),
   );
@@ -283,7 +292,9 @@ test('bounded DOM: seven zones at the 29-day cap, back under 1,100 after a pick'
   const count = () => grid(page).evaluate((el) => el.querySelectorAll('*').length);
   expect(await count()).toBeLessThanOrEqual(9000);
   await pickDate(page, '2026-07-15');
-  await expect(row(page, HOME).locator('[data-start="2026-07-14T14:00:00.000Z"]')).toHaveCount(1);
+  await expect(
+    row(page, HOME).locator('[role="gridcell"][data-start="2026-07-14T14:00:00.000Z"]'),
+  ).toHaveCount(1);
   expect(await count()).toBeLessThanOrEqual(1100);
 });
 
@@ -393,7 +404,9 @@ test.describe('skipped adjacent date', () => {
     await page.goto('/');
     await pickDate(page, '2011-12-31');
     const home = 'Pacific/Apia';
-    await expect(row(page, home).locator('[data-start="2011-12-30T10:00:00.000Z"]')).toHaveCount(1);
+    await expect(
+      row(page, home).locator('[role="gridcell"][data-start="2011-12-30T10:00:00.000Z"]'),
+    ).toHaveCount(1);
     const homeStarts = await starts(page, home);
     expect(homeStarts).toHaveLength(72);
     expect(homeStarts[0]).toBe('2011-12-29T10:00:00.000Z');
@@ -446,7 +459,7 @@ test('the now line stays on now when days are added on the left', async ({ page 
     page.locator('.grid__now').evaluate((el) => el.getBoundingClientRect().left);
   const cellLeft = () =>
     row(page, HOME)
-      .locator('[data-start="2026-11-18T01:00:00.000Z"]')
+      .locator('[role="gridcell"][data-start="2026-11-18T01:00:00.000Z"]')
       .evaluate((el) => el.getBoundingClientRect().left);
   // The line sits at the start of the 12:00 cell (now is 12:00 exactly).
   expect(Math.abs((await lineLeft()) - (await cellLeft()))).toBeLessThanOrEqual(1);

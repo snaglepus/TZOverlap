@@ -148,12 +148,15 @@ test('N works only while focus is in the grid', async ({ page }) => {
   const far = await scrollLeft(page);
   expect(far).toBeGreaterThan(0);
 
-  const input = page.getByLabel('Time zone', { exact: true });
+  await page.getByRole('button', { name: 'Add city', exact: true }).click();
+  const addCity = page.getByRole('dialog', { name: 'Add city' });
+  const input = addCity.getByLabel('Search cities, countries or offsets');
   await input.focus();
   await page.keyboard.press('n');
   await expect(input).toHaveValue('n');
   expect(await scrollLeft(page)).toBe(far);
-  await input.fill('');
+  await page.keyboard.press('Escape');
+  await expect(addCity).toBeHidden();
 
   await page.getByRole('button', { name: 'Settings' }).focus();
   await page.keyboard.press('n');

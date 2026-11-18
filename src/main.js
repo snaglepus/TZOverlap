@@ -28,14 +28,6 @@ function serviceWorkerContainer() {
   }
 }
 
-function zoneSuggestions() {
-  try {
-    return Intl.supportedValuesOf('timeZone');
-  } catch {
-    return [];
-  }
-}
-
 const root = /** @type {HTMLElement} */ (document.getElementById('app'));
 
 try {
@@ -49,7 +41,7 @@ try {
       store,
       media: window.matchMedia('(prefers-color-scheme: dark)'),
     });
-    const app = mountApp(root, { store, theme, suggestions: zoneSuggestions() });
+    const app = mountApp(root, { store, theme });
     // Save before the page goes away, and follow other tabs' writes.
     window.addEventListener('pagehide', () => store.flush());
     document.addEventListener('visibilitychange', () => {

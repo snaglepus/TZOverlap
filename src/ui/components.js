@@ -530,6 +530,27 @@ export function radioGroup({ legend, name, options, value, onChange }) {
 }
 
 /**
+ * Switch: a native checkbox with role="switch", on or off.
+ * @param {{ label: string, checked: boolean, onChange: (checked: boolean) => void }} options
+ */
+export function switchControl({ label, checked, onChange }) {
+  const input = h('input', {
+    class: 'switch__input',
+    attrs: { type: 'checkbox', role: 'switch', checked },
+    on: { change: () => onChange(input.checked) },
+  });
+  const root = h('label', { class: 'switch' }, [input, label]);
+  return {
+    root,
+    input,
+    /** Set the state without firing onChange. @param {boolean} next */
+    setChecked(next) {
+      input.checked = next;
+    },
+  };
+}
+
+/**
  * App shell: skip link, title bar with <h1> and a toolbar for the actions,
  * <main> opening with the page's banner region, footer, and the page's one
  * toast region.

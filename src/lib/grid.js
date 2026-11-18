@@ -6,6 +6,7 @@
 
 import { buildSlots, combineRatings, SLOT_MINUTES } from './suitability.js';
 import { zoneHourCells } from './time-engine.js';
+import { isWeekend, weekendDays } from './weekends.js';
 import { zoneLocalParts } from './zones.js';
 
 /** @typedef {import('./zones.js').Zone} Zone */
@@ -24,8 +25,10 @@ import { zoneLocalParts } from './zones.js';
  *   rating: Rating,
  *   step?: HeatStep,
  * }} Segment
- * @typedef {Segment & { hour: number, repeat: boolean }} GridCell
- * @typedef {{ zone: GridZone, cells: GridCell[] }} GridRow
+ * @typedef {Segment & { hour: number, repeat: boolean, weekend: boolean }} GridCell
+ * A local midnight: the start of the first hour cell of a local date.
+ * @typedef {{ at: Date, left: number }} Midnight
+ * @typedef {{ zone: GridZone, cells: GridCell[], midnights: Midnight[] }} GridRow
  * @typedef {{ start: Date, end: Date, hours: number, rows: GridRow[], everyone: Segment[] }} Grid
  */
 
@@ -234,9 +237,10 @@ export function buildGrid({
     weekendsUnavailable,
   });
 
-  const rows = all.map((zone, z) => ({
-    zone,
-    cells: zoneHourCells(zone, start, end).map((cell) => {
+  const rows = all.map((zone, z) => {
+    const hourCells = zoneHourCells(zone, start, end);
+    const days = weekendDays(zone, zone.country);
+    const cells = hourCells.map((cell) => {
       // Slots overlapping the cell (inside the window).
       const first = Math.max(0, Math.floor((cell.start.getTime() - start.getTime()) / SLOT_MS));
       const last = Math.min(
@@ -253,13 +257,29 @@ export function buildGrid({
         ...place(cell, start),
         hour: cell.hour,
         repeat: cell.repeat,
+        weekend: isWeekend(
+          new Date(Date.UTC(cell.date.year, cell.date.month - 1, cell.date.day)).getUTCDay(),
+          days,
+        ),
         rating: rated.rating,
       };
       const step = heatStep(rated);
       if (step !== undefined) out.step = step;
       return out;
-    }),
-  }));
+    });
+    // A cell starts a local date when the instant just before it is on another date.
+    const midnights = hourCells
+      .filter((cell) => {
+        const t = cell.start.getTime();
+        return (
+          t >= start.getTime() &&
+          t < end.getTime() &&
+          dayKey(zoneLocalParts(zone, new Date(t - 1))) !== dayKey(cell.date)
+        );
+      })
+      .map((cell) => ({ at: cell.start, left: place(cell, start).left }));
+    return { zone, cells, midnights };
+  });
 
   /** @type {Segment[]} */
   const everyone = [];

@@ -9,6 +9,7 @@ import { EXTEND_COLUMNS } from '../lib/grid.js';
 import {
   dayDifference,
   dayDifferenceLabel,
+  dayLabel,
   fullDate,
   offsetLine,
   rowName,
@@ -30,6 +31,8 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/grid.js').Grid} Grid
  * @typedef {import('../lib/grid.js').Segment} Segment
  * @typedef {import('../lib/grid.js').GridCell} GridCell
+ * @typedef {import('../lib/grid.js').GridRow} GridRow
+ * @typedef {import('../lib/grid.js').Midnight} Midnight
  * @typedef {import('../lib/zones.js').Zone} Zone
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../data/cities.js').City} City
@@ -85,14 +88,24 @@ function placed(span, attrs, children = []) {
   return el;
 }
 
-/** @param {GridCell} cell */
-function hourCell(cell) {
+/**
+ * @param {GridCell} cell
+ * @param {string} [day] day label when the cell starts a local date
+ */
+function hourCell(cell, day) {
   const hour = pad(cell.hour);
   return placed(
     cell,
     {
       'data-hour': String(cell.hour),
-      'aria-label': strings.timelines.cell(hour, strings.ratings[cell.rating], cell.repeat),
+      'data-weekend': cell.weekend ? 'true' : undefined,
+      'aria-label': strings.timelines.cell(
+        hour,
+        strings.ratings[cell.rating],
+        cell.repeat,
+        cell.weekend,
+        day,
+      ),
       title: cell.repeat ? strings.timelines.repeatTitle : undefined,
     },
     [
@@ -120,6 +133,40 @@ function everyoneSegments(grid) {
       ),
     }),
   );
+}
+
+/**
+ * A local midnight: a line with a day label chip. Hidden from assistive tech;
+ * the day's first cell carries the label in its name instead.
+ * @param {Midnight} midnight
+ * @param {string} label
+ */
+function divider(midnight, label) {
+  const el = h(
+    'div',
+    {
+      class: 'grid__divider',
+      attrs: { 'data-start': midnight.at.toISOString(), 'aria-hidden': 'true' },
+    },
+    [h('span', { class: 'grid__day-label', text: label })],
+  );
+  el.style.setProperty('--cell-left', String(midnight.left));
+  return el;
+}
+
+/**
+ * A row's hour cells and its midnight dividers. The day label of each midnight
+ * goes on the divider and on the day's first cell.
+ * @param {GridRow} gridRow
+ */
+function trackContent({ zone, cells, midnights }) {
+  const labels = new Map(midnights.map(({ at }) => [at.getTime(), dayLabel(zone, at)]));
+  return [
+    ...cells.map((cell) => hourCell(cell, labels.get(cell.start.getTime()))),
+    ...midnights.map((midnight) =>
+      divider(midnight, /** @type {string} */ (labels.get(midnight.at.getTime()))),
+    ),
+  ];
 }
 
 /**
@@ -204,7 +251,8 @@ export function timelineGrid({
   /** @type {HTMLElement[]} */
   const tracks = [];
 
-  const zoneRows = grid.rows.map(({ zone, cells }, i) => {
+  const zoneRows = grid.rows.map((gridRow, i) => {
+    const { zone } = gridRow;
     const stored = i === 0 ? null : zones[i - 1];
     const isHome = !stored;
     const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
@@ -298,7 +346,7 @@ export function timelineGrid({
     update(now, offsetAt);
     updates.push(update);
 
-    const track = h('div', { class: 'grid__track' }, cells.map(hourCell));
+    const track = h('div', { class: 'grid__track' }, trackContent(gridRow));
     tracks.push(track);
 
     return row(
@@ -489,7 +537,7 @@ export function timelineGrid({
   /** @param {Grid} next */
   function setGrid(next) {
     shown = next;
-    next.rows.forEach(({ cells }, i) => tracks[i]?.replaceChildren(...cells.map(hourCell)));
+    next.rows.forEach((gridRow, i) => tracks[i]?.replaceChildren(...trackContent(gridRow)));
     everyoneTrack.replaceChildren(...everyoneSegments(next));
     root.style.setProperty('--grid-hours', String(next.hours));
     placeEdges();
