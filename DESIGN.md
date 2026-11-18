@@ -107,8 +107,13 @@ cell and segment has an `aria-label` naming its rating.
 Usage: page title `2xl` bold; card titles `lg` bold; body `md`; help text,
 offsets and legend `sm` muted; hour cells `sm` in `--font-mono` with
 `font-variant-numeric: tabular-nums`. Never go below `xs`, and only use `xs` for
-secondary annotations (grid header time and offset, the repeated-hour "2").
-Sentence case everywhere.
+secondary annotations (grid header time, date, offset line and day badge, the
+repeated-hour "2"). Sentence case everywhere.
+
+Row headers: the name is `sm` bold on one line, cut off with an ellipsis; the
+time is `xs` in `--font-mono` with tabular numerals; the date, offset line
+("AEDT · UTC+11") and "No DST" are `xs` muted; the day difference ("Tomorrow",
+or the phone badge "+1") is `xs` medium in `--color-text`.
 
 Phone minimums: body text 17px (`md`, 1.0625rem); hour labels and secondary
 text at least 13px, so `xs` (0.8125rem) is the floor; nothing below 11px. All
@@ -144,8 +149,11 @@ durations become `0ms` (handled in `tokens.css`).
 ### 3.6 Layout sizes
 
 `--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
-`--slot-width` 3rem · `--slot-height` 2.75rem · `--row-header-width` 12rem ·
-`--row-header-width-compact` 7.5rem · `--control-height-sm` 2rem ·
+`--slot-width` 3rem · `--slot-height` 3.5rem (56px, phone rows) ·
+`--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
+`--row-header-width-compact` 7rem (112px, phone) · `--row-header-width`
+11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
+from `--bp-lg`) · `--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
 safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
@@ -153,14 +161,18 @@ safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
-`--slot-width` is the width of one home-zone hour (a grid column) and
-`--slot-height` the height of a grid row. Row headers are
-`--row-header-width-compact` wide, `--row-header-width` above `--bp-md`. The
+`--slot-width` is the width of one home-zone hour (a grid column).
+`--slot-height` is the minimum height of a grid row below `--bp-md` and
+`--slot-height-wide` from it. Row headers are `--row-header-width-compact`
+wide, `--row-header-width` from `--bp-md` and `--row-header-width-wide` from
+`--bp-lg`. The
 grid sets three unitless runtime properties through
 `style.setProperty()` (CSSOM, allowed by the CSP): `--grid-hours` on the grid
 (track width = hours × `--slot-width`), and `--cell-left` / `--cell-width` on
 each cell and segment (in columns, multiplied by `--slot-width` in CSS). They
-are not tokens and are never declared in a stylesheet.
+are not tokens and are never declared in a stylesheet. The Popover sets
+`--popover-left` / `--popover-top` the same way, in px, multiplied by
+`--hairline` in CSS.
 
 ### 3.7 Other
 
@@ -214,8 +226,11 @@ attribute, not just a class.
 
 Inline SVG built with `createElementNS`, `fill="currentColor"`, sized by
 `--icon-size`. Always decorative (`aria-hidden="true"`, `focusable="false"`):
-the button that holds it carries the name. Only `gear` exists; add a name to
-the `IconName` union and its path data together.
+the button that holds it carries the name, or, where an icon stands alone, a
+wrapper with `role="img"` and an `aria-label` from strings. Icons: `gear`
+(Settings) and `location` (a pin: the home row's symbol, wrapped as
+`role="img"` "Your location" and sized `--space-4` in the row header). Add a
+name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -256,6 +271,21 @@ first control; Esc, a backdrop click, Close and `close()` all close it and
 return focus to `opener`. Tab and Shift+Tab wrap inside it. Use for settings and
 other short tasks that leave the page in place.
 
+### Popover — `popover()` · `.popover`
+
+A small non-modal panel on the native `popover="auto"` attribute (top layer, no
+backdrop), labelled by `label` (`role="group"`). Solid `--color-surface`,
+hairline border, `--radius-md`, `--shadow-md`, `sm` text with an optional
+`.popover__title` line. `open(anchor)` places it below the anchor (above when
+there is no room) and keeps it inside the viewport, following page scroll and
+resize; positions go in as `--popover-left` / `--popover-top`. Esc closes it and
+returns focus to the anchor; a click outside closes it. The anchor gets
+`aria-expanded`; give it `aria-controls` with the popover's id, and in its click
+handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One
+popover can serve many anchors. Use for read-only details of one item, such as
+a phone row header's full name, date and offset; later row actions add to
+`body`. Not for tasks: use a Sheet.
+
 ### Toast — `createToaster()` · `.toast`
 
 One short message at a time, at most two lines and never truncated, with an
@@ -292,18 +322,27 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                      |
-| --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| base      | 0         | Single column, `--space-4` gutters, compact row headers, toolbar fixed to the bottom, sheets are full-width bottom sheets    |
-| `--bp-md` | `40rem`   | `--space-6` gutters, full row headers, add-zone field and button inline, toolbar in the title bar, sheets are centred modals |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred                                                                          |
+| Name      | Min width | Changes                                                                                                                                                                                              |
+| --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--space-4` gutters, compact row headers (a button: name, then time and day badge; details in a popover), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline and no button, 64px rows, add-zone field and button inline, toolbar in the title bar, sheets are centred modals                      |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                               |
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
 Everyone, then the added zones in order. It covers yesterday, today and
-tomorrow in the home zone. Row headers (name, live local time, offset, and "No
-DST" for fixed offsets) stay sticky on the left; names truncate with an
-ellipsis. Each row's track is window hours × `--slot-width` wide and clips
+tomorrow in the home zone. Row headers stay sticky on the left; names truncate
+with an ellipsis, and the full name is always in the accessible name. Each zone
+header has the name (the home row is the plain city, "Sydney", after a
+`location` symbol, with no remove control), the live local time, the short date
+("Tue 17 Nov"), the offset line ("AEDT · UTC+11", or "UTC+9" without a real
+abbreviation), "No DST" for fixed offsets, and the day difference from home
+("Tomorrow", "Yesterday", "+2 days") when it is not 0. All of it updates on the
+minute tick without rebuilding cells. Below `--bp-md` the header is a button
+with two lines (name; time plus a "+1" / "−1" badge) beside the remove button;
+it opens the grid's one details Popover with the full name, time, full date,
+offset line, day difference and "No DST". From `--bp-md` every detail is
+inline and there is no button. Each row's track is window hours × `--slot-width` wide and clips
 cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
 (clocks going back) gets a second cell with a small "2" and a tooltip. The page
