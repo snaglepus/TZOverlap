@@ -262,7 +262,10 @@ test('invalid input: clearing the date changes nothing, blur restores it', async
   expect(await grid(page).evaluate((el) => el.scrollLeft)).toBe(scroll);
 });
 
-test('bounded DOM: seven zones at the 29-day cap, back under 1,100 after a pick', async ({
+// Each hour cell wraps its label in .grid__label (TZO-18): one more element per
+// cell, so 12,000 at the cap (was 9,000) and, after a pick, the 1,400-element
+// load budget in timelines.spec.js (was 1,100).
+test('bounded DOM: seven zones at the 29-day cap, back under 1,400 after a pick', async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -290,12 +293,12 @@ test('bounded DOM: seven zones at the 29-day cap, back under 1,100 after a pick'
   for (const r of rows) expect(r.unique, /** @type {string} */ (r.zone)).toBe(r.count);
   expect(await homeCount(page)).toBe(29 * 24);
   const count = () => grid(page).evaluate((el) => el.querySelectorAll('*').length);
-  expect(await count()).toBeLessThanOrEqual(9000);
+  expect(await count()).toBeLessThanOrEqual(12000);
   await pickDate(page, '2026-07-15');
   await expect(
     row(page, HOME).locator('[role="gridcell"][data-start="2026-07-14T14:00:00.000Z"]'),
   ).toHaveCount(1);
-  expect(await count()).toBeLessThanOrEqual(1100);
+  expect(await count()).toBeLessThanOrEqual(1400);
 });
 
 test('re-render keeps the view: adding a zone keeps the days and the scroll', async ({ page }) => {
