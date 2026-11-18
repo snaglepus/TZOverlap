@@ -6,6 +6,7 @@
 // by a day when the visible track area comes within EXTEND_COLUMNS of either end.
 // A click or tap on a track, or Enter/Space on a home hour cell (the roving
 // keyboard slots), selects a slot: the band and the headers' selected times.
+// Each user row's header has a drag handle; src/ui/reorder.js reorders rows.
 
 import { changeSentence, describeChange, dstStatus } from '../lib/dst.js';
 import { greyedSpans, qualifies } from '../lib/filter.js';
@@ -35,6 +36,7 @@ import { formatTime } from '../lib/time-format.js';
 import { zoneLocalParts } from '../lib/zones.js';
 import { button, icon, popover } from './components.js';
 import { append, h } from './dom.js';
+import { attachReorder } from './reorder.js';
 import { strings } from './strings.js';
 
 /**
@@ -320,6 +322,7 @@ function homeSymbol() {
  *   change: (zone: StoredZone) => void,
  *   move: (zone: StoredZone, direction: Direction) => void,
  *   remove: (zone: StoredZone) => void,
+ *   reorder: (zone: StoredZone, position: number) => void,
  * }} RowActions
  */
 
@@ -517,8 +520,21 @@ export function timelineGrid({
     // The trigger shown at the current width, and the one hidden.
     const visible = () => (wideTrigger && wide.matches ? wideTrigger : trigger);
     const hidden = () => (!wideTrigger ? null : wide.matches ? trigger : wideTrigger);
+    // A user row's drag handle; activating it opens the details like the trigger.
+    const handle = stored
+      ? h(
+          'button',
+          {
+            class: 'grid__handle',
+            attrs: { ...triggerAttrs, 'aria-label': strings.timelines.reorder(full) },
+          },
+          [icon('grip')],
+        )
+      : null;
     const isOpen = () =>
-      details.isOpenFor(trigger) || (wideTrigger !== null && details.isOpenFor(wideTrigger));
+      details.isOpenFor(trigger) ||
+      (wideTrigger !== null && details.isOpenFor(wideTrigger)) ||
+      (handle !== null && details.isOpenFor(handle));
 
     /** @param {Date} at @param {Date} offsetInstant */
     function fill(at, offsetInstant) {
@@ -625,6 +641,7 @@ export function timelineGrid({
     };
     trigger.addEventListener('click', () => toggle(trigger));
     wideTrigger?.addEventListener('click', () => toggle(wideTrigger));
+    handle?.addEventListener('click', () => toggle(handle));
 
     /** @param {Date} at @param {Date} offsetInstant */
     function update(at, offsetInstant) {
@@ -675,7 +692,7 @@ export function timelineGrid({
     const track = h('div', { class: 'grid__track' }, trackContent(gridRow, cycle, hourCells));
     tracks.push(track);
 
-    const el = row([trigger, wideTrigger ?? inline], track, zoneKey(zone), '', stored?.id);
+    const el = row([trigger, wideTrigger ?? inline, handle], track, zoneKey(zone), '', stored?.id);
     if (stored) {
       rowTriggers.set(stored.id, visible);
       // Right-click anywhere in a user row's header opens its popover.
@@ -714,6 +731,15 @@ export function timelineGrid({
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
   const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
+  const reorder = attachReorder({
+    root,
+    rows: userRows,
+    fixed: [/** @type {HTMLElement} */ (homeRow), everyone],
+    onDrop: (from, position) => {
+      const zone = zones[from];
+      if (zone) actions.reorder(zone, position);
+    },
+  });
 
   // Filter masks: after each track's cells, before its midnight dividers.
   function placeMasks() {
@@ -1172,8 +1198,9 @@ export function timelineGrid({
       trigger().focus();
       return true;
     },
-    /** Stop lazy extension, label fitting and the breakpoint listener. */
+    /** Stop lazy extension, label fitting, reordering and the breakpoint listener. */
     destroy() {
+      reorder.destroy();
       wide.removeEventListener('change', onWide);
       window.removeEventListener('resize', watch);
       observer?.disconnect();

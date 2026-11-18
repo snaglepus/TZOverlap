@@ -91,10 +91,14 @@
   --slot-height: 3.5rem;
   --slot-height-wide: 4rem;
   --row-header-width: 11.25rem;
-  --row-header-width-compact: 7rem;
+  /* 144px at default text fits the drag handle beside the clock line; the rem
+     term wins from about 130% text, so large text keeps the 7rem width. */
+  --row-header-width-compact: max(7rem, 144px);
   --row-header-width-wide: 13.75rem;
   --grid-header-width: var(--row-header-width-compact);
   --icon-size: 1.25rem;
+  /* A user row header's trigger before it grows: room for "10:30 pm" at any text size. */
+  --row-header-trigger-basis: 4.5rem;
   --sheet-max-width: 32rem;
   /* Three control rows, the two row gaps, the block padding and the top border. */
   --toolbar-height: calc(3 * var(--control-height) + 3 * var(--space-2) + var(--border-width));
@@ -108,6 +112,8 @@
   --selection-bar-inset: 8px;
   --hairline: 1px;
   --opacity-disabled: 0.55;
+  /* The row being dragged grows slightly. */
+  --lift-scale: 1.02;
 
   /* Breakpoints — reference only; @media cannot read var(). lint-tokens enforces these. */
   --bp-md: 40rem;
@@ -203,5 +209,6 @@
   :root {
     --duration-fast: 0ms;
     --duration-base: 0ms;
+    --lift-scale: 1;
   }
 }
