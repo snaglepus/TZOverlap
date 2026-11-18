@@ -175,6 +175,58 @@ export const strings = /** @satisfies {Strings} */ ({
     /** @param {number} days */
     noneFound: (days) => `No time works for everyone in the next ${days} days either.`,
   },
+  /** DST badges on row headers, the clock-change banner and its sheet. */
+  dst: {
+    badge: 'DST',
+    badgeLong: 'Daylight saving time',
+    /** @param {string} date "Sun 29 Mar" */
+    warning: (date) => `Clocks change ${date}`,
+    forward: 'forward',
+    back: 'back',
+    /** @param {string} n "10.5" */
+    hours: (n) => `${n} h`,
+    /** @param {string} n "30" */
+    minutes: (n) => `${n} min`,
+    change: {
+      /**
+       * @param {string} name @param {string} label "BST" or "UTC+10:30"
+       * @param {string} date "Sun 29 Mar" @param {string} direction @param {string} shift "1 h"
+       */
+      long: (name, label, date, direction, shift) =>
+        `${name} moves to ${label} on ${date}: clocks go ${direction} ${shift}.`,
+      /**
+       * @param {string} name @param {string} direction @param {string} date "29 Mar"
+       * @param {string} [shift] only when it isn't 1 h
+       */
+      short: (name, direction, date, shift = '') =>
+        `${name}: clocks go ${direction} ${shift ? `${shift} ` : ''}${date}.`,
+    },
+    gap: {
+      /** @param {string} to @param {string} before "11 h" @param {string} after */
+      long: (to, before, after) => ` The gap to ${to} changes from ${before} to ${after}.`,
+      /** @param {string} after "10 h" */
+      short: (after) => ` Gap now ${after}.`,
+    },
+    gaps: {
+      /** @param {number} n */
+      long: (n) => ` Gaps to ${n} zones change.`,
+      /** @param {number} n */
+      short: (n) => ` ${n} gaps change.`,
+    },
+    /** @param {string} date "Sun 29 Mar", the changing zone's local day */
+    compact: (date) => `1 clock change on ${date}.`,
+    /** @param {number} n @param {string} date "Fri 10 Apr" */
+    summary: (n, date) => `${n} clock changes before ${date}.`,
+    /** @param {number} n @param {string} date */
+    capped: (n, date) =>
+      n === 1
+        ? `1 clock change in the year before ${date}.`
+        : `${n} clock changes in the year before ${date}.`,
+    details: 'Details',
+    sheetTitle: 'Clock changes',
+    /** @param {string} date */
+    cappedNote: (date) => `Only changes in the year before ${date} are listed.`,
+  },
   /** am/pm words for 12-hour times: full ("9:30 am") and compact ("9a"). */
   time: {
     am: 'am',

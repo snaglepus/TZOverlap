@@ -13,6 +13,7 @@ const callers = [
   'ui/settings.js',
   'ui/add-city.js',
   'ui/install.js',
+  'lib/dst.js',
 ];
 
 /** @typedef {Record<string, unknown>} Tree */
