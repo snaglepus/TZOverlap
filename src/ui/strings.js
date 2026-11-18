@@ -18,6 +18,8 @@ export const strings = /** @satisfies {Strings} */ ({
     now: 'Now',
     nowLabel: 'Go to now',
     toolbar: 'Toolbar',
+    /** The title bar 12/24 toggle; pressed while 24-hour times show. */
+    hourToggle: '24-hour',
   },
   sheet: {
     close: 'Close',
@@ -29,6 +31,12 @@ export const strings = /** @satisfies {Strings} */ ({
       system: 'System default',
       light: 'Light',
       dark: 'Dark',
+    },
+    timeFormat: 'Time format',
+    hourCycles: {
+      auto: 'Automatic',
+      h12: '12-hour',
+      h23: '24-hour',
     },
     weekends: 'Treat weekends as unavailable',
     resetHelp: 'Remove your time zones and settings from this device.',
@@ -133,14 +141,21 @@ export const strings = /** @satisfies {Strings} */ ({
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
     /**
-     * "00:00, Sat 13, Unsuitable, weekend"
-     * @param {string} hour "09" @param {string} rating @param {boolean} [repeat]
+     * "00:00, Sat 13, Unsuitable, weekend" or "12:00 am, Sat 13, Unsuitable, weekend"
+     * @param {string} time "9:00 am" or "09:00" @param {string} rating @param {boolean} [repeat]
      * @param {boolean} [weekend] @param {string} [day] "Sat 13", on a day's first hour
      */
-    cell: (hour, rating, repeat = false, weekend = false, day = '') =>
-      `${hour}:00${repeat ? ' (repeated)' : ''}${day ? `, ${day}` : ''}, ${rating}${weekend ? ', weekend' : ''}`,
-    /** @param {string} from "14:30" @param {string} to @param {string} rating */
+    cell: (time, rating, repeat = false, weekend = false, day = '') =>
+      `${time}${repeat ? ' (repeated)' : ''}${day ? `, ${day}` : ''}, ${rating}${weekend ? ', weekend' : ''}`,
+    /** @param {string} from "2:30 pm" or "14:30" @param {string} to @param {string} rating */
     segment: (from, to, rating) => `${from} to ${to} your time, ${rating} for everyone`,
+  },
+  /** am/pm words for 12-hour times: full ("9:30 am") and compact ("9a"). */
+  time: {
+    am: 'am',
+    pm: 'pm',
+    amShort: 'a',
+    pmShort: 'p',
   },
   /** Rating names: legend, cell and segment labels. */
   ratings: {

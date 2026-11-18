@@ -19,13 +19,30 @@ export async function addZone(page, query) {
   await expect(dialog).toBeHidden();
 }
 
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+/**
+ * Label in Name (WCAG 2.5.3) is checked everywhere except hour cells: a cell
+ * shows the compact "9a" while its name is the fuller "9:00 am, Best", and the
+ * cells aren't interactive. See DESIGN.md §8.
+ */
+const LABEL_IN_NAME = 'label-content-name-mismatch';
+const HOUR_CELLS = '.grid__cell[data-hour]';
+
 /** @param {import('@playwright/test').Page} page */
 export async function expectNoA11yViolations(page) {
   const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .withTags(WCAG_TAGS)
+    .disableRules([LABEL_IN_NAME])
+    .analyze();
+  const labelInName = await new AxeBuilder({ page })
+    .withRules([LABEL_IN_NAME])
+    .exclude(HOUR_CELLS)
     .analyze();
   expect(
-    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`),
+    [...results.violations, ...labelInName.violations].map(
+      (v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`,
+    ),
   ).toEqual([]);
 }
 

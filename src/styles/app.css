@@ -101,6 +101,17 @@
   color: var(--color-text-muted);
 }
 
+/* ---------- Title bar 12/24-hour toggle: desktop only ---------- */
+.hour-toggle {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .hour-toggle {
+    display: inline-flex;
+  }
+}
+
 /* ---------- Settings sheet ---------- */
 .settings {
   display: flex;
@@ -291,12 +302,15 @@
 }
 
 .grid__clock {
+  flex-wrap: wrap;
   font-size: var(--font-size-xs);
 }
 
+/* Never wraps or truncates; the day badge moves to its own line instead. */
 .grid__time {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .grid__badge {
@@ -342,6 +356,11 @@
   line-height: var(--line-height-tight);
 }
 
+/* The fit check measures the label with --space-1 on each side. */
+.grid__label {
+  padding-inline: var(--space-1);
+}
+
 /* Midnight: a full-height line with the day label chip at its top-right.
    No z-index, so the sticky row header (z-index 1) stays on top. */
 .grid__divider {
@@ -366,6 +385,11 @@
 
 .grid__repeat {
   font-size: var(--font-size-xs);
+}
+
+/* Labels too wide for one column: show every second one, never smaller. */
+.grid[data-labels='alternate'] .grid__cell[data-odd] > * {
+  visibility: hidden;
 }
 
 /* Above the cells (later in the tree), below the sticky headers (z-index 1). */

@@ -181,11 +181,12 @@ test('Settings → Install lists the steps for every platform', async ({ page })
     'Safari on Mac: File → Add to Dock.',
   ]);
 
-  // After Appearance and the weekends switch, before Reset all data.
+  // After Appearance, Time format and the weekends switch, before Reset all data.
   const order = await dialog.evaluate((el) =>
     [...(el.querySelector('.settings')?.children ?? [])].map((c) => c.className),
   );
   expect(order).toEqual([
+    'radio-group',
     'radio-group',
     'settings__section',
     'settings__section install',

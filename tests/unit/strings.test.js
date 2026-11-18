@@ -93,19 +93,24 @@ describe('strings', () => {
     assert.equal(strings.timelines.noDst, 'No DST');
     assert.equal(strings.timelines.repeatTitle, 'Clocks go back — this hour repeats');
     assert.match(strings.timelines.gridLabel, /Hours in each time zone/);
-    assert.equal(strings.timelines.cell('09', 'Best'), '09:00, Best');
-    assert.equal(strings.timelines.cell('01', 'Unsuitable', true), '01:00 (repeated), Unsuitable');
+    assert.equal(strings.timelines.cell('09:00', 'Best'), '09:00, Best');
+    assert.equal(strings.timelines.cell('9:00 am', 'Best'), '9:00 am, Best');
     assert.equal(
-      strings.timelines.cell('00', 'Unsuitable', false, true, 'Sat 13'),
+      strings.timelines.cell('01:00', 'Unsuitable', true),
+      '01:00 (repeated), Unsuitable',
+    );
+    assert.deepEqual(strings.time, { am: 'am', pm: 'pm', amShort: 'a', pmShort: 'p' });
+    assert.equal(
+      strings.timelines.cell('00:00', 'Unsuitable', false, true, 'Sat 13'),
       '00:00, Sat 13, Unsuitable, weekend',
     );
-    assert.equal(strings.timelines.cell('10', 'Best', false, true), '10:00, Best, weekend');
+    assert.equal(strings.timelines.cell('10:00', 'Best', false, true), '10:00, Best, weekend');
     assert.equal(
-      strings.timelines.cell('00', 'Best', false, false, 'Mon 15'),
-      '00:00, Mon 15, Best',
+      strings.timelines.cell('12:00 am', 'Best', false, false, 'Mon 15'),
+      '12:00 am, Mon 15, Best',
     );
     assert.equal(
-      strings.timelines.cell('01', 'Good', true, true),
+      strings.timelines.cell('01:00', 'Good', true, true),
       '01:00 (repeated), Good, weekend',
     );
     assert.equal(strings.settings.weekends, 'Treat weekends as unavailable');
