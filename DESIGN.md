@@ -156,16 +156,16 @@ gutters use 4 on small screens and 6 above `--bp-md`.
 
 ### 3.4 Radius, borders, shadow
 
-| Token                                        | Value         | Use                       |
-| -------------------------------------------- | ------------- | ------------------------- |
-| `--radius-sm`                                | `0.25rem`     | Legend swatches, badges   |
-| `--radius-md`                                | `0.5rem`      | Buttons, inputs           |
-| `--radius-lg`                                | `0.75rem`     | Cards, empty/error states |
-| `--radius-pill`                              | `999px`       | Legend swatches           |
-| `--border-width`                             | `1px`         | All borders               |
-| `--focus-ring-width` / `--focus-ring-offset` | `3px` / `2px` | Focus outline             |
-| `--shadow-sm`                                | themed        | Cards                     |
-| `--shadow-md`                                | themed        | Sheets and toasts         |
+| Token                                        | Value         | Use                        |
+| -------------------------------------------- | ------------- | -------------------------- |
+| `--radius-sm`                                | `0.25rem`     | Legend swatches, badges    |
+| `--radius-md`                                | `0.5rem`      | Buttons, inputs            |
+| `--radius-lg`                                | `0.75rem`     | Cards, empty/error states  |
+| `--radius-pill`                              | `999px`       | Legend swatches            |
+| `--border-width`                             | `1px`         | All borders                |
+| `--focus-ring-width` / `--focus-ring-offset` | `3px` / `2px` | Focus outline              |
+| `--shadow-sm`                                | themed        | Cards                      |
+| `--shadow-md`                                | themed        | Sheets, toasts, lifted row |
 
 ### 3.5 Motion
 
@@ -179,11 +179,18 @@ durations become `0ms` (handled in `tokens.css`).
 `--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
 `--slot-width` 48px · `--slot-height` 3.5rem (56px, phone rows) ·
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
-`--row-header-width-compact` 7rem (112px, phone) · `--row-header-width`
+`--row-header-width-compact` `max(7rem, 144px)` (144px, phone: room for the
+44px drag handle beside the "10:30 pm" clock line at default text; the rem term
+wins from about 130% text, so large text keeps the 7rem width, 224px at 200%,
+and loses no timeline) · `--row-header-width`
 11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
 from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
 `--control-height-sm` 2rem ·
-`--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
+`--icon-size` 1.25rem · `--row-header-trigger-basis` 4.5rem (a user row
+header's trigger before it grows: room for "10:30 pm" at any text size; when
+the trigger and the drag handle don't fit on one line, the handle wraps) ·
+`--lift-scale` 1.02 (the dragged row's scale; `1` under reduced motion) ·
+`--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 157px (phone bottom toolbar before the safe-area
 inset: three `--control-height` rows, two `--space-2` row gaps, `--space-1`
 padding above and below, and the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
@@ -217,7 +224,10 @@ like the now line), and `--cell-left` / `--cell-width` on each cell, segment
 and filter mask (in columns, multiplied by `--slot-width` in CSS). They are not
 tokens and are never declared in a
 stylesheet. The Popover sets `--popover-left` / `--popover-top` the same way,
-in px, multiplied by `--hairline` in CSS.
+in px, multiplied by `--hairline` in CSS, and so does drag to reorder:
+`--reorder-y` on the lifted row and the rows it pushes aside, and
+`--lift-origin` (the horizontal centre of the grid's visible area) on the
+lifted row.
 
 ### 3.7 Other
 
@@ -297,7 +307,8 @@ Icons: `gear` (Settings), `location` (a pin: the home row's symbol, wrapped as
 `role="img"` "Your location" and sized `--space-4` in the row header) and
 `share` (the iOS Share button: a tray with an up arrow, in the iOS install
 sheet) and `alert` (a warning triangle: the row header's clock-change badge,
-sized `--space-3`). Add a name to the `IconName` union and its path data together.
+sized `--space-3`) and `grip` (three horizontal bars: a user row's drag
+handle). Add a name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -522,11 +533,11 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                              |
-| --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base      | 0         | Single column, `--space-4` gutters, compact row headers (a button: name, then time and day badge; details in a popover), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                              |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                               |
+| Name      | Min width | Changes                                                                                                                                                                                                                                |
+| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--space-4` gutters, compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                                                                |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                 |
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
@@ -584,6 +595,45 @@ place among the user rows, keep focus on its trigger and announce "London
 moved to position 2 of 5" in the polite live region. Crossing `--bp-md` with
 the Popover open closes it and keeps focus on the row's visible trigger.
 
+Reordering (`src/ui/reorder.js`, maths in `src/lib/row-order.js` and
+`src/lib/scroll.js`): every user row's header ends with a `.grid__handle`
+button holding the `grip` icon, at every width (the home and Everyone rows
+have none). It is at least `--control-height` square, `--color-text-muted`,
+with the trigger's hover background, the standard focus ring, `cursor: grab`
+(`grabbing` while lifted) and `touch-action: none`. User row headers wrap:
+the trigger is `flex: 1 1 var(--row-header-trigger-basis)` and the handle
+`flex: none`, so at default text the handle sits at the inline end of the
+header's line, and at large text it wraps to a second line at the inline start,
+under the trigger, which keeps it inside the visible grid even where the header
+is wider than it. Activating the handle without a drag (click, tap, Enter or
+Space) opens the row's details Popover like the trigger, and again closes it.
+Pickup uses Pointer Events with pointer capture, never HTML5 drag and drop: a
+mouse or pen press on the handle that moves more than `CLICK_SLOP_PX`; a touch
+on the handle that moves that far or is held `LONG_PRESS_MS` (400ms) within
+`LONG_PRESS_SLOP_PX`; or a touch held that long anywhere else in the header (a
+shorter tap opens the Popover as before). A touch pickup calls
+`navigator.vibrate(HAPTIC_MS)` where it exists. The lifted row
+(`.grid__row--lifted`) follows the pointer vertically with `--shadow-md`, a
+`--lift-scale` scale about the centre of the grid's visible area, and a
+z-index above the other rows and their sticky headers; the rows it passes
+slide aside by its height with `transform var(--duration-base)
+var(--ease-standard)`. Only transforms change: the rows keep their DOM order
+until the drop, and the grid (`data-reordering`) is `user-select: none`. The
+timeline's `scrollLeft` is held and a long-press drag never pans. Rows are
+measured once at pickup relative to the grid's top, so page scroll and content
+inserted above the grid don't misplace the drop. Near the top of the viewport,
+or the top of the phone toolbar, the page auto-scrolls vertically, up to 16px a
+frame within 48px of the edge. The drop position is the lifted row's centre
+among the other rows' midpoints, so a release over the home or Everyone rows
+lands first among the user rows. Releasing inside the grid saves the order
+through `store.move()` (nothing for a drop in place; no toast or
+announcement). Esc (without clearing the selection), `pointercancel`, a release
+outside the grid, a window resize and any height change in the home, Everyone
+or user rows cancel: the rows go back and nothing is saved. The click or
+`contextmenu` that ends a drag never opens the Popover. Under reduced motion the
+rows jump into place and the lifted row keeps only its shadow (`--lift-scale`
+is `1`).
+
 Scrolling: touch and trackpad scrolling are native; the grid sets
 `overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never
 takes over page scroll or swipe-back. A vertical mouse wheel over the grid
@@ -628,7 +678,7 @@ the details popover lists both times. The minute tick doesn't change them.
 Keyboard slots: the home row's hour cells are a roving set. Exactly one has
 `tabindex="0"` (the last one focused; at first the cell holding now, else the
 first cell of the anchor date), so Tab goes grid → phone header button → slot
-→ the controls after it. On a slot, ←/→ move focus one home hour and
+→ the user rows' header buttons and drag handles → the controls after it. On a slot, ←/→ move focus one home hour and
 Shift+←/→ six, scrolling only as needed to keep the cell clear of the sticky
 header (`scroll-padding-inline-start: var(--grid-header-width)`); near either
 end lazy extension adds days as usual and focus stays on the same cell. Enter
@@ -713,7 +763,11 @@ anywhere, including behind sheets.
   hour cells are roving keyboard slots (one tab stop): on a slot, ←/→ move
   focus one hour and Shift+←/→ six, Enter or Space selects it, and N, T, 1, 2
   and 3 still work. Esc clears the selection unless a sheet or popover is open,
-  which it closes instead. The focused slot's name starts with its visible
+  which it closes instead. Each user row's drag handle is a button named
+  "Reorder Tokyo" (the row's full name), the tab stop after the row's phone
+  header button (or wide trigger); it opens the same details Popover, whose
+  Move up / Move down are the keyboard alternative to dragging. A drag in
+  progress cancels on Esc. The focused slot's name starts with its visible
   label, then the date, home time and name, the overall rating and each zone's
   time and rating for a `defaultDuration` meeting there ("9a, Wednesday 18
   November, 9:00 am Sydney. Best for everyone. London 10:00 pm Tuesday,

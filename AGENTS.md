@@ -14,6 +14,8 @@ same moment. The timelines open on yesterday to tomorrow of a chosen date
 (today by default, picked in the toolbar) and load more days as you scroll, up
 to 14 either side. A heat scale shows which hours are ideal, acceptable (the shoulder
 hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
+Rows can be dragged into a new order by their grab handle (or a long press on
+the header on touch), or moved with Move up / Move down in the row's popover.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
 to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
@@ -136,9 +138,13 @@ src/                    the app (served as-is in dev; bundled for prod)
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
     dst.js              DST badges status, clock changes between dates, banner sentences
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
-    row-order.js        Move up / Move down: store.move index and position among shown user rows
+    row-order.js        Move up / Move down and drag to reorder: store.move index and position
+                        among shown user rows; dropIndex() (drop position), rowShift() (rows
+                        pushed aside), dropTarget() (store.move index for a drop)
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps,
-                        instantAt() and CLICK_SLOP_PX for click-to-select
+                        instantAt() and CLICK_SLOP_PX for click-to-select; edgeScrollStep() (page
+                        auto-scroll while dragging a row) and the gesture constants (LONG_PRESS_MS,
+                        LONG_PRESS_SLOP_PX, HAPTIC_MS)
     selection.js        selection state: snapToSlot(), createSelection(), createSelectionState()
     selection-details.js
                         describeSelection(): per-zone local times and ratings of a selection;
@@ -158,7 +164,10 @@ src/                    the app (served as-is in dev; bundled for prod)
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
                         lazy extension (IntersectionObserver), row actions popover
                         (Change, Move up, Move down, Delete); click/tap selection, the selection
-                        band, header selected times, roving home-cell keyboard slots
+                        band, header selected times, roving home-cell keyboard slots,
+                        user rows' drag handles
+    reorder.js          drag to reorder user rows: Pointer Events with pointer capture, handle
+                        drag and touch long press, lifted row and shifts, edge auto-scroll, cancel
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
                         Treat weekends as unavailable, Install and Reset all data
     install.js          install guidance: beforeinstallprompt capture, hint card, iOS sheet,
