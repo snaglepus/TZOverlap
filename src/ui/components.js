@@ -300,7 +300,8 @@ export function sheet({ title, children = [] }) {
 
 /**
  * Popover: one non-modal panel (native `popover="auto"`) anchored below or
- * above the element passed to open(), kept inside the viewport. Esc and a
+ * above the element passed to open(), kept inside the viewport and above the
+ * phone's fixed bottom toolbar. Esc and a
  * click outside close it; Esc returns focus to the anchor. Fill `body` before
  * opening. The anchor gets `aria-expanded`; give it `aria-controls: root.id`.
  * In the anchor's click handler, close() when isOpenFor(anchor), else open().
@@ -330,7 +331,12 @@ export function popover({ label, onClose }) {
     const a = anchor.getBoundingClientRect();
     const { width, height } = root.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
+    // Above the phone's fixed bottom toolbar, so it never lies over it.
+    const toolbar = document.querySelector('.toolbar');
+    const vh =
+      toolbar && getComputedStyle(toolbar).position === 'fixed'
+        ? toolbar.getBoundingClientRect().top
+        : document.documentElement.clientHeight;
     const left = Math.max(0, Math.min(a.left, vw - width));
     const below = a.bottom + height <= vh || a.top < height;
     const top = below ? Math.min(a.bottom, Math.max(0, vh - height)) : a.top - height;

@@ -215,7 +215,10 @@ padding above and below, and the top border) · `--min-viewport-height` 100dvh �
 `--banner-inset-start` / `--banner-inset-end` `max(8px, 32px - var(--space-4))`
 / `max(8px, 24px - var(--space-3))` (the banner's inline padding below
 `--bp-md`: 16px / 12px at default text, 8px at 200%, so a 320px phone keeps
-room for a two-line message) ·
+room for a two-line message) · `--toolbar-inset` `max(8px, 32px - var(--space-4))`
+and `--segment-inset` `max(4px, 20px - var(--space-2))` (the phone toolbar's
+inline padding and its filter segments': 16px and 12px at default text, 8px and
+4px at 200%, so the filter's labels fit a 320px phone at large text) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
@@ -395,8 +398,9 @@ A small non-modal panel on the native `popover="auto"` attribute (top layer, no
 backdrop), labelled by `label` (`role="group"`). Solid `--color-surface`,
 hairline border, `--radius-md`, `--shadow-md`, `sm` text with an optional
 `.popover__title` line. `open(anchor)` places it below the anchor (above when
-there is no room) and keeps it inside the viewport, following page scroll and
-resize; positions go in as `--popover-left` / `--popover-top`. Esc closes it and
+there is no room) and keeps it inside the viewport and above the phone's fixed
+bottom toolbar, following page scroll and resize; it is never taller than the
+viewport (it scrolls); positions go in as `--popover-left` / `--popover-top`. Esc closes it and
 returns focus to the anchor; a click outside closes it. The anchor gets
 `aria-expanded`; give it `aria-controls` with the popover's id, and in its click
 handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One
@@ -475,7 +479,11 @@ with `--font-weight-medium` text on `--color-surface`. The checked segment gets
 the `--color-surface-sunken` fill, a second inset `--color-border-strong`
 border and `--font-weight-bold` text, like the pressed Button, so the state
 never relies on colour alone. A focused radio puts the standard focus ring on
-its segment (`:has(:focus-visible)`). Arrow keys move the choice natively and
+its segment (`:has(:focus-visible)`). Below `--bp-md` the segments share the
+toolbar row equally (a grid of `minmax(max-content, 1fr)` columns, inline
+padding `--segment-inset`), but a segment never gets narrower than its label:
+at large text it takes its label's width and the others share the rest. From
+`--bp-md` they size as a flex row with `--space-3` padding. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set
 `aria-keyshortcuts`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a short, always-visible view mode switched often, e.g. the
