@@ -1,0 +1,14 @@
+{
+  "name": "tz-overlap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Client-side time zone overlap planner: aligned, colour-coded timelines for up to eight zones.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/serve.js",
+    "start": "node scripts/serve.js"
+  }
+}
