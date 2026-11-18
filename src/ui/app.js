@@ -2,7 +2,9 @@
 // shared components in ./components.js and the tokens in src/styles/.
 
 import { buildGrid } from '../lib/grid.js';
+import { createHomeTracker } from '../lib/home.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
+import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
 import { ianaZoneFromInput } from '../lib/zones.js';
 import { appShell, button, card, emptyState, errorState, field } from './components.js';
 import { h } from './dom.js';
@@ -32,15 +34,16 @@ const ADD_ERRORS = {
  * @param {{
  *   store: Store,
  *   theme: ThemeController,
- *   homeZone: string,
+ *   deviceZone?: () => string,
  *   now?: () => Date,
  *   suggestions?: readonly string[],
  * }} deps
  */
 export function mountApp(
   root,
-  { store, theme, homeZone, now = () => new Date(), suggestions = [] },
+  { store, theme, deviceZone = getLocalTimeZone, now = () => new Date(), suggestions = [] },
 ) {
+  const home = createHomeTracker({ store, deviceZone });
   const announcer = h('p', {
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
@@ -76,7 +79,7 @@ export function mountApp(
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const value = zoneField.input.value;
-    const parsed = ianaZoneFromInput(value, homeZone);
+    const parsed = ianaZoneFromInput(value, home.current());
     const result = parsed.ok ? store.add(parsed.zone) : parsed;
     if (!result.ok) {
       zoneField.setError(ADD_ERRORS[result.error](value));
@@ -92,14 +95,16 @@ export function mountApp(
   // --- Timelines card --------------------------------------------------------
   const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
 
-  /** Zone list and weekend setting of the last render; other changes keep the DOM. */
+  /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
   /** @type {ReturnType<typeof timelineGrid> | null} */
   let view = null;
 
   function render() {
     const { zones, settings } = store.getState();
+    const homeZone = home.current();
     const key = JSON.stringify([
+      homeZone,
       zones.map((z) => [z.id, z.kind, z.kind === 'iana' ? z.tz : z.minutes, z.label, z.country]),
       settings.weekendsUnavailable,
     ]);
@@ -135,10 +140,22 @@ export function mountApp(
     timelinesCard.body.replaceChildren(...body);
   }
 
+  /** Follow the device zone: re-render on a change, toast after travel. */
+  function checkHome() {
+    const { changed, travelled } = home.check();
+    if (changed) render();
+    if (travelled) showTravelled();
+  }
+
+  function showTravelled() {
+    shell.toaster.show({ message: strings.toasts.travelled(zoneCity(home.current())) });
+  }
+
   // Header clocks: tick on each minute boundary, re-aligned every time.
   function scheduleTick() {
     setTimeout(
       () => {
+        checkHome();
         view?.tick(now());
         scheduleTick();
       },
@@ -153,6 +170,7 @@ export function mountApp(
     zoneField.input.focus();
   }
 
+  const launch = home.check();
   store.subscribe(render);
   render();
   scheduleTick();
@@ -162,6 +180,11 @@ export function mountApp(
   if (store.wasReset()) {
     setTimeout(() => shell.toaster.show({ message: strings.toasts.dataReset }), 0);
   }
+  if (launch.travelled) setTimeout(showTravelled, 0);
+  window.addEventListener('focus', checkHome);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkHome();
+  });
 }
 
 function legend() {

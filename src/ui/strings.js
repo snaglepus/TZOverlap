@@ -37,6 +37,8 @@ export const strings = /** @satisfies {Strings} */ ({
   toasts: {
     dataReset: 'Your saved data could not be read and was reset',
     resetDone: 'All data was reset.',
+    /** @param {string} city */
+    travelled: (city) => `You're now in ${city} time`,
   },
   addZone: {
     cardTitle: 'Add a time zone',

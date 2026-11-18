@@ -1,7 +1,7 @@
 // Entry point: wire state, theme and UI, with a top-level error boundary.
 
 import { createStore } from './lib/store.js';
-import { getLocalTimeZone, hasTimeZoneSupport } from './lib/timezones.js';
+import { hasTimeZoneSupport } from './lib/timezones.js';
 import { mountApp, mountFatalError } from './ui/app.js';
 import { strings } from './ui/strings.js';
 import { createTheme } from './ui/theme.js';
@@ -38,7 +38,7 @@ try {
       store,
       media: window.matchMedia('(prefers-color-scheme: dark)'),
     });
-    mountApp(root, { store, theme, homeZone: getLocalTimeZone(), suggestions: zoneSuggestions() });
+    mountApp(root, { store, theme, suggestions: zoneSuggestions() });
     // Save before the page goes away, and follow other tabs' writes.
     window.addEventListener('pagehide', () => store.flush());
     document.addEventListener('visibilitychange', () => {
