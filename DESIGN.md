@@ -51,35 +51,45 @@ Stylesheet layout (`src/styles/main.css` imports them in this order):
 Components use only these semantic names, never a raw value. Values are in
 `tokens.css`; both themes define every name.
 
-| Token                                   | Role                                            | Light                 | Dark                  |
-| --------------------------------------- | ----------------------------------------------- | --------------------- | --------------------- |
-| `--color-bg`                            | Page background ("paper")                       | `#F6F4EF`             | `#121316`             |
-| `--color-surface`                       | Cards, inputs                                   | `#FFFFFF`             | `#1B1D22`             |
-| `--color-surface-sunken`                | Wells: timeline track, row headers, empty state | `#EFECE5`             | `#0D0E10`             |
-| `--color-border`                        | Hairlines, dividers                             | `#D9D4CA`             | `#34373F`             |
-| `--color-border-strong`                 | Input borders (≥3:1 against surface)            | `#7D776C`             | `#7C808C`             |
-| `--color-text`                          | Body text                                       | `#1D1B18`             | `#ECEAE6`             |
-| `--color-text-muted`                    | Secondary text, help text, offsets              | `#5F5A52`             | `#A8A49C`             |
-| `--color-accent`                        | Primary button fill, links, current-hour marker | `#2F45B5`             | `#9DB0FF`             |
-| `--color-accent-hover`                  | Primary button hover                            | `#23369A`             | `#B9C7FF`             |
-| `--color-on-accent`                     | Text on accent fill                             | `#FFFFFF`             | `#0E1440`             |
-| `--color-focus`                         | Focus ring                                      | `#2F45B5`             | `#9DB0FF`             |
-| `--color-danger`                        | Error text, error icon, invalid input border    | `#B42318`             | `#FF9C8F`             |
-| `--color-danger-surface`                | Error state background                          | `#FDECEA`             | `#3A1512`             |
-| `--color-danger-border`                 | Error state border                              | `#F1B5AE`             | `#7A2B22`             |
-| `--color-heat-4` / `--color-heat-ink-4` | Ideal hours (09–17)                             | `#CDEBDD` / `#0F3D2E` | `#1F5A44` / `#D8F5E8` |
-| `--color-heat-3` / `--color-heat-ink-3` | Near shoulder (08, 17)                          | `#F6E7B0` / `#4A3700` | `#5A4F1E` / `#FBEFC4` |
-| `--color-heat-2` / `--color-heat-ink-2` | Shoulder (07, 18)                               | `#F5CB8E` / `#4A2600` | `#6B4316` / `#FFE2BD` |
-| `--color-heat-1` / `--color-heat-ink-1` | Far shoulder (19–20)                            | `#EFA98A` / `#4A1606` | `#6E2E1C` / `#FFD9CB` |
-| `--color-heat-0` / `--color-heat-ink-0` | Unacceptable (21–06)                            | `#E4E2EA` / `#3A3842` | `#24232A` / `#B9B6C4` |
-| `--color-heat-hatch`                    | Diagonal hatch over unacceptable slots          | `#CBC8D3`             | `#34323C`             |
-| `--color-backdrop`                      | Translucent ink behind an open sheet            | `rgb(29 27 24 / 0.4)` | `rgb(0 0 0 / 0.6)`    |
+| Token                                           | Role                                            | Light                 | Dark                  |
+| ----------------------------------------------- | ----------------------------------------------- | --------------------- | --------------------- |
+| `--color-bg`                                    | Page background ("paper")                       | `#F6F4EF`             | `#121316`             |
+| `--color-surface`                               | Cards, inputs                                   | `#FFFFFF`             | `#1B1D22`             |
+| `--color-surface-sunken`                        | Wells: timeline track, row headers, empty state | `#EFECE5`             | `#0D0E10`             |
+| `--color-border`                                | Hairlines, dividers                             | `#D9D4CA`             | `#34373F`             |
+| `--color-border-strong`                         | Input borders (≥3:1 against surface)            | `#7D776C`             | `#7C808C`             |
+| `--color-text`                                  | Body text                                       | `#1D1B18`             | `#ECEAE6`             |
+| `--color-text-muted`                            | Secondary text, help text, offsets              | `#5F5A52`             | `#A8A49C`             |
+| `--color-accent`                                | Primary button fill, links                      | `#2F45B5`             | `#9DB0FF`             |
+| `--color-accent-hover`                          | Primary button hover                            | `#23369A`             | `#B9C7FF`             |
+| `--color-on-accent`                             | Text on accent fill                             | `#FFFFFF`             | `#0E1440`             |
+| `--color-focus`                                 | Focus ring                                      | `#2F45B5`             | `#9DB0FF`             |
+| `--color-danger`                                | Error text, error icon, invalid input border    | `#B42318`             | `#FF9C8F`             |
+| `--color-danger-surface`                        | Error state background                          | `#FDECEA`             | `#3A1512`             |
+| `--color-danger-border`                         | Error state border                              | `#F1B5AE`             | `#7A2B22`             |
+| `--color-best` / `--color-best-ink`             | Best hours (09–17), solid green, bold text      | `#B9E3C6` / `#0C3A22` | `#1E5C3C` / `#D6F6E2` |
+| `--color-heat-near`                             | Good, step 0 (08, 17): yellow-green             | `#E0EB9C`             | `#4A5716`             |
+| `--color-heat-mid`                              | Good, step 1 (07, 18): amber, fallback only     | `#F4C57D`             | `#674400`             |
+| `--color-heat-far`                              | Good, step 2 (06, 19): red-orange               | `#F4A184`             | `#73301F`             |
+| `--color-heat-ink`                              | Text on every Good step                         | `#3D2600`             | `#FFF1D8`             |
+| `--color-heat-hatch`                            | Diagonal hatch over Good cells and segments     | `#C4AE7C`             | `#75653F`             |
+| `--color-unsuitable` / `--color-unsuitable-ink` | Unsuitable hours (20–06, weekends): dimmed grey | `#E4E2EA` / `#57555F` | `#24232A` / `#9F9CAA` |
+| `--color-backdrop`                              | Translucent ink behind an open sheet            | `rgb(29 27 24 / 0.4)` | `rgb(0 0 0 / 0.6)`    |
 
-**Heat scale.** Scores come from `src/lib/hours.js` (4 = ideal … 0 =
-unacceptable). Legend bands: _ideal_ = 4, _acceptable_ = 1–3 (the shoulder heat
-map), _unacceptable_ = 0. Colour is never the only cue (WCAG 1.4.1): every slot
-shows its local hour as text, unacceptable slots carry a diagonal hatch, ideal
-slots are bold, and every slot has a text band name for assistive tech.
+**Heat scale.** Ratings come from `src/lib/suitability.js` (Best, Good,
+Unsuitable, with a heat distance `d` for Good); `src/lib/grid.js` turns `d` into
+a step, `⌊d / 60⌋`: 0 next to Best, 2 next to Unsuitable. Good backgrounds are
+`color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) p%)` with
+p = 0 / 50 / 100 for steps 0 / 1 / 2. Browsers without `color-mix()` get an
+`@supports not (color: color-mix(…))` block that maps the steps to
+`--color-heat-near` / `--color-heat-mid` / `--color-heat-far` (a declaration
+using `var()` can't fall back on its own). The Everyone row uses the reddest
+step among the zones that are Good in each slot. Styles key off
+`data-rating` / `data-heat` on elements with the `.heat` class (cells, segments,
+legend swatches). Colour is never the only cue (WCAG 1.4.1): every hour cell
+shows its local hour as text, Good cells and segments carry a diagonal hatch,
+Best cells are bold, Unsuitable cells are dimmed with muted text, and every
+cell and segment has an `aria-label` naming its rating.
 
 ### 3.2 Typography
 
@@ -92,9 +102,10 @@ slots are bold, and every slot has a text band name for assistive tech.
 | `--font-weight-regular` / `medium` / `bold`          | `400` / `500` / `650`                                                               |
 
 Usage: page title `2xl` bold; card titles `lg` bold; body `md`; help text,
-offsets and legend `sm` muted; slot hours `sm` in `--font-mono` with
+offsets and legend `sm` muted; hour cells `sm` in `--font-mono` with
 `font-variant-numeric: tabular-nums`. Never go below `xs`, and only use `xs` for
-non-essential annotations (day-shift markers). Sentence case everywhere.
+secondary annotations (grid header time and offset, the repeated-hour "2").
+Sentence case everywhere.
 
 Phone minimums: body text 17px (`md`, 1.0625rem); hour labels and secondary
 text at least 13px, so `xs` (0.8125rem) is the floor; nothing below 11px. All
@@ -111,7 +122,7 @@ gutters use 4 on small screens and 6 above `--bp-md`.
 
 | Token                                        | Value         | Use                       |
 | -------------------------------------------- | ------------- | ------------------------- |
-| `--radius-sm`                                | `0.25rem`     | Timeline slots, badges    |
+| `--radius-sm`                                | `0.25rem`     | Legend swatches, badges   |
 | `--radius-md`                                | `0.5rem`      | Buttons, inputs           |
 | `--radius-lg`                                | `0.75rem`     | Cards, empty/error states |
 | `--radius-pill`                              | `999px`       | Legend swatches           |
@@ -135,7 +146,17 @@ durations become `0ms` (handled in `tokens.css`).
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
 safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
-`--hairline` 1px (sub-pixel geometry such as the visually-hidden utility).
+`--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
+gap between grid cells).
+
+`--slot-width` is the width of one home-zone hour (a grid column) and
+`--slot-height` the height of a grid row. Row headers are
+`--row-header-width-compact` wide, `--row-header-width` above `--bp-md`. The
+grid sets three unitless runtime properties through
+`style.setProperty()` (CSSOM, allowed by the CSP): `--grid-hours` on the grid
+(track width = hours × `--slot-width`), and `--cell-left` / `--cell-width` on
+each cell and segment (in columns, multiplied by `--slot-width` in CSS). They
+are not tokens and are never declared in a stylesheet.
 
 ### 3.7 Other
 
@@ -273,8 +294,16 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 | `--bp-md` | `40rem`   | `--space-6` gutters, full row headers, add-zone field and button inline, toolbar in the title bar, sheets are centred modals |
 | `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred                                                                          |
 
-The timeline scrolls horizontally inside its own focusable region; the zone
-row headers stay sticky on the left. The page itself never scrolls sideways.
+The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
+(`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
+Everyone, then the added zones in order. It covers yesterday, today and
+tomorrow in the home zone. Row headers (name, live local time, offset, and "No
+DST" for fixed offsets) stay sticky on the left; names truncate with an
+ellipsis. Each row's track is window hours × `--slot-width` wide and clips
+cells that overhang the window. Hour cells are positioned by absolute time, so
+a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
+(clocks going back) gets a second cell with a small "2" and a tooltip. The page
+itself never scrolls sideways.
 Chrome is solid: no translucent materials and no `backdrop-filter` or blur
 anywhere, including behind sheets.
 
@@ -291,8 +320,11 @@ anywhere, including behind sheets.
   order. The skip link is the first focusable element. Scrollable regions are
   focusable (`tabindex="0"`) and labelled. Forms submit with Enter.
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
-  `button`/`label`/`input`/`table` elements. The timeline is a `<table>` with
-  row headers; ARIA only where HTML has no equivalent.
+  `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
+  The timeline is a labelled `role="grid"` with `role="row"`, `role="rowheader"`
+  and `role="gridcell"` children: cells are absolutely positioned by time,
+  which a `<table>` can't express. Every cell and Everyone segment has an
+  `aria-label` with its time and rating.
 - **Not colour alone.** See the heat scale rules in §3.1.
 - **Announcements.** Field errors and zone additions/removals are announced
   through polite live regions; error states use `role="alert"`. Toasts are
