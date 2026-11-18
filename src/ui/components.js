@@ -437,6 +437,38 @@ export function createToaster() {
 }
 
 /**
+ * Banner: a persistent message with one action, in the page flow at the top of
+ * <main>. Stays until used; toasts never replace it. Mount `root` once (the
+ * app shell does).
+ */
+export function createBanner() {
+  const root = h('div', {
+    class: 'banner',
+    attrs: { role: 'status', 'aria-live': 'polite' },
+  });
+  return {
+    root,
+    /** @param {{ message: string, action: { label: string, onClick: () => void } }} options */
+    show({ message, action }) {
+      root.replaceChildren(
+        h('div', { class: 'banner__inner' }, [
+          h('p', { class: 'banner__message', text: message }),
+          button({
+            label: action.label,
+            variant: 'secondary',
+            size: 'sm',
+            onClick: action.onClick,
+          }),
+        ]),
+      );
+    },
+    hide() {
+      root.replaceChildren();
+    },
+  };
+}
+
+/**
  * Radio group: a <fieldset> of native radios, one per option.
  * @template {string} T
  * @param {{
@@ -475,11 +507,15 @@ export function radioGroup({ legend, name, options, value, onChange }) {
 
 /**
  * App shell: skip link, title bar with <h1> and a toolbar for the actions,
- * <main>, footer, and the page's one toast region.
+ * <main> opening with the page's banner region, footer, and the page's one
+ * toast region.
  * @param {{ title: string, tagline?: string, actions?: Child[], footer?: Child[] }} options
  */
 export function appShell({ title, tagline, actions = [], footer = [] }) {
-  const main = h('main', { class: 'shell__main', attrs: { id: 'main', tabindex: '-1' } });
+  const banner = createBanner();
+  const main = h('main', { class: 'shell__main', attrs: { id: 'main', tabindex: '-1' } }, [
+    banner.root,
+  ]);
   const toaster = createToaster();
   const hasToolbar = actions.length > 0;
   const root = h('div', { class: `shell${hasToolbar ? ' shell--toolbar' : ''}` }, [
@@ -501,5 +537,5 @@ export function appShell({ title, tagline, actions = [], footer = [] }) {
     h('footer', { class: 'shell__footer' }, footer),
     toaster.root,
   ]);
-  return { root, main, toaster };
+  return { root, main, toaster, banner };
 }

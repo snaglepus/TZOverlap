@@ -194,6 +194,16 @@ export function mountApp(
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') checkHome();
   });
+
+  return {
+    /** Show the "Update available" banner. @param {() => void} onReload */
+    showUpdate(onReload) {
+      shell.banner.show({
+        message: strings.update.available,
+        action: { label: strings.update.reload, onClick: onReload },
+      });
+    },
+  };
 }
 
 function legend() {
