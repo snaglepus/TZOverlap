@@ -4,6 +4,8 @@
 // wheel, mouse-drag and arrow-key scrolling and the now line; touch and
 // trackpad scrolling stay native. An IntersectionObserver extends the window
 // by a day when the visible track area comes within EXTEND_COLUMNS of either end.
+// A click or tap on a track, or Enter/Space on a home hour cell (the roving
+// keyboard slots), selects a slot: the band and the headers' selected times.
 
 import { EXTEND_COLUMNS } from '../lib/grid.js';
 import {
@@ -16,12 +18,16 @@ import {
   shortDate,
 } from '../lib/row-header.js';
 import {
+  CLICK_SLOP_PX,
   columnsAt,
+  instantAt,
   isLineVisible,
   keyStep,
   nowScrollLeft,
   wheelToHorizontal,
 } from '../lib/scroll.js';
+import { createSelection } from '../lib/selection.js';
+import { describeSelection, slotLabel } from '../lib/selection-details.js';
 import { formatTime } from '../lib/time-format.js';
 import { zoneLocalParts } from '../lib/zones.js';
 import { button, icon, popover } from './components.js';
@@ -39,6 +45,7 @@ import { strings } from './strings.js';
  * @typedef {import('../data/cities.js').City} City
  * @typedef {keyof import('../lib/grid.js').Extent} Side
  * @typedef {import('../lib/time-format.js').HourCycle} HourCycle
+ * @typedef {import('../lib/selection.js').Selection} Selection
  */
 
 /**
@@ -248,6 +255,10 @@ function homeSymbol() {
  *   watch: () => void,
  *   refresh: () => void,
  *   setHourCycle: (cycle: HourCycle) => void,
+ *   setSelection: (selection: Selection | null) => void,
+ *   setDuration: (minutes: number) => void,
+ *   slot: () => Date | null,
+ *   homeName: string,
  *   destroy: () => void,
  * }} GridView
  */
@@ -259,9 +270,13 @@ function homeSymbol() {
  * the label of a hidden stored copy of the home zone, if any; `cities` is the
  * city data when it is already loaded; `hourCycle` is the resolved 12/24-hour
  * cycle. `onNowVisible` is told whenever the now line comes into or goes out of
- * view, and `onGoToNow` runs on N (by default scrollToNow). Once the grid is in
- * the document, call scrollToNow(), scrollTo() or set scrollLeft, then watch()
- * to start lazy extension. Call `destroy()` before dropping the grid.
+ * view, and `onGoToNow` runs on N (by default scrollToNow). `onSelect` gets the
+ * instant clicked or tapped, or a home cell's start on Enter/Space. The roving
+ * slot is the home cell starting at `slot`, else the one holding `now`, else
+ * the one holding `anchorStart`; its name describes a `duration`-minute
+ * meeting starting there. Once the grid is in the document, call
+ * scrollToNow(), scrollTo() or set scrollLeft, then watch() to start lazy
+ * extension. Call `destroy()` before dropping the grid.
  * @param {{
  *   grid: Grid,
  *   zones: readonly StoredZone[],
@@ -274,6 +289,11 @@ function homeSymbol() {
  *   cities?: readonly City[],
  *   onNowVisible?: (visible: boolean) => void,
  *   onGoToNow?: () => void,
+ *   onSelect: (instant: Date) => void,
+ *   anchorStart: Date,
+ *   duration: number,
+ *   weekendsUnavailable: boolean,
+ *   slot?: Date | null,
  * }} options
  * @returns {GridView}
  */
@@ -289,6 +309,11 @@ export function timelineGrid({
   cities,
   onNowVisible = () => {},
   onGoToNow,
+  onSelect,
+  anchorStart,
+  duration: initialDuration,
+  weekendsUnavailable,
+  slot: preferredSlot = null,
 }) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   // One details popover for every phone header, filled from the one that opened it.
@@ -305,12 +330,19 @@ export function timelineGrid({
   /** @type {HTMLElement[]} */
   const tracks = [];
   let cycle = hourCycle;
+  let duration = initialDuration;
+  /** @type {Selection | null} */
+  let selected = null;
+  /** Each row's full name, home first. */
+  /** @type {string[]} */
+  const names = [];
 
   const zoneRows = grid.rows.map((gridRow, i) => {
     const { zone } = gridRow;
     const stored = i === 0 ? null : zones[i - 1];
     const isHome = !stored;
     const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
+    names.push(full);
 
     // Shows `display`; screen readers get `full`.
     const nameText = () =>
@@ -324,6 +356,11 @@ export function timelineGrid({
     // Phone: a button with the name and the time, opening the details popover.
     // Its name comes from its content, so the badge's long wording is hidden text.
     const buttonTime = h('span', { class: 'grid__time' });
+    // While a slot is selected, the time shows the selected time instead.
+    const selectedPrefix = h('span', {
+      class: 'visually-hidden',
+      text: strings.selection.headerPrefix,
+    });
     const badge = h('span', { class: 'grid__badge', attrs: { 'aria-hidden': 'true' } });
     const badgeLong = h('span', { class: 'visually-hidden' });
     const trigger = h(
@@ -337,7 +374,12 @@ export function timelineGrid({
           isHome ? homeSymbol() : null,
           h('span', { class: 'grid__name' }, nameText()),
         ]),
-        h('span', { class: 'grid__line grid__clock' }, [buttonTime, badge, badgeLong]),
+        h('span', { class: 'grid__line grid__clock' }, [
+          selectedPrefix,
+          buttonTime,
+          badge,
+          badgeLong,
+        ]),
       ],
     );
 
@@ -346,6 +388,11 @@ export function timelineGrid({
     const day = h('span', { class: 'grid__day' });
     const date = h('span');
     const offset = h('span');
+    const selectedTime = h('span', { class: 'grid__selected-time' });
+    const selectedLine = h('span', { class: 'grid__selected' }, [
+      strings.selection.headerPrefix,
+      selectedTime,
+    ]);
     const inline = h('div', { class: 'grid__details' }, [
       h('span', { class: 'grid__line' }, [
         isHome ? homeSymbol() : null,
@@ -358,6 +405,7 @@ export function timelineGrid({
         offset,
         zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
       ]),
+      selectedLine,
     ]);
 
     /** @param {Date} at @param {Date} offsetInstant */
@@ -367,6 +415,9 @@ export function timelineGrid({
       append(details.body, [
         h('p', { class: 'popover__title', text: full }),
         h('p', { class: 'grid__time', text: clock(zone, at, cycle) }),
+        selected
+          ? h('p', { text: strings.selection.header(clock(zone, selected.start, cycle)) })
+          : null,
         diff ? h('p', { text: diff.long }) : null,
         h('p', { text: fullDate(zone, at) }),
         h('p', { text: offsetLine(zone, offsetInstant) }),
@@ -387,11 +438,18 @@ export function timelineGrid({
     function update(at, offsetInstant) {
       const hhmm = clock(zone, at, cycle);
       const diff = dayDifferenceLabel(dayDifference(zone, homeZone, at));
-      buttonTime.textContent = hhmm;
+      const chosen = selected ? clock(zone, selected.start, cycle) : null;
+      buttonTime.textContent = chosen ?? hhmm;
+      if (chosen) buttonTime.dataset.selected = 'true';
+      else delete buttonTime.dataset.selected;
+      selectedPrefix.hidden = !chosen;
+      selectedTime.textContent = chosen ?? '';
+      selectedLine.hidden = !chosen;
       time.textContent = hhmm;
       badge.textContent = diff?.short ?? '';
-      badge.hidden = !diff;
+      badge.hidden = !diff || Boolean(chosen);
       badgeLong.textContent = diff?.long ?? '';
+      badgeLong.hidden = Boolean(chosen);
       day.textContent = diff?.long ?? '';
       day.hidden = !diff;
       date.textContent = shortDate(zone, at);
@@ -433,13 +491,15 @@ export function timelineGrid({
 
   const [homeRow, ...userRows] = zoneRows;
   const line = h('div', { class: 'grid__now', attrs: { 'aria-hidden': 'true' } });
+  const band = h('div', { class: 'grid__selection', attrs: { 'aria-hidden': 'true' } });
+  band.hidden = true;
   const root = h(
     'div',
     {
       class: 'grid',
       attrs: { role: 'grid', 'aria-label': strings.timelines.gridLabel, tabindex: '0' },
     },
-    [homeRow, everyone, ...userRows, line],
+    [homeRow, everyone, ...userRows, band, line],
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
   const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
@@ -473,6 +533,79 @@ export function timelineGrid({
   };
   placeLine(now);
 
+  // The band: from the selection start, clipped at the window end; hidden
+  // while the start is outside the window.
+  function placeBand() {
+    if (!selected || !inWindow(selected.start)) {
+      band.hidden = true;
+      return;
+    }
+    const left = columnsAt(shown.start, selected.start);
+    band.style.setProperty('--selection-left', String(left));
+    band.style.setProperty(
+      '--selection-width',
+      String(Math.min(selected.duration / 60, shown.hours - left)),
+    );
+    band.dataset.start = selected.start.toISOString();
+    band.dataset.duration = String(selected.duration);
+    band.hidden = false;
+  }
+
+  // Keyboard slots: the home row's hour cells, with one roving tabindex="0".
+  const rowZones = grid.rows.map((gridRow) => gridRow.zone);
+  /** @type {[HTMLElement, GridCell, string | undefined][]} */
+  let slots = [];
+  /** @type {HTMLElement | null} */
+  let roving = null;
+
+  /** The roving cell's name: its visible label, then the meeting it would select. */
+  function labelRoving() {
+    const entry = slots.find(([el]) => el === roving);
+    if (!roving || !entry) return;
+    const [, cell] = entry;
+    const details = describeSelection(createSelection(cell.start, duration), rowZones, {
+      weekendsUnavailable,
+    });
+    roving.setAttribute(
+      'aria-label',
+      strings.selection.slotName(
+        formatTime({ hour: cell.hour, minute: 0 }, cycle, 'compact'),
+        slotLabel(details, names, cycle),
+      ),
+    );
+  }
+
+  /** @param {HTMLElement} el */
+  function setRoving(el) {
+    if (roving === el) return;
+    const previous = slots.find(([cellEl]) => cellEl === roving);
+    if (previous) {
+      previous[0].tabIndex = -1;
+      labelHourCell(previous[0], previous[1], cycle, previous[2]);
+    }
+    roving = el;
+    el.tabIndex = 0;
+    labelRoving();
+  }
+
+  /**
+   * Make the home cells keyboard slots and pick the roving one.
+   * @param {Date | null} preferred
+   */
+  function initSlots(preferred) {
+    slots = hourCells.filter(([el]) => homeTrack.contains(el));
+    for (const [el] of slots) el.tabIndex = -1;
+    roving = null;
+    /** @param {Date} at */
+    const holding = (at) => slots.find(([, cell]) => cell.start <= at && at < cell.end);
+    const target =
+      (preferred && slots.find(([, cell]) => cell.start.getTime() === preferred.getTime())) ||
+      (inWindow(current) && holding(current)) ||
+      holding(anchorStart) ||
+      slots[0];
+    if (target) setRoving(target[0]);
+  }
+  initSlots(preferredSlot);
   /** Track geometry in px; null before layout. */
   function measure() {
     const header = root.querySelector('.grid__header');
@@ -540,8 +673,26 @@ export function timelineGrid({
 
   /** @type {{ id: number, x: number, scrollLeft: number } | null} */
   let drag = null;
+  /**
+   * A primary press on a track: the instant under it, and whether a mouse
+   * moved far enough to make it a drag.
+   * @type {{ id: number, x: number, instant: Date, moved: boolean } | null}
+   */
+  let press = null;
   root.addEventListener('pointerdown', (event) => {
     const target = /** @type {Element} */ (event.target);
+    const track = target.closest('.grid__track');
+    press = null;
+    if (track && event.isPrimary && event.button === 0) {
+      const rect = track.getBoundingClientRect();
+      const column = rect.width / shown.hours;
+      press = {
+        id: event.pointerId,
+        x: event.clientX,
+        instant: instantAt(shown.start, (event.clientX - rect.left) / column),
+        moved: false,
+      };
+    }
     if (event.pointerType !== 'mouse' || event.button !== 0) return;
     if (target.closest('.grid__header')) {
       held = root.scrollLeft;
@@ -560,6 +711,13 @@ export function timelineGrid({
     drag = { id: event.pointerId, x: event.clientX, scrollLeft: root.scrollLeft };
   });
   root.addEventListener('pointermove', (event) => {
+    if (
+      press?.id === event.pointerId &&
+      event.pointerType === 'mouse' &&
+      Math.abs(event.clientX - press.x) > CLICK_SLOP_PX
+    ) {
+      press.moved = true;
+    }
     if (drag?.id !== event.pointerId) return;
     root.scrollLeft = drag.scrollLeft - (event.clientX - drag.x);
   });
@@ -568,7 +726,45 @@ export function timelineGrid({
     if (drag?.id === event.pointerId) drag = null;
   };
   root.addEventListener('pointerup', endDrag);
-  root.addEventListener('pointercancel', endDrag);
+  root.addEventListener('pointercancel', (event) => {
+    endDrag(event);
+    // A touch that scrolls the grid is cancelled and never clicks.
+    if (press?.id === event.pointerId) press = null;
+  });
+  // Pointer capture makes the root the click target, so use what the press started on.
+  root.addEventListener('click', (event) => {
+    const done = press;
+    press = null;
+    if (!done || done.moved || event.detail === 0) return;
+    onSelect(done.instant);
+  });
+  // Pressing a track keeps focus on the grid, never in a cell, and doesn't
+  // scroll. Like a native mouse focus, it shows no focus ring.
+  root.addEventListener('mousedown', (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest('.grid__track')) return;
+    event.preventDefault();
+    root.focus({ preventScroll: true, focusVisible: false });
+  });
+  // A home cell focused another way becomes the roving slot.
+  root.addEventListener('focusin', (event) => {
+    const target = /** @type {HTMLElement} */ (event.target);
+    if (target !== roving && slots.some(([el]) => el === target)) setRoving(target);
+  });
+
+  /**
+   * Move focus from the slot `from` by `step` home cells, within the window.
+   * @param {HTMLElement} from
+   * @param {number} step
+   */
+  function moveSlot(from, step) {
+    const index = slots.findIndex(([el]) => el === from);
+    const next = slots[Math.min(Math.max(index + step, 0), slots.length - 1)];
+    if (index < 0 || !next || next[0] === from) return;
+    setRoving(next[0]);
+    next[0].focus({ preventScroll: true });
+    // Scroll only as needed; scroll-padding keeps it clear of the sticky header.
+    next[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
 
   root.addEventListener('keydown', (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -576,6 +772,19 @@ export function timelineGrid({
       if (event.shiftKey) return;
       if (onGoToNow) onGoToNow();
       else scrollToNow({ animate: true });
+      event.preventDefault();
+      return;
+    }
+    if (event.target === roving && roving) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        const entry = slots.find(([el]) => el === roving);
+        if (entry) onSelect(entry[1].start);
+        event.preventDefault();
+        return;
+      }
+      const slotStep = keyStep(event);
+      if (slotStep === null) return;
+      moveSlot(roving, slotStep);
       event.preventDefault();
       return;
     }
@@ -609,6 +818,8 @@ export function timelineGrid({
 
   /** @param {Grid} next */
   function setGrid(next) {
+    const keep = slots.find(([el]) => el === roving)?.[1].start ?? null;
+    const hadFocus = roving !== null && document.activeElement === roving;
     shown = next;
     hourCells.length = 0;
     segments.length = 0;
@@ -619,6 +830,9 @@ export function timelineGrid({
     root.style.setProperty('--grid-hours', String(next.hours));
     placeEdges();
     placeLine(current);
+    placeBand();
+    initSlots(keep);
+    if (hadFocus) roving?.focus({ preventScroll: true });
     fitLabels();
   }
 
@@ -692,8 +906,23 @@ export function timelineGrid({
       for (const [el, cell, day] of hourCells) labelHourCell(el, cell, cycle, day);
       for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle);
       for (const update of updates) update(current, currentOffset);
+      labelRoving();
       fitLabels();
     },
+    /** Show `selection` (null clears it): the band and the headers' selected times. */
+    setSelection(selection) {
+      selected = selection;
+      placeBand();
+      for (const update of updates) update(current, currentOffset);
+    },
+    /** The meeting length the roving slot's name describes. */
+    setDuration(minutes) {
+      duration = minutes;
+      labelRoving();
+    },
+    /** The roving slot's start. */
+    slot: () => slots.find(([el]) => el === roving)?.[1].start ?? null,
+    homeName: names[0] ?? '',
     /** Stop lazy extension and label fitting. */
     destroy() {
       window.removeEventListener('resize', watch);
