@@ -142,9 +142,17 @@
   gap: var(--space-1);
 }
 
+/* Same type as the Appearance legend, its sibling in Settings. */
+.install__heading {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
+}
+
 .install__group-title {
   margin: var(--space-0);
-  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
 }
 

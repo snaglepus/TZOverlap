@@ -155,6 +155,17 @@ test('Settings → Install lists the steps for every platform', async ({ page })
     [...(el.querySelector('.settings')?.children ?? [])].map((c) => c.className),
   );
   expect(order).toEqual(['radio-group', 'settings__section install', 'settings__section']);
+
+  // The Install heading matches its sibling label, the Appearance legend.
+  /** @param {import('@playwright/test').Locator} el */
+  const type = (el) =>
+    el.evaluate((node) => {
+      const { fontSize, fontWeight, lineHeight } = getComputedStyle(node);
+      return { fontSize, fontWeight, lineHeight };
+    });
+  expect(await type(dialog.getByRole('heading', { name: 'Install', exact: true }))).toEqual(
+    await type(dialog.locator('legend', { hasText: 'Appearance' })),
+  );
   await expectNoA11yViolations(page);
 });
 
