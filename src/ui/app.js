@@ -2,9 +2,11 @@
 // shared components in ./components.js and the tokens in src/styles/.
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
+import { dayQualifies, nextQualifyingDay } from '../lib/filter.js';
 import {
   DEFAULT_DAYS,
   MAX_DATE,
+  MAX_DAYS,
   MIN_DATE,
   anchorStart,
   buildGrid,
@@ -21,7 +23,15 @@ import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
 import { addCitySheet } from './add-city.js';
-import { appShell, button, card, dateField, emptyState, errorState } from './components.js';
+import {
+  appShell,
+  button,
+  card,
+  dateField,
+  emptyState,
+  errorState,
+  segmentedControl,
+} from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
 import { installController } from './install.js';
@@ -38,7 +48,11 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/zones.js').Zone} Zone
  * @typedef {import('./grid.js').GridView} GridView
  * @typedef {import('../lib/install.js').InstallKind} InstallKind
+ * @typedef {import('../lib/filter.js').Filter} Filter
  */
+
+/** The filter options in key order: 1, 2 and 3. @type {readonly Filter[]} */
+const FILTERS = ['all', 'good', 'best'];
 
 const MINUTE_MS = 60000;
 
@@ -131,10 +145,30 @@ export function mountApp(
   });
   hourToggle.classList.add('hour-toggle');
   hourToggle.setAttribute('aria-keyshortcuts', 'T');
+  /** The filter the grid and control show; a change redraws the masks in place. */
+  let shownFilter = store.getState().settings.filter;
+  const filterControl = segmentedControl({
+    legend: strings.filter.label,
+    name: 'filter',
+    options: FILTERS.map((value, i) => ({
+      value,
+      label: strings.filter.options[value],
+      keyshortcuts: String(i + 1),
+    })),
+    value: shownFilter,
+    onChange: (filter) => store.updateSettings({ filter }),
+  });
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [dateControl.root, todayButton, hourToggle, nowButton, settingsButton],
+    actions: [
+      dateControl.root,
+      todayButton,
+      hourToggle,
+      nowButton,
+      settingsButton,
+      filterControl.root,
+    ],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
   const install = installController({ store, kind: installKind, main: shell.main });
@@ -152,6 +186,12 @@ export function mountApp(
 
   // --- Timelines card --------------------------------------------------------
   const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
+  // Between the card header and its body, which showGrid() replaces.
+  const noOverlap = h('div', {
+    class: 'no-overlap',
+    attrs: { role: 'status', 'aria-live': 'polite' },
+  });
+  timelinesCard.body.before(noOverlap);
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
@@ -182,6 +222,50 @@ export function mountApp(
   function goToNow() {
     if (view?.hasNow()) view.scrollToNow({ animate: true });
     else resetTo(todayAnchor(homeZone(), now()));
+  }
+
+  /** The stored zones shown as rows: a stored copy of the home zone stays hidden. */
+  function shownZones() {
+    const tz = home.current();
+    return store.getState().zones.filter((z) => !(z.kind === 'iana' && z.tz === tz));
+  }
+
+  /** The grid's home zone, rows, anchor, weekend setting and filter, for the day search. */
+  function dayOptions() {
+    return {
+      homeZone: homeZone(),
+      zones: shownZones(),
+      anchor,
+      weekendsUnavailable: store.getState().settings.weekendsUnavailable,
+      filter: shownFilter,
+    };
+  }
+
+  /** Show the no-overlap message while Good or Best leaves the anchor date empty. */
+  function checkOverlap() {
+    if (dayQualifies(dayOptions())) {
+      noOverlap.replaceChildren();
+      return;
+    }
+    const next = button({
+      label: strings.filter.nextDay,
+      variant: 'secondary',
+      onClick: () => {
+        const found = nextQualifyingDay(dayOptions());
+        if (found) {
+          resetTo(found);
+        } else {
+          next.replaceWith(
+            h('p', { class: 'no-overlap__message', text: strings.filter.noneFound(MAX_DAYS) }),
+          );
+        }
+        view?.root.focus({ preventScroll: true });
+      },
+    });
+    noOverlap.replaceChildren(
+      h('p', { class: 'no-overlap__message', text: strings.filter.noOverlap }),
+      next,
+    );
   }
 
   /**
@@ -218,6 +302,7 @@ export function mountApp(
         return build();
       },
       hourCycle: shownCycle,
+      filter: shownFilter,
       onRemove: (zone) => remove(zone),
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
@@ -258,6 +343,7 @@ export function mountApp(
       view.scrollTo(isToday ? current : anchorStart(homeZone(), anchor));
     }
     view.watch();
+    checkOverlap();
   }
 
   function render() {
@@ -288,6 +374,30 @@ export function mountApp(
     shownCycle = next;
     hourToggle.setAttribute('aria-pressed', String(next === 'h23'));
     view?.setHourCycle(next);
+  }
+
+  /** Follow the stored filter: control, masks and message, without a rebuild. */
+  function syncFilter() {
+    const next = store.getState().settings.filter;
+    if (next === shownFilter) return;
+    shownFilter = next;
+    filterControl.setValue(next);
+    view?.setFilter(next);
+    checkOverlap();
+  }
+
+  // 1, 2 and 3 pick All, Good and Best, only while focus is in the grid (WCAG 2.1.4).
+  /** @param {KeyboardEvent} event */
+  function onFilterKey(event) {
+    const filter = FILTERS[['1', '2', '3'].indexOf(event.key)];
+    if (!filter) return;
+    if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    if (event.repeat || event.isComposing) return;
+    if (!view || !(event.target instanceof Node) || !view.root.contains(event.target)) return;
+    if (filter === shownFilter) return;
+    event.preventDefault();
+    store.updateSettings({ filter });
+    announcer.textContent = strings.filter.changed(strings.filter.options[filter]);
   }
 
   // T toggles the cycle, only while focus is in the timeline grid (WCAG 2.1.4).
@@ -355,6 +465,7 @@ export function mountApp(
   // After mounting: the grid is measured to set its scroll position.
   store.subscribe(render);
   store.subscribe(syncHourCycle);
+  store.subscribe(syncFilter);
   render();
   scheduleTick();
   document.addEventListener('keydown', onKeydown);
@@ -366,6 +477,7 @@ export function mountApp(
   }
   if (launch.travelled) setTimeout(showTravelled, 0);
   document.addEventListener('keydown', onHourCycleKey);
+  document.addEventListener('keydown', onFilterKey);
   window.addEventListener('focus', checkHome);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') checkHome();

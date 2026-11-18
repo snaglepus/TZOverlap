@@ -164,6 +164,9 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(page.getByRole('button', { name: '24-hour' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
+  // The filter: one stop, on the checked radio.
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('radio', { name: 'All', exact: true })).toBeFocused();
   // The scrollable grid is itself focusable, then Add city below it.
   await page.keyboard.press('Tab');
   await expect(grid(page)).toBeFocused();

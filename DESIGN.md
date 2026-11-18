@@ -78,6 +78,8 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-unsuitable` / `--color-unsuitable-ink` | Unsuitable hours (20–06, weekends): dimmed grey | `#E4E2EA` / `#57555F` | `#24232A` / `#9F9CAA` |
 | `--color-weekend`                               | Weekend Unsuitable hour cells: a deeper grey    | `#D2CFDB`             | `#34313F`             |
 | `--color-weekend-band`                          | Solid top band on weekend hour cells (≥ 3:1)    | `#4A4656`             | `#D4D1DE`             |
+| `--color-filtered`                              | Opaque fill of the filter's greying masks       | `#F4F3F6`             | `#131217`             |
+| `--color-filtered-pattern`                      | Cross-hatch over the filter's greying masks     | `#CDCAD4`             | `#34323C`             |
 | `--color-backdrop`                              | Translucent ink behind an open sheet            | `rgb(29 27 24 / 0.4)` | `rgb(0 0 0 / 0.6)`    |
 
 **Heat scale.** Ratings come from `src/lib/suitability.js` (Best, Good,
@@ -103,6 +105,20 @@ background), Unsuitable ones use `--color-weekend` instead of
 `--color-unsuitable`, and their `aria-label` ends with ", weekend". The
 Everyone row gets no weekend styling; it shows weekends only through its
 ratings.
+
+**Greying (the All / Good / Best filter).** Good and Best grey out every
+instant whose Everyone rating the filter excludes (`src/lib/filter.js`
+`greyedSpans()`: Good keeps Good and Best, Best keeps Best). The greying is a
+set of `.grid__mask` overlays placed by absolute time, identical in every track
+(home, Everyone and each user row), so a :30 or :45 zone's hour cell that
+straddles a qualifying edge is greyed only for the part outside it. A mask is
+an opaque `--color-filtered` fill with a cross-hatch in
+`--color-filtered-pattern` (two `--hairline` lines at 45° and 135°, every
+`--hatch-size`), unlike Good's single 135° hatch: the pattern is the non-colour
+cue. Hour labels stay above the masks in their normal ink (every ink is ≥ 4.5:1
+against both filtered tokens), and an Everyone segment under a mask ends its
+`aria-label` with ", greyed out by the filter". Hour cells keep their own
+rating and label.
 
 ### 3.2 Typography
 
@@ -166,8 +182,8 @@ durations become `0ms` (handled in `tokens.css`).
 from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
 `--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
-toasts) · `--toolbar-height` 105px (phone bottom toolbar before the safe-area
-inset: two `--control-height` rows, the `--space-2` row gap, `--space-1`
+toasts) · `--toolbar-height` 157px (phone bottom toolbar before the safe-area
+inset: three `--control-height` rows, two `--space-2` row gaps, `--space-1`
 padding above and below, and the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--weekend-band-width` 4px (top band on weekend hour cells) ·
@@ -189,7 +205,7 @@ runtime properties through `style.setProperty()` (CSSOM, allowed by the CSP):
 `--grid-hours` on the grid (track width = hours × `--slot-width`), `--now-left`
 on the grid (hours from the window start to now; the now line sits at
 `--grid-header-width` + `--now-left` × `--slot-width`), and `--cell-left` /
-`--cell-width` on each cell and segment (in columns, multiplied by
+`--cell-width` on each cell, segment and filter mask (in columns, multiplied by
 `--slot-width` in CSS). They are not tokens and are never declared in a
 stylesheet. The Popover sets `--popover-left` / `--popover-top` the same way,
 in px, multiplied by `--hairline` in CSS.
@@ -307,13 +323,16 @@ page's one toast region (returned as `toaster`). The toolbar
 field, a ghost "Today" button that is hidden while the date shown is today, the
 "24-hour" toggle (a ghost pressed-state Button, pressed while 24-hour times
 show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`, where the toolbar is
-in the title bar), a ghost **Now** button, named "Go to now", then Settings),
-comes right after the brand in DOM order, and is omitted when there are none.
+in the title bar), a ghost **Now** button, named "Go to now", Settings, then
+the "Filter" Segmented control: All, Good, Best), comes right after the brand
+in DOM order, and is omitted when there are none.
 Below `--bp-md` it is fixed to the bottom of the viewport on a surface with a
-top hairline, wraps its controls onto two rows (the Date field first, the
-buttons right-aligned below), is padded by the bottom, left and right safe-area
+top hairline, wraps its controls onto three rows (the Date field first, the
+buttons right-aligned below, then the filter across the full width with the
+segments sharing it), is padded by the bottom, left and right safe-area
 insets, and the shell pads its bottom to match; from `--bp-md` it sits in the
-title bar at the end. The title bar pads its top by
+title bar at the end, with the filter on its own line under the other
+controls, right-aligned. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
 renders inside exactly one shell.
@@ -374,6 +393,24 @@ its `<label>` row of at least `--control-height`, with `accent-color` from
 `--color-accent`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a choice of a few mutually exclusive settings, e.g.
 Appearance and Time format.
+
+### Segmented control — `segmentedControl()` · `.segmented`
+
+A `<fieldset>` with a visually hidden `<legend>` and one native radio per
+option, each visually hidden (but focusable) inside its segment's `<label>`.
+The segments sit side by side in one strip; each has a
+`--color-border-strong` border overlapping its neighbour's, `--radius-md` on
+the outer corners, and is at least `--control-height` (44px) tall and wide,
+with `--font-weight-medium` text on `--color-surface`. The checked segment gets
+the `--color-surface-sunken` fill, a second inset `--color-border-strong`
+border and `--font-weight-bold` text, like the pressed Button, so the state
+never relies on colour alone. A focused radio puts the standard focus ring on
+its segment (`:has(:focus-visible)`). Arrow keys move the choice natively and
+assistive tech gets a named group of radios. Options may set
+`aria-keyshortcuts`. `onChange` fires on user change; `setValue()` updates it
+silently. Use for a short, always-visible view mode switched often, e.g. the
+toolbar's "Filter" (All / Good / Best, keys 1 / 2 / 3); for a setting inside a
+sheet or a list of longer labels use Radio group.
 
 ### Switch — `switchControl()` · `.switch`
 
@@ -498,6 +535,31 @@ labels on odd hours get `visibility: hidden`: every second label shows. Text is
 never shrunk to fit. Hidden labels stay in the cell's `aria-label`. Switching
 the hour cycle rewrites every time in place, keeping the scroll position and
 focus.
+Filter: the toolbar's All / Good / Best control (`settings.filter`, saved and
+followed across tabs; Reset all data returns to All) greys out, with masks
+(§3.1), every instant whose Everyone rating it excludes. Layers in the grid,
+bottom to top: cell fills (with the Good hatch, weekend band and Everyone Best
+edge), the masks (after each track's cells), then hour labels, the repeat
+marker, midnight dividers and the now line (`z-index: 1`), then the sticky row
+headers (`z-index: 2`). The grid is `isolation: isolate`, so none of this
+reaches the fixed toolbar. Changing the filter replaces only the masks and the
+Everyone labels: no rebuild, and the scroll position, the date and the loaded
+days stay. With All there are no masks. Lazy extension redraws them for the
+new window.
+
+No-overlap message: page pattern, not a shared component. A persistent
+`.no-overlap` polite `role="status"` region sits in the Timelines card between
+its header and the grid, mounted empty and taking no space while empty. After
+every build and filter change, if Good or Best leaves the anchor date (the date
+in the toolbar) with no qualifying slot, it shows "No time works for everyone
+today" (`--font-weight-medium`) and a `secondary` "Show next day that works"
+button, on `--color-surface-sunken` with a `--color-border-strong` hairline and
+`--radius-md`. The button finds the first later date, up to 14 days on and not
+past the last date the date control accepts, with a qualifying slot, and moves
+there as picking that date does; if there is none, the date stays and the
+button gives way to "No time works for everyone in the next 14 days either.".
+Either way focus moves to the grid.
+
 Chrome is solid: no translucent materials and no `backdrop-filter` or blur
 anywhere, including behind sheets.
 
@@ -513,11 +575,13 @@ anywhere, including behind sheets.
 - **Keyboard.** Everything is reachable and operable by keyboard in a logical
   order. The skip link is the first focusable element. Scrollable regions are
   focusable (`tabindex="0"`) and labelled. Forms submit with Enter. In the
-  timeline grid, ←/→ scroll one hour, Shift+←/→ six hours, N goes to now and T
-  switches between 12-hour and 24-hour times (at every width); these keys work
-  only while focus is inside the grid (WCAG 2.1.4: scoping them to the focused
-  component needs no setting to turn them off), and are ignored with Alt, Ctrl
-  or Meta held (N and T also with Shift), so Alt+← stays browser Back. When the
+  timeline grid, ←/→ scroll one hour, Shift+←/→ six hours, N goes to now, T
+  switches between 12-hour and 24-hour times (at every width), and 1, 2 and 3
+  pick the All, Good and Best filter (announced as "Filter: Best" in the
+  polite announcer); these keys work only while focus is inside the grid
+  (WCAG 2.1.4: scoping them to the focused component needs no setting to turn
+  them off), and are ignored with Alt, Ctrl or Meta held (N, T, 1, 2 and 3 also
+  with Shift), so Alt+← stays browser Back. When the
   focused Now button disables itself, focus moves to the grid.
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
   `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
