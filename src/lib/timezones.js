@@ -37,13 +37,54 @@ export function isValidTimeZone(timeZone) {
   }
 }
 
+/** @type {Map<string, string> | null} */
+let knownZones = null;
+
+/** Lower-case name -> proper name, from the runtime's zone list. */
+function zoneLookup() {
+  if (!knownZones) {
+    knownZones = new Map();
+    try {
+      for (const zone of Intl.supportedValuesOf('timeZone'))
+        knownZones.set(zone.toLowerCase(), zone);
+    } catch {
+      // Older runtime without supportedValuesOf: fall back to casing heuristics.
+    }
+  }
+  return knownZones;
+}
+
 /**
- * Canonical casing for a zone the runtime accepts, e.g. "europe/paris" -> "Europe/Paris".
+ * Proper casing for a zone the runtime accepts, preserving the name the user
+ * chose: "europe/paris" -> "Europe/Paris", "Asia/Kolkata" stays "Asia/Kolkata"
+ * (Chromium's resolvedOptions() would turn it into the legacy "Asia/Calcutta").
  * @param {string} timeZone
  * @returns {string}
  */
 export function canonicalTimeZone(timeZone) {
-  return new Intl.DateTimeFormat('en-US', { timeZone: timeZone.trim() }).resolvedOptions().timeZone;
+  const input = timeZone.trim();
+  const lower = input.toLowerCase();
+  const listed = zoneLookup().get(lower);
+  if (listed) return listed;
+  const resolved = new Intl.DateTimeFormat('en-US', { timeZone: input }).resolvedOptions().timeZone;
+  if (resolved.toLowerCase() === lower) return resolved;
+  if (input !== lower) return input; // user supplied casing; trust it
+  return lower.replace(/(^|[/_-])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
+/**
+ * True if the runtime ships real time zone data. Some minimal ICU builds only
+ * know UTC; TZ Overlap cannot work there.
+ */
+export function hasTimeZoneSupport() {
+  try {
+    return (
+      isValidTimeZone('Asia/Tokyo') &&
+      offsetMinutes('Asia/Tokyo', new Date(Date.UTC(2026, 0, 1))) === 540
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** @returns {string} the browser's (or Node's) current IANA time zone */

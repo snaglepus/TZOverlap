@@ -123,8 +123,14 @@ durations become `0ms` (handled in `tokens.css`).
 
 `--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
 `--slot-width` 3rem · `--slot-height` 2.75rem · `--row-header-width` 12rem ·
-`--row-header-width-compact` 7.5rem · `--icon-size` 1.25rem ·
-`--min-viewport-height` 100dvh · `--hatch-size` 6px.
+`--row-header-width-compact` 7.5rem · `--control-height-sm` 2rem ·
+`--icon-size` 1.25rem · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+`--hairline` 1px (sub-pixel geometry such as the visually-hidden utility).
+
+### 3.7 Other
+
+`--letter-spacing-tight` -0.02em (page title only) · `--opacity-disabled` 0.55
+(disabled buttons) · `--measure` 65ch (max prose line length).
 
 ## 4. Themes
 

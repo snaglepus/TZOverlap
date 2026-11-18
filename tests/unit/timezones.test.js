@@ -21,6 +21,12 @@ describe('isValidTimeZone', () => {
 
   it('canonicalises casing', () => {
     assert.equal(canonicalTimeZone('america/new_york'), 'America/New_York');
+    assert.equal(canonicalTimeZone(' Europe/Paris '), 'Europe/Paris');
+  });
+
+  it('keeps the modern name the user typed instead of a legacy alias', () => {
+    assert.equal(canonicalTimeZone('Asia/Kolkata'), 'Asia/Kolkata');
+    assert.equal(canonicalTimeZone('Europe/Kyiv'), 'Europe/Kyiv');
   });
 });
 
@@ -61,5 +67,12 @@ describe('formatting', () => {
   it('derives a city label', () => {
     assert.equal(zoneCity('America/Los_Angeles'), 'Los Angeles');
     assert.equal(zoneCity('UTC'), 'UTC');
+  });
+});
+
+describe('hasTimeZoneSupport', () => {
+  it('is true on a runtime with full ICU data', async () => {
+    const { hasTimeZoneSupport } = await import('../../src/lib/timezones.js');
+    assert.equal(hasTimeZoneSupport(), true);
   });
 });

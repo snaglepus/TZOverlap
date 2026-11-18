@@ -15,11 +15,29 @@ const HOUR_MS = 3_600_000;
  */
 
 /**
- * Start of the UTC hour containing `date`.
+ * Start of the wall-clock hour containing `date` in `timeZone`. Equals the UTC
+ * hour for whole-hour zones; differs for e.g. Asia/Kolkata (UTC+5:30).
+ * @param {string} timeZone
  * @param {Date} date
  */
-export function floorToHour(date) {
-  return new Date(Math.floor(date.getTime() / HOUR_MS) * HOUR_MS);
+export function floorToZoneHour(timeZone, date) {
+  const minuteStart = Math.floor(date.getTime() / 60_000) * 60_000;
+  return new Date(minuteStart - localParts(timeZone, date).minute * 60_000);
+}
+
+/**
+ * Local midnight (00:00) of the calendar day containing `date` in `timeZone`.
+ * Correct on DST-change days, where the day is 23 or 25 hours long.
+ * @param {string} timeZone
+ * @param {Date} date
+ */
+export function startOfLocalDay(timeZone, date) {
+  const p = localParts(timeZone, date);
+  const minuteStart = Math.floor(date.getTime() / 60_000) * 60_000;
+  const naive = new Date(minuteStart - (p.hour * 60 + p.minute) * 60_000);
+  // If a DST shift happened since midnight, the naive guess is off by the shift.
+  const shift = offsetMinutes(timeZone, date) - offsetMinutes(timeZone, naive);
+  return new Date(naive.getTime() + shift * 60_000);
 }
 
 /**
@@ -40,12 +58,12 @@ function dayDiff(a, b) {
  */
 export function buildTimeline({ zones, start, hours = 24 }) {
   if (zones.length === 0) throw new Error('buildTimeline needs at least one zone');
-  const origin = floorToHour(start);
+  const reference = /** @type {string} */ (zones[0]);
+  const origin = floorToZoneHour(reference, start);
   const instants = Array.from(
     { length: hours },
     (_, i) => new Date(origin.getTime() + i * HOUR_MS),
   );
-  const reference = /** @type {string} */ (zones[0]);
 
   const rows = zones.map((timeZone) => ({
     timeZone,

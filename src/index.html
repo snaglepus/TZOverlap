@@ -9,13 +9,16 @@
     />
     <meta name="referrer" content="no-referrer" />
     <meta name="description" content="See working-hour overlap across up to eight time zones." />
+    <meta name="color-scheme" content="light dark" />
     <title>TZ Overlap</title>
+    <link rel="icon" href="data:," />
+    <script src="./theme-init.js"></script>
+    <link rel="stylesheet" href="./styles/main.css" />
+    <script type="module" src="./main.js"></script>
   </head>
   <body>
-    <main id="app">
-      <h1>TZ Overlap</h1>
-      <p>Your time zone: <strong data-testid="local-zone">…</strong></p>
-    </main>
-    <script type="module" src="./main.js"></script>
+    <div id="app">
+      <noscript>TZ Overlap needs JavaScript to draw time zone timelines.</noscript>
+    </div>
   </body>
 </html>

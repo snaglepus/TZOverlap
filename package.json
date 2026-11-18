@@ -12,7 +12,7 @@
     "start": "node scripts/serve.js",
     "preview": "node scripts/build.js && node scripts/serve.js --dir dist",
     "setup:browsers": "playwright install --only-shell chromium",
-    "lint": "eslint --max-warnings=0 .",
+    "lint": "eslint --max-warnings=0 . && node scripts/lint-tokens.js",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json",
@@ -25,6 +25,7 @@
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test:unit && npm run test:integration && npm run build && npm run test:e2e && npm run test:perf"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
