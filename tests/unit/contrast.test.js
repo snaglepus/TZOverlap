@@ -82,6 +82,14 @@ const PAIRS = /** @type {const} */ ([
   ['--color-accent', '--color-unsuitable', 3],
   ['--color-accent', '--color-surface-sunken', 3],
   ['--color-accent', '--color-weekend', 3],
+  // Hour labels over the filter's masks (fill and cross-hatch), and the now line above them.
+  ['--color-best-ink', '--color-filtered', 4.5],
+  ['--color-best-ink', '--color-filtered-pattern', 4.5],
+  ['--color-heat-ink', '--color-filtered', 4.5],
+  ['--color-heat-ink', '--color-filtered-pattern', 4.5],
+  ['--color-unsuitable-ink', '--color-filtered', 4.5],
+  ['--color-unsuitable-ink', '--color-filtered-pattern', 4.5],
+  ['--color-accent', '--color-filtered', 3],
 ]);
 
 const themes = {

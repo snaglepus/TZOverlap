@@ -5,6 +5,7 @@
 // trackpad scrolling stay native. An IntersectionObserver extends the window
 // by a day when the visible track area comes within EXTEND_COLUMNS of either end.
 
+import { greyedSpans, qualifies } from '../lib/filter.js';
 import { EXTEND_COLUMNS } from '../lib/grid.js';
 import {
   dayDifference,
@@ -39,6 +40,8 @@ import { strings } from './strings.js';
  * @typedef {import('../data/cities.js').City} City
  * @typedef {keyof import('../lib/grid.js').Extent} Side
  * @typedef {import('../lib/time-format.js').HourCycle} HourCycle
+ * @typedef {import('../lib/filter.js').Filter} Filter
+ * @typedef {import('../lib/filter.js').Span} Span
  */
 
 /**
@@ -145,14 +148,16 @@ function labelHourCell(el, cell, cycle, day) {
  * @param {Segment} segment
  * @param {Zone} homeZone
  * @param {HourCycle} cycle
+ * @param {Filter} filter a segment the filter greys out says so
  */
-function labelSegment(el, segment, homeZone, cycle) {
+function labelSegment(el, segment, homeZone, cycle, filter) {
   el.setAttribute(
     'aria-label',
     strings.timelines.segment(
       clock(homeZone, segment.start, cycle),
       clock(homeZone, segment.end, cycle),
       strings.ratings[segment.rating],
+      !qualifies(segment.rating, filter),
     ),
   );
 }
@@ -161,16 +166,36 @@ function labelSegment(el, segment, homeZone, cycle) {
  * The Everyone row's segments, each also pushed onto `segments` for relabelling.
  * @param {Grid} grid
  * @param {HourCycle} cycle
+ * @param {Filter} filter
  * @param {[HTMLElement, Segment][]} segments
  */
-function everyoneSegments(grid, cycle, segments) {
+function everyoneSegments(grid, cycle, filter, segments) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   return grid.everyone.map((segment) => {
     const el = placed(segment, {});
-    labelSegment(el, segment, homeZone, cycle);
+    labelSegment(el, segment, homeZone, cycle, filter);
     segments.push([el, segment]);
     return el;
   });
+}
+
+/**
+ * A stretch the filter greys out, drawn over the cells of one track. Every
+ * track gets the same masks, so all rows grey the same instants.
+ * @param {Span} span
+ */
+function mask(span) {
+  const el = h('div', {
+    class: 'grid__mask',
+    attrs: {
+      'aria-hidden': 'true',
+      'data-start': span.start.toISOString(),
+      'data-end': span.end.toISOString(),
+    },
+  });
+  el.style.setProperty('--cell-left', String(span.left));
+  el.style.setProperty('--cell-width', String(span.width));
+  return el;
 }
 
 /**
@@ -248,6 +273,7 @@ function homeSymbol() {
  *   watch: () => void,
  *   refresh: () => void,
  *   setHourCycle: (cycle: HourCycle) => void,
+ *   setFilter: (filter: Filter) => void,
  *   destroy: () => void,
  * }} GridView
  */
@@ -258,7 +284,8 @@ function homeSymbol() {
  * the grid with one more day on that side, or null at the cap. `homeLabel` is
  * the label of a hidden stored copy of the home zone, if any; `cities` is the
  * city data when it is already loaded; `hourCycle` is the resolved 12/24-hour
- * cycle. `onNowVisible` is told whenever the now line comes into or goes out of
+ * cycle; `filter` greys out the instants whose Everyone rating it excludes.
+ * `onNowVisible` is told whenever the now line comes into or goes out of
  * view, and `onGoToNow` runs on N (by default scrollToNow). Once the grid is in
  * the document, call scrollToNow(), scrollTo() or set scrollLeft, then watch()
  * to start lazy extension. Call `destroy()` before dropping the grid.
@@ -269,6 +296,7 @@ function homeSymbol() {
  *   offsetAt: Date,
  *   extend: (side: Side) => Grid | null,
  *   hourCycle: HourCycle,
+ *   filter: Filter,
  *   onRemove: (zone: StoredZone) => void,
  *   homeLabel?: string,
  *   cities?: readonly City[],
@@ -284,6 +312,7 @@ export function timelineGrid({
   offsetAt,
   extend,
   hourCycle,
+  filter: initialFilter,
   onRemove,
   homeLabel,
   cities,
@@ -305,6 +334,7 @@ export function timelineGrid({
   /** @type {HTMLElement[]} */
   const tracks = [];
   let cycle = hourCycle;
+  let filter = initialFilter;
 
   const zoneRows = grid.rows.map((gridRow, i) => {
     const { zone } = gridRow;
@@ -423,7 +453,12 @@ export function timelineGrid({
     );
   });
 
-  const everyoneTrack = h('div', { class: 'grid__track' }, everyoneSegments(grid, cycle, segments));
+  const everyoneTrack = h(
+    'div',
+    { class: 'grid__track' },
+    everyoneSegments(grid, cycle, filter, segments),
+  );
+  tracks.push(everyoneTrack);
   const everyone = row(
     [h('span', { class: 'grid__name', text: strings.timelines.everyone })],
     everyoneTrack,
@@ -443,6 +478,18 @@ export function timelineGrid({
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
   const homeTrack = /** @type {HTMLElement} */ (tracks[0]);
+
+  // Filter masks: after each track's cells, before its midnight dividers.
+  function placeMasks() {
+    const spans = greyedSpans(shown.everyone, filter);
+    for (const track of tracks) {
+      for (const el of track.querySelectorAll(':scope > .grid__mask')) el.remove();
+      if (spans.length === 0) continue;
+      const before = track.querySelector(':scope > .grid__divider, :scope > .grid__edge');
+      for (const span of spans) track.insertBefore(mask(span), before);
+    }
+  }
+  placeMasks();
 
   // Labels that don't fit one column (with --space-1 each side, the label's
   // padding) hide on odd hours; never shrunk. Viewport and root font-size
@@ -615,9 +662,10 @@ export function timelineGrid({
     next.rows.forEach((gridRow, i) =>
       tracks[i]?.replaceChildren(...trackContent(gridRow, cycle, hourCells)),
     );
-    everyoneTrack.replaceChildren(...everyoneSegments(next, cycle, segments));
+    everyoneTrack.replaceChildren(...everyoneSegments(next, cycle, filter, segments));
     root.style.setProperty('--grid-hours', String(next.hours));
     placeEdges();
+    placeMasks();
     placeLine(current);
     fitLabels();
   }
@@ -690,9 +738,15 @@ export function timelineGrid({
     setHourCycle(next) {
       cycle = next;
       for (const [el, cell, day] of hourCells) labelHourCell(el, cell, cycle, day);
-      for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle);
+      for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle, filter);
       for (const update of updates) update(current, currentOffset);
       fitLabels();
+    },
+    /** Redraw the masks and Everyone labels for `next`; cells and scroll stay. */
+    setFilter(next) {
+      filter = next;
+      placeMasks();
+      for (const [el, segment] of segments) labelSegment(el, segment, homeZone, cycle, filter);
     },
     /** Stop lazy extension and label fitting. */
     destroy() {

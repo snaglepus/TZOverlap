@@ -33,6 +33,8 @@
   --color-unsuitable-ink: #57555f;
   --color-weekend: #d2cfdb;
   --color-weekend-band: #4a4656;
+  --color-filtered: #f4f3f6;
+  --color-filtered-pattern: #cdcad4;
   --color-backdrop: rgb(29 27 24 / 0.4);
 
   /* Shadow — light */
@@ -94,8 +96,8 @@
   --grid-header-width: var(--row-header-width-compact);
   --icon-size: 1.25rem;
   --sheet-max-width: 32rem;
-  /* Two control rows, the row gap, the block padding and the top border. */
-  --toolbar-height: calc(2 * var(--control-height) + 2 * var(--space-2) + var(--border-width));
+  /* Three control rows, the two row gaps, the block padding and the top border. */
+  --toolbar-height: calc(3 * var(--control-height) + 3 * var(--space-2) + var(--border-width));
   --min-viewport-height: 100dvh;
   --hatch-size: 6px;
   --best-edge-width: 3px;
@@ -138,6 +140,8 @@
   --color-unsuitable-ink: #9f9caa;
   --color-weekend: #34313f;
   --color-weekend-band: #d4d1de;
+  --color-filtered: #131217;
+  --color-filtered-pattern: #34323c;
   --color-backdrop: rgb(0 0 0 / 0.6);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
@@ -172,6 +176,8 @@
     --color-unsuitable-ink: #9f9caa;
     --color-weekend: #34313f;
     --color-weekend-band: #d4d1de;
+    --color-filtered: #131217;
+    --color-filtered-pattern: #34323c;
     --color-backdrop: rgb(0 0 0 / 0.6);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
