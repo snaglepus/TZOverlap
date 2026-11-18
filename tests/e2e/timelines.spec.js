@@ -155,6 +155,8 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(skip).toBeInViewport();
 
   await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: '24-hour' })).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
   await page.keyboard.press('Tab');
   const input = page.getByLabel('Time zone', { exact: true });
@@ -625,7 +627,8 @@ test.describe('grid', () => {
     expect(sizes.grid).toBeGreaterThan(0);
   });
 
-  test('eight zones stay within 1,100 elements', async ({ page }) => {
+  // Each hour cell wraps its label in .grid__label (hidden on odd hours when labels don't fit).
+  test('eight zones stay within 1,400 elements', async ({ page }) => {
     const tzs = [
       'Asia/Kolkata',
       'Asia/Tokyo',
@@ -642,7 +645,7 @@ test.describe('grid', () => {
     await page.goto('/');
     await expect(grid(page).getByRole('row')).toHaveCount(9);
     const count = await grid(page).evaluate((el) => el.querySelectorAll('*').length);
-    expect(count).toBeLessThanOrEqual(1100);
+    expect(count).toBeLessThanOrEqual(1400);
   });
 
   test('a fixed zone gets a row marked No DST', async ({ page }) => {

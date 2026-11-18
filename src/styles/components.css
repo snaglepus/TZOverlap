@@ -172,6 +172,12 @@
   background: var(--color-surface-sunken);
 }
 
+/* Pressed toggle: strong border and sunken fill, so not by colour alone. */
+.btn[aria-pressed='true'] {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border-strong);
+}
+
 .btn--sm {
   min-height: var(--control-height-sm);
   padding-inline: var(--space-2);
