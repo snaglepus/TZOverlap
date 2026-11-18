@@ -243,6 +243,23 @@
   border: var(--border-width) solid var(--color-border-strong);
 }
 
+/* The Timelines card's Edit / Done button: both labels in one cell, the
+   inactive one invisible, so its width doesn't change between them. Narrow
+   padding keeps it on the legend's line at 390px. */
+.edit-toggle {
+  display: inline-grid;
+  padding-inline: var(--space-2);
+}
+
+.edit-toggle__label {
+  grid-area: 1 / 1;
+}
+
+.edit-toggle:not([data-editing]) .edit-toggle__label--done,
+.edit-toggle[data-editing] .edit-toggle__label:not(.edit-toggle__label--done) {
+  visibility: hidden;
+}
+
 /* ---------- Timeline grid ---------- */
 /* Positions come from JS as unitless custom properties in home columns:
    --grid-hours and --now-left on .grid, --selection-left / --selection-width on
@@ -348,6 +365,43 @@
 .grid__handle:hover,
 .grid__handle[aria-expanded='true'] {
   background: var(--color-surface);
+}
+
+/* A user row's Delete button: shown only in Edit mode. */
+.grid__row .grid__delete {
+  display: none;
+  color: var(--color-danger);
+}
+
+/* Edit mode (data-editing): the trigger takes a full first line, then Delete
+   and the enlarged handle at the inline start. The .grid container's width
+   caps the header's content box, so a header wider than the visible grid
+   (320px, 200% text) keeps them in view and the handle wraps under Delete. */
+.grid[data-editing] {
+  container-type: inline-size;
+}
+
+.grid[data-editing] .grid__row[data-id] > .grid__header {
+  justify-content: flex-start;
+  padding-inline-end: max(var(--space-1), calc(var(--grid-header-width) - 100cqi + var(--space-1)));
+}
+
+.grid[data-editing] .grid__row[data-id] .grid__trigger {
+  flex-basis: 100%;
+}
+
+.grid[data-editing] .grid__delete {
+  display: inline-flex;
+}
+
+.grid[data-editing] .grid__handle {
+  width: var(--edit-handle-size);
+  height: var(--edit-handle-size);
+}
+
+.grid[data-editing] .grid__handle .icon {
+  width: var(--edit-handle-icon-size);
+  height: var(--edit-handle-icon-size);
 }
 
 /* Drag to reorder (src/ui/reorder.js). JS sets --reorder-y (px) on the lifted
@@ -778,6 +832,13 @@ button.grid__warning[aria-expanded='true'] {
 
   .grid__header {
     padding-inline: var(--space-2);
+  }
+
+  .grid[data-editing] .grid__row[data-id] > .grid__header {
+    padding-inline-end: max(
+      var(--space-2),
+      calc(var(--grid-header-width) - 100cqi + var(--space-2))
+    );
   }
 
   .grid__trigger {

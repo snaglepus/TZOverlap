@@ -109,3 +109,58 @@ export async function seedZones(page, zones) {
     );
   }, zones);
 }
+
+/** A move past the 4 px pickup slop: the lifted row follows the pointer from there. */
+export const LIFT_PX = 6;
+
+/** Raw touch input through CDP. @param {import('@playwright/test').Page} page */
+export async function touchscreen(page) {
+  const cdp = await page.context().newCDPSession(page);
+  let at = { x: 0, y: 0 };
+  /** @param {'touchStart' | 'touchMove' | 'touchEnd'} type */
+  const send = (type) =>
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x: Math.round(at.x), y: Math.round(at.y) }],
+    });
+  return {
+    /** @param {{ x: number, y: number }} point */
+    async start(point) {
+      at = point;
+      await send('touchStart');
+    },
+    /** Move in `steps` straight steps. @param {{ x: number, y: number }} point */
+    async move(point, steps = 10) {
+      const from = at;
+      for (let i = 1; i <= steps; i++) {
+        at = {
+          x: from.x + ((point.x - from.x) * i) / steps,
+          y: from.y + ((point.y - from.y) * i) / steps,
+        };
+        await send('touchMove');
+      }
+    },
+    /**
+     * Touch `point` and move just past the pickup slop, so the row lifts there.
+     * @param {{ x: number, y: number }} point
+     */
+    async lift(point) {
+      await this.start(point);
+      await this.move({ x: point.x, y: point.y - LIFT_PX }, 1);
+      return at;
+    },
+    async end() {
+      await send('touchEnd');
+    },
+  };
+}
+
+/**
+ * Set the root font size, as a user's large-text setting would.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} size
+ */
+export const setRootFontSize = (page, size) =>
+  page.evaluate((s) => {
+    document.documentElement.style.fontSize = s;
+  }, size);

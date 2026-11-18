@@ -5,13 +5,18 @@
 // style, reduced motion, auto-scroll, vibration, large text and accessibility.
 
 import { expect, test } from '@playwright/test';
-import { NOW, expectNoA11yViolations, seedZones } from './helpers.js';
+import {
+  LIFT_PX,
+  NOW,
+  expectNoA11yViolations,
+  seedZones,
+  setRootFontSize,
+  touchscreen,
+} from './helpers.js';
 
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 800 };
 const HOME = 'Europe/London';
-/** A move past the 4 px pickup slop: the lifted row follows the pointer from there. */
-const LIFT_PX = 6;
 
 const A = 'America/New_York';
 const B = 'Europe/Paris';
@@ -65,12 +70,6 @@ const storedIds = (page) =>
 
 /** @param {Page} page */
 const scrollLeft = (page) => grid(page).evaluate((el) => el.scrollLeft);
-
-/** @param {Page} page @param {string} size */
-const setRootFontSize = (page, size) =>
-  page.evaluate((s) => {
-    document.documentElement.style.fontSize = s;
-  }, size);
 
 /**
  * Record writes of tzoverlap.state once window.__armWrites() has run.
@@ -153,48 +152,6 @@ const gridTop = (page) => grid(page).evaluate((el) => el.getBoundingClientRect()
 async function aboveMid(page, mids, dragged, grabY, grabTop, target, by = 12) {
   const offset = grabY - grabTop - /** @type {number} */ (mids[dragged]);
   return (await gridTop(page)) + /** @type {number} */ (mids[target]) - by + offset;
-}
-
-/** Raw touch input through CDP. @param {Page} page */
-async function touchscreen(page) {
-  const cdp = await page.context().newCDPSession(page);
-  let at = { x: 0, y: 0 };
-  /** @param {'touchStart' | 'touchMove' | 'touchEnd'} type */
-  const send = (type) =>
-    cdp.send('Input.dispatchTouchEvent', {
-      type,
-      touchPoints: type === 'touchEnd' ? [] : [{ x: Math.round(at.x), y: Math.round(at.y) }],
-    });
-  return {
-    /** @param {{ x: number, y: number }} point */
-    async start(point) {
-      at = point;
-      await send('touchStart');
-    },
-    /** Move in `steps` straight steps. @param {{ x: number, y: number }} point */
-    async move(point, steps = 10) {
-      const from = at;
-      for (let i = 1; i <= steps; i++) {
-        at = {
-          x: from.x + ((point.x - from.x) * i) / steps,
-          y: from.y + ((point.y - from.y) * i) / steps,
-        };
-        await send('touchMove');
-      }
-    },
-    /**
-     * Touch `point` and move just past the pickup slop, so the row lifts there.
-     * @param {{ x: number, y: number }} point
-     */
-    async lift(point) {
-      await this.start(point);
-      await this.move({ x: point.x, y: point.y - LIFT_PX }, 1);
-      return at;
-    },
-    async end() {
-      await send('touchEnd');
-    },
-  };
 }
 
 /** No row lifted, shifted or transformed. @param {Page} page */

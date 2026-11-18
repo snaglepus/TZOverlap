@@ -52,6 +52,7 @@ const PAIRS = /** @type {const} */ ([
   ['--color-accent', '--color-surface', 4.5],
   ['--color-danger', '--color-surface', 4.5],
   ['--color-danger', '--color-danger-surface', 4.5],
+  ['--color-danger', '--color-surface-sunken', 3],
   ['--color-border-strong', '--color-surface', 3],
   // The pressed Button's border in the title bar, against the page.
   ['--color-border-strong', '--color-bg', 3],

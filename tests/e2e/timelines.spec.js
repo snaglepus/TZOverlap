@@ -626,7 +626,8 @@ test.describe('grid', () => {
   });
 
   // Each hour cell wraps its label in .grid__label (hidden on odd hours when labels don't fit).
-  test('eight zones stay within 1,400 elements', async ({ page }) => {
+  // Each user row also holds its Edit-mode Delete button (button, svg, path).
+  test('eight zones stay within 1,450 elements', async ({ page }) => {
     const tzs = [
       'Asia/Kolkata',
       'Asia/Tokyo',
@@ -643,7 +644,7 @@ test.describe('grid', () => {
     await page.goto('/');
     await expect(grid(page).getByRole('row')).toHaveCount(9);
     const count = await grid(page).evaluate((el) => el.querySelectorAll('*').length);
-    expect(count).toBeLessThanOrEqual(1400);
+    expect(count).toBeLessThanOrEqual(1450);
   });
 
   test('a fixed zone gets a row marked No DST', async ({ page }) => {

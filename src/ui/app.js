@@ -22,7 +22,7 @@ import {
 } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
 import { rowName, shortDate } from '../lib/row-header.js';
-import { canMove, dropTarget, moveTarget } from '../lib/row-order.js';
+import { canMove, deleteFocusTarget, dropTarget, moveTarget } from '../lib/row-order.js';
 import { createSelectionState } from '../lib/selection.js';
 import { describeSelection, selectionSummary } from '../lib/selection-details.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
@@ -197,8 +197,51 @@ export function mountApp(
     focusRow: (id) => view?.focusRow(id) ?? false,
   });
 
+  // --- Edit mode ---------------------------------------------------------------
+  // In memory only: every user row shows a Delete button and an enlarged handle.
+  let editing = false;
+  const editButton = button({
+    label: strings.edit.edit,
+    ariaLabel: strings.edit.editLabel,
+    variant: 'ghost',
+    onClick: () => setEditing(!editing),
+  });
+  // Both labels share one cell, the other one invisible, so the button keeps
+  // the wider one's width and the card header never reflows on a toggle.
+  editButton.replaceChildren(
+    h('span', { class: 'edit-toggle__label', text: strings.edit.edit }),
+    h('span', { class: 'edit-toggle__label edit-toggle__label--done', text: strings.edit.done }),
+  );
+  editButton.classList.add('edit-toggle');
+  editButton.hidden = true;
+
+  /** Whether focus is on a user row's Delete button. */
+  const deleteFocused = () =>
+    document.activeElement instanceof HTMLElement &&
+    document.activeElement.classList.contains('grid__delete');
+
+  /**
+   * Turn Edit mode on or off and announce it. Focus on a Delete button when it
+   * ends (`refocus`) goes to the Edit button, or Add city while that is hidden.
+   * @param {boolean} on
+   * @param {boolean} [refocus]
+   */
+  function setEditing(on, refocus = deleteFocused()) {
+    if (on === editing) return;
+    editing = on;
+    editButton.toggleAttribute('data-editing', on);
+    editButton.setAttribute('aria-label', on ? strings.edit.doneLabel : strings.edit.editLabel);
+    view?.setEditing(on);
+    view?.refresh();
+    announcer.textContent = on ? strings.edit.on : strings.edit.off;
+    if (!on && refocus) (editButton.hidden ? addButton : editButton)?.focus();
+  }
+
   // --- Timelines card --------------------------------------------------------
-  const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
+  const timelinesCard = card({
+    title: strings.timelines.cardTitle,
+    actions: [legend(), editButton],
+  });
   // Between the card header and its body, which showGrid() replaces.
   const noOverlap = h('div', {
     class: 'no-overlap',
@@ -427,6 +470,7 @@ export function mountApp(
       });
     const current = now();
     const slot = view?.slot() ?? null;
+    const hadDeleteFocus = deleteFocused();
     view?.destroy();
     rowZones = [homeZone(), ...shown];
     view = timelineGrid({
@@ -461,6 +505,7 @@ export function mountApp(
       duration: settings.defaultDuration,
       weekendsUnavailable: settings.weekendsUnavailable,
       slot,
+      editing,
     });
     view.setSelection(selection.get());
     syncBar();
@@ -489,6 +534,8 @@ export function mountApp(
     }
     body.push(bar.root);
     timelinesCard.body.replaceChildren(...body);
+    editButton.hidden = shown.length === 0;
+    if (shown.length === 0) setEditing(false, hadDeleteFocus);
     if (scrollLeft !== null) {
       view.root.scrollLeft = scrollLeft;
       view.refresh();
@@ -544,14 +591,19 @@ export function mountApp(
   }
 
   /**
-   * Esc clears the selection, unless a sheet or popover is open: then it closes
-   * that instead. Runs in the capture phase, before the popover's own handler.
+   * Esc clears the selection, else leaves Edit mode, unless a sheet or popover
+   * is open: then it closes that instead. A drag's own handler (reorder.js)
+   * stops Esc first. Runs in the capture phase, before the popover's handler.
    * @param {KeyboardEvent} event
    */
   function onEscape(event) {
     if (event.key !== 'Escape' || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.shiftKey || !selection.get()) return;
+    if (event.shiftKey || (!selection.get() && !editing)) return;
     if (document.querySelector('dialog[open], :popover-open')) return;
+    if (!selection.get()) {
+      setEditing(false);
+      return;
+    }
     const inBar = bar.root.contains(document.activeElement);
     selection.clear();
     if (inBar) view?.root.focus({ preventScroll: true });
@@ -647,11 +699,18 @@ export function mountApp(
     if (target) store.move(zone.id, target.toIndex);
   }
 
-  /** Delete a row at once; the toast's Undo puts it back. @param {StoredZone} zone */
+  /**
+   * Delete a row at once; the toast's Undo puts it back. In Edit mode focus
+   * goes to the Delete button of the next row, else the previous one.
+   * @param {StoredZone} zone
+   */
   function remove(zone) {
+    const next = editing
+      ? deleteFocusTarget(store.getState().zones, home.current(), zone.id)
+      : null;
     const removed = store.remove(zone.id);
     if (!removed.ok) return;
-    addButton?.focus();
+    if (!(editing && next && view?.focusDelete(next))) addButton?.focus();
     shell.toaster.show({
       message: strings.addCity.removed(zone.label),
       action: {

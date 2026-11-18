@@ -16,6 +16,8 @@ to 14 either side. A heat scale shows which hours are ideal, acceptable (the sho
 hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
 Rows can be dragged into a new order by their grab handle (or a long press on
 the header on touch), or moved with Move up / Move down in the row's popover.
+An Edit button in the Timelines card turns on Edit mode (in memory only): every
+user row shows a Delete button and an enlarged grab handle for quick tidying.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
 to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
@@ -140,7 +142,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
     row-order.js        Move up / Move down and drag to reorder: store.move index and position
                         among shown user rows; dropIndex() (drop position), rowShift() (rows
-                        pushed aside), dropTarget() (store.move index for a drop)
+                        pushed aside), dropTarget() (store.move index for a drop);
+                        deleteFocusTarget() (the row focused after an Edit-mode delete)
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps,
                         instantAt() and CLICK_SLOP_PX for click-to-select; edgeScrollStep() (page
                         auto-scroll while dragging a row) and the gesture constants (LONG_PRESS_MS,
@@ -159,13 +162,15 @@ src/                    the app (served as-is in dev; bundled for prod)
     app.js              the timelines page: grid, Add city button, first-run prompt, limit note,
                         the All / Good / Best filter (toolbar, keys 1/2/3) and the no-overlap message;
                         the selection state, selection bar, announcements and Esc to clear;
+                        Edit mode (Edit / Done button, delete focus, auto end, Esc order);
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
                         lazy extension (IntersectionObserver), row actions popover
                         (Change, Move up, Move down, Delete); click/tap selection, the selection
                         band, header selected times, roving home-cell keyboard slots,
-                        user rows' drag handles
+                        user rows' drag handles; Edit mode (data-editing, setEditing()):
+                        each user row's Delete button, focusDelete()
     reorder.js          drag to reorder user rows: Pointer Events with pointer capture, handle
                         drag and touch long press, lifted row and shifts, edge auto-scroll, cancel
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),

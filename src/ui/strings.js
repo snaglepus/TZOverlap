@@ -159,6 +159,8 @@ export const strings = /** @satisfies {Strings} */ ({
     moved: (city, n, count) => `${city} moved to position ${n} of ${count}`,
     /** The drag handle's name; it opens the row's details. @param {string} name */
     reorder: (name) => `Reorder ${name}`,
+    /** A user row's Delete button in Edit mode. @param {string} name */
+    deleteZone: (name) => `Delete ${name}`,
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
     /**
@@ -174,6 +176,15 @@ export const strings = /** @satisfies {Strings} */ ({
      */
     segment: (from, to, rating, greyed = false) =>
       `${from} to ${to} your time, ${rating} for everyone${greyed ? ', greyed out by the filter' : ''}`,
+  },
+  /** Edit mode: the card header's Edit / Done button and its announcements. */
+  edit: {
+    edit: 'Edit',
+    editLabel: 'Edit time zones',
+    done: 'Done',
+    doneLabel: 'Done editing time zones',
+    on: 'Editing time zones. Each row has a Delete button and a reorder handle.',
+    off: 'Finished editing time zones.',
   },
   /** The All / Good / Best filter and the no-overlap message. */
   filter: {

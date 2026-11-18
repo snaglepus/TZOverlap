@@ -97,6 +97,9 @@
   --row-header-width-wide: 13.75rem;
   --grid-header-width: var(--row-header-width-compact);
   --icon-size: 1.25rem;
+  /* Edit mode: a user row's enlarged drag handle and its grip icon. */
+  --edit-handle-size: 3.25rem;
+  --edit-handle-icon-size: 1.5rem;
   /* A user row header's trigger before it grows: room for "10:30 pm" at any text size. */
   --row-header-trigger-basis: 4.5rem;
   --sheet-max-width: 32rem;

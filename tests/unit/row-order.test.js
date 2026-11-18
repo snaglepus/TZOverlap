@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { canMove, dropIndex, dropTarget, moveTarget, rowShift } from '../../src/lib/row-order.js';
+import {
+  canMove,
+  deleteFocusTarget,
+  dropIndex,
+  dropTarget,
+  moveTarget,
+  rowShift,
+} from '../../src/lib/row-order.js';
 import { createStore } from '../../src/lib/store.js';
 
 /** @typedef {import('../../src/lib/store.js').StoredZone} StoredZone */
@@ -181,5 +188,31 @@ describe('dropTarget', () => {
     assert.equal(dropTarget(zones, HOME, 'a', -1), null);
     assert.equal(dropTarget(zones, HOME, 'nope', 0), null);
     assert.equal(dropTarget(zones, HOME, 'h', 0), null);
+  });
+});
+
+describe('deleteFocusTarget', () => {
+  it('picks the next shown row after a middle row', () => {
+    const four = [...zones, zone('d', 'Europe/Paris')];
+    assert.equal(deleteFocusTarget(four, HOME, 'b'), 'c');
+  });
+
+  it('picks the previous shown row after the last row', () => {
+    assert.equal(deleteFocusTarget(zones, HOME, 'c'), 'b');
+  });
+
+  it('returns null for the only row', () => {
+    assert.equal(deleteFocusTarget([zone('a', 'Asia/Tokyo')], HOME, 'a'), null);
+  });
+
+  it('skips a hidden copy of the home zone', () => {
+    assert.equal(deleteFocusTarget(zones, HOME, 'a'), 'b');
+    assert.equal(deleteFocusTarget(zones, HOME, 'b'), 'c');
+    assert.equal(deleteFocusTarget([zone('a', 'Asia/Tokyo'), zone('h', HOME)], HOME, 'a'), null);
+  });
+
+  it('returns null for an unknown id or the hidden home copy', () => {
+    assert.equal(deleteFocusTarget(zones, HOME, 'x'), null);
+    assert.equal(deleteFocusTarget(zones, HOME, 'h'), null);
   });
 });

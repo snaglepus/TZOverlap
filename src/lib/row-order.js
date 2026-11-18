@@ -1,6 +1,7 @@
 // Move up / Move down and drag to reorder for user rows. Rows show the stored
 // zones minus a stored copy of the home zone, so moves skip that hidden copy;
-// store.move() takes indices into the full stored list.
+// store.move() takes indices into the full stored list. deleteFocusTarget()
+// picks the row an Edit-mode delete moves focus to.
 
 /**
  * @typedef {import('./store.js').StoredZone} StoredZone
@@ -111,4 +112,20 @@ export function dropTarget(zones, homeTz, id, position) {
       ? /** @type {number} */ (rest[0])
       : /** @type {number} */ (rest[position - 1]) + 1;
   return { toIndex, position: position + 1, count: shown.length };
+}
+
+/**
+ * The row to focus after zone `id` is deleted: the id of the next shown row
+ * after it, else the previous one, else null (also when `id` is not shown).
+ * @param {readonly StoredZone[]} zones
+ * @param {string} homeTz
+ * @param {string} id
+ * @returns {string | null}
+ */
+export function deleteFocusTarget(zones, homeTz, id) {
+  const shown = shownIndices(zones, homeTz);
+  const at = shown.findIndex((i) => zones[i]?.id === id);
+  if (at < 0) return null;
+  const target = shown[at + 1] ?? shown[at - 1];
+  return target === undefined ? null : (zones[target]?.id ?? null);
 }
