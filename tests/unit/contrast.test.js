@@ -64,6 +64,14 @@ const PAIRS = /** @type {const} */ ([
   ['--color-heat-ink', '--color-heat-mid', 4.5],
   ['--color-heat-ink', '--color-heat-hatch', 4.5],
   ['--color-unsuitable-ink', '--color-unsuitable', 4.5],
+  // Text on weekend Unsuitable cells, and the weekend band on every cell background (3:1).
+  ['--color-unsuitable-ink', '--color-weekend', 4.5],
+  ['--color-weekend-band', '--color-best', 3],
+  ['--color-weekend-band', '--color-heat-near', 3],
+  ['--color-weekend-band', '--color-heat-mid', 3],
+  ['--color-weekend-band', '--color-heat-far', 3],
+  ['--color-weekend-band', '--color-unsuitable', 3],
+  ['--color-weekend-band', '--color-weekend', 3],
 ]);
 
 const themes = {

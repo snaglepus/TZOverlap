@@ -31,6 +31,8 @@
   --color-heat-hatch: #c4ae7c;
   --color-unsuitable: #e4e2ea;
   --color-unsuitable-ink: #57555f;
+  --color-weekend: #d2cfdb;
+  --color-weekend-band: #4a4656;
   --color-backdrop: rgb(29 27 24 / 0.4);
 
   /* Shadow — light */
@@ -95,6 +97,8 @@
   --min-viewport-height: 100dvh;
   --hatch-size: 6px;
   --best-edge-width: 3px;
+  --weekend-band-width: 4px;
+  --day-divider-width: 2px;
   --hairline: 1px;
   --opacity-disabled: 0.55;
 
@@ -129,6 +133,8 @@
   --color-heat-hatch: #75653f;
   --color-unsuitable: #24232a;
   --color-unsuitable-ink: #9f9caa;
+  --color-weekend: #34313f;
+  --color-weekend-band: #d4d1de;
   --color-backdrop: rgb(0 0 0 / 0.6);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
@@ -161,6 +167,8 @@
     --color-heat-hatch: #75653f;
     --color-unsuitable: #24232a;
     --color-unsuitable-ink: #9f9caa;
+    --color-weekend: #34313f;
+    --color-weekend-band: #d4d1de;
     --color-backdrop: rgb(0 0 0 / 0.6);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);

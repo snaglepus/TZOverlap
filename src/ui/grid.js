@@ -5,6 +5,7 @@
 import {
   dayDifference,
   dayDifferenceLabel,
+  dayLabel,
   fullDate,
   offsetLine,
   rowName,
@@ -19,6 +20,7 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/grid.js').Grid} Grid
  * @typedef {import('../lib/grid.js').Segment} Segment
  * @typedef {import('../lib/grid.js').GridCell} GridCell
+ * @typedef {import('../lib/grid.js').Midnight} Midnight
  * @typedef {import('../lib/zones.js').Zone} Zone
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../data/cities.js').City} City
@@ -68,14 +70,24 @@ function placed(span, attrs, children = []) {
   return el;
 }
 
-/** @param {GridCell} cell */
-function hourCell(cell) {
+/**
+ * @param {GridCell} cell
+ * @param {string} [day] day label when the cell starts a local date
+ */
+function hourCell(cell, day) {
   const hour = pad(cell.hour);
   return placed(
     cell,
     {
       'data-hour': String(cell.hour),
-      'aria-label': strings.timelines.cell(hour, strings.ratings[cell.rating], cell.repeat),
+      'data-weekend': cell.weekend ? 'true' : undefined,
+      'aria-label': strings.timelines.cell(
+        hour,
+        strings.ratings[cell.rating],
+        cell.repeat,
+        cell.weekend,
+        day,
+      ),
       title: cell.repeat ? strings.timelines.repeatTitle : undefined,
     },
     [
@@ -89,6 +101,25 @@ function hourCell(cell) {
         : null,
     ],
   );
+}
+
+/**
+ * A local midnight: a line with a day label chip. Hidden from assistive tech;
+ * the day's first cell carries the label in its name instead.
+ * @param {Midnight} midnight
+ * @param {string} label
+ */
+function divider(midnight, label) {
+  const el = h(
+    'div',
+    {
+      class: 'grid__divider',
+      attrs: { 'data-start': midnight.at.toISOString(), 'aria-hidden': 'true' },
+    },
+    [h('span', { class: 'grid__day-label', text: label })],
+  );
+  el.style.setProperty('--cell-left', String(midnight.left));
+  return el;
 }
 
 /**
@@ -135,10 +166,12 @@ export function timelineGrid({ grid, zones, now, onRemove, homeLabel, cities }) 
   const updates = [];
   let current = now;
 
-  const zoneRows = grid.rows.map(({ zone, cells }, i) => {
+  const zoneRows = grid.rows.map(({ zone, cells, midnights }, i) => {
     const stored = i === 0 ? null : zones[i - 1];
     const isHome = !stored;
     const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
+    // Day label per midnight instant, shared by the divider and the day's first cell.
+    const labels = new Map(midnights.map(({ at }) => [at.getTime(), dayLabel(zone, at)]));
 
     // Shows `display`; screen readers get `full`.
     const nameText = () =>
@@ -243,7 +276,12 @@ export function timelineGrid({ grid, zones, now, onRemove, homeLabel, cities }) 
             })
           : null,
       ],
-      cells.map(hourCell),
+      [
+        ...cells.map((cell) => hourCell(cell, labels.get(cell.start.getTime()))),
+        ...midnights.map((midnight) =>
+          divider(midnight, /** @type {string} */ (labels.get(midnight.at.getTime()))),
+        ),
+      ],
       zoneKey(zone),
     );
   });
