@@ -177,7 +177,6 @@ export const strings = /** @satisfies {Strings} */ ({
     segment: (from, to, rating, greyed = false) =>
       `${from} to ${to} your time, ${rating} for everyone${greyed ? ', greyed out by the filter' : ''}`,
   },
-  /** The All / Good / Best filter and the no-overlap message. */
   /** Edit mode: the card header's Edit / Done button and its announcements. */
   edit: {
     edit: 'Edit',
@@ -187,6 +186,7 @@ export const strings = /** @satisfies {Strings} */ ({
     on: 'Editing time zones. Each row has a Delete button and a reorder handle.',
     off: 'Finished editing time zones.',
   },
+  /** The All / Good / Best filter and the no-overlap message. */
   filter: {
     label: 'Filter',
     options: {
