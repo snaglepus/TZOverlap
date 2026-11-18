@@ -231,12 +231,12 @@ test('dragging with the mouse scrolls from the cells, not from the headers', asy
   await drag(cell);
   expect(Math.abs((await scrollLeft(page)) - before - 150)).toBeLessThanOrEqual(5);
 
-  const header = page.locator('[data-zone="Europe/London"] .grid__name');
+  const header = page.locator('[data-zone="Europe/London"] .grid__details .grid__name');
   const still = await scrollLeft(page);
   await drag(header);
   expect(await scrollLeft(page)).toBe(still);
   // Header text is still selectable.
-  expect(await page.evaluate(() => String(getSelection()))).toContain('(you)');
+  expect(await page.evaluate(() => String(getSelection()))).toContain('14:30');
 });
 
 test.describe('rebuilds keep the scroll position', () => {
@@ -271,7 +271,9 @@ test.describe('rebuilds keep the scroll position', () => {
     expect(new Date(before).toISOString()).toBe('2026-06-14T05:00:00.000Z');
 
     await page.clock.runFor(180_000);
-    await expect(page.locator('[data-zone="Europe/London"] .grid__time')).toHaveText('00:01');
+    await expect(page.locator('[data-zone="Europe/London"] .grid__details .grid__time')).toHaveText(
+      '00:01',
+    );
     await addZone(page, 'Asia/Tokyo');
     await expect(page.locator('[data-zone="Asia/Tokyo"]')).toBeVisible();
     expect(await scrollLeft(page)).toBeGreaterThan(0);
@@ -304,7 +306,7 @@ test.describe('the line on the minute tick', () => {
     await page.goto('/');
     const lineX = () => page.locator('.grid__now').evaluate((el) => el.getBoundingClientRect().x);
     const column = await columnWidth(page);
-    const time = page.locator('[data-zone="Europe/London"] .grid__time');
+    const time = page.locator('[data-zone="Europe/London"] .grid__details .grid__time');
     const selector = '[data-zone="Europe/London"] [data-start="2026-06-15T13:00:00.000Z"]';
     const cell = await page.locator(selector).elementHandle();
     // The first tick lands on 14:31:00; measure one whole minute from there.
