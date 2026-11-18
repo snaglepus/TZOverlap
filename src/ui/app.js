@@ -19,6 +19,7 @@ import {
   todayAnchor,
 } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
+import { canMove, moveTarget } from '../lib/row-order.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
@@ -55,6 +56,9 @@ import { strings } from './strings.js';
 const FILTERS = ['all', 'good', 'best'];
 
 const MINUTE_MS = 60000;
+
+/** How long a deletion stays undoable. */
+const UNDO_DURATION_MS = 5000;
 
 /**
  * @param {HTMLElement} root
@@ -182,6 +186,7 @@ export function mountApp(
     focusTarget: () =>
       timelinesCard.body.querySelector('.add-city-button') ??
       timelinesCard.body.querySelector('[role="grid"]'),
+    focusRow: (id) => view?.focusRow(id) ?? false,
   });
 
   // --- Timelines card --------------------------------------------------------
@@ -303,7 +308,13 @@ export function mountApp(
       },
       hourCycle: shownCycle,
       filter: shownFilter,
-      onRemove: (zone) => remove(zone),
+      actions: {
+        canMove: (zone, direction) =>
+          canMove(store.getState().zones, home.current(), zone.id, direction),
+        change: (zone) => addCity.change(zone),
+        move,
+        remove,
+      },
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
       onNowVisible: (visible) => {
@@ -436,11 +447,42 @@ export function mountApp(
     );
   }
 
-  /** @param {StoredZone} zone */
+  /** Focus row `id`'s header trigger, or the Add city button without one. @param {string} id */
+  function focusRow(id) {
+    if (!view?.focusRow(id)) addButton?.focus();
+  }
+
+  /**
+   * Move a row one place among the shown rows and announce where it went.
+   * @param {StoredZone} zone
+   * @param {import('../lib/row-order.js').Direction} direction
+   */
+  function move(zone, direction) {
+    const target = moveTarget(store.getState().zones, home.current(), zone.id, direction);
+    if (!target) return;
+    store.move(zone.id, target.toIndex);
+    focusRow(zone.id);
+    announcer.textContent = strings.timelines.moved(zone.label, target.position, target.count);
+  }
+
+  /** Delete a row at once; the toast's Undo puts it back. @param {StoredZone} zone */
   function remove(zone) {
-    store.remove(zone.id);
-    announcer.textContent = strings.addCity.removed(zone.label);
+    const removed = store.remove(zone.id);
+    if (!removed.ok) return;
     addButton?.focus();
+    shell.toaster.show({
+      message: strings.addCity.removed(zone.label),
+      action: {
+        label: strings.toasts.undo,
+        onClick: () => {
+          const restored = store.restore(removed.zone, removed.index);
+          if (!restored.ok) return;
+          focusRow(restored.zone.id);
+          announcer.textContent = strings.addCity.restored(restored.zone.label);
+        },
+      },
+      duration: UNDO_DURATION_MS,
+    });
   }
 
   /** The A key opens Add city, outside text fields and other dialogs. @param {KeyboardEvent} event */

@@ -128,6 +128,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     row-header.js       row header text: names, day difference, dates, abbreviation and offset line
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
+    row-order.js        Move up / Move down: store.move index and position among shown user rows
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps
     install.js          installGuidance(): user agent + standalone flags → install guidance kind
   ui/
@@ -141,7 +142,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,
-                        lazy extension (IntersectionObserver)
+                        lazy extension (IntersectionObserver), row actions popover
+                        (Change, Move up, Move down, Delete)
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
                         Treat weekends as unavailable, Install and Reset all data
     install.js          install guidance: beforeinstallprompt capture, hint card, iOS sheet,
