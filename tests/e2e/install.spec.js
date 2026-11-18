@@ -223,7 +223,7 @@ test.describe('iPhone', () => {
       await expect(sheet).toBeHidden();
       await expect.poll(() => hintDismissed(page)).toBe(true);
       await page.reload();
-      await expect(page.getByRole('heading', { name: 'Add a time zone' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Timelines' })).toBeVisible();
       await expect(sheet).toHaveCount(0);
     });
   }
@@ -249,7 +249,7 @@ test.describe('installed (standalone)', () => {
     });
     await page.goto('/');
     await offerInstall(page);
-    await expect(page.getByRole('heading', { name: 'Add a time zone' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Timelines' })).toBeVisible();
     await expect(hint(page)).toHaveCount(0);
     const dialog = await openSettings(page);
     await expect(dialog.getByRole('heading', { name: 'Install', exact: true })).toHaveCount(0);
@@ -264,7 +264,7 @@ test.describe('installed (standalone)', () => {
         Object.defineProperty(Navigator.prototype, 'standalone', { get: () => true });
       });
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Add a time zone' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Timelines' })).toBeVisible();
       await expect(page.getByRole('dialog', { name: 'Install TZ Overlap' })).toHaveCount(0);
     });
   });
