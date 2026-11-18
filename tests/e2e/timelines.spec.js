@@ -6,6 +6,7 @@ import {
   NOW,
   addZone,
   chooseAppearance,
+  deleteZone,
   expectNoA11yViolations,
   openSettings,
   seedZones,
@@ -97,11 +98,11 @@ test('user flow: add zones, see the overlap, remove a zone', async ({ page }) =>
     'Asia/Tokyo',
   ]);
 
-  // Remove -> focus moves to Add city, announcement made.
-  await page.getByRole('button', { name: 'Remove New York' }).click();
-  await expect(page.getByTestId('announcer')).toHaveText('Removed New York.');
+  // Delete -> focus moves to Add city, the toast says so.
+  await deleteZone(page, 'America/New_York');
+  await expect(page.locator('.toast')).toContainText('Removed New York.');
   await expect(page.getByRole('button', { name: 'Add city', exact: true })).toBeFocused();
-  await page.getByRole('button', { name: 'Remove Tokyo' }).click();
+  await deleteZone(page, 'Asia/Tokyo');
   await expect(page.locator('[data-component="empty-state"]')).toBeVisible();
 });
 
@@ -186,9 +187,9 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(row(page, 'Asia/Tokyo')).toBeVisible();
   await expect(add).toBeFocused();
 
-  // The row's remove button sits between the grid and Add city.
+  // The row's header trigger sits between the grid and Add city.
   await page.keyboard.press('Shift+Tab');
-  await expect(page.getByRole('button', { name: 'Remove Tokyo' })).toBeFocused();
+  await expect(row(page, 'Asia/Tokyo').locator('.grid__trigger:visible')).toBeFocused();
 });
 
 test('storage: migrates the legacy keys once and keeps changes across reloads', async ({
@@ -222,8 +223,8 @@ test('storage: migrates the legacy keys once and keeps changes across reloads', 
 
   await addZone(page, 'Berlin');
   await expect(page.getByTestId('announcer')).toHaveText('Added Berlin.');
-  await page.getByRole('button', { name: 'Remove Tokyo' }).click();
-  await expect(page.getByTestId('announcer')).toHaveText('Removed Tokyo.');
+  await deleteZone(page, 'Asia/Tokyo');
+  await expect(page.locator('.toast')).toContainText('Removed Tokyo.');
   await page.reload();
   await expect.poll(zoneRows).toEqual(['Europe/London', 'America/New_York', 'Europe/Berlin']);
   await expect(html).toHaveAttribute('data-theme', 'dark');
@@ -722,9 +723,7 @@ test.describe('row headers', () => {
     await expect(symbol).toHaveAccessibleName('Your location');
     await expect(first.getByRole('button', { name: /Remove|Edit|Delete/ })).toHaveCount(0);
     await expect(first.locator('[draggable="true"]')).toHaveCount(0);
-    await expect(
-      row(page, 'Asia/Tokyo').getByRole('button', { name: 'Remove Tokyo' }),
-    ).toBeVisible();
+    await expect(row(page, 'Asia/Tokyo').getByRole('button', { name: /Tokyo/ })).toBeVisible();
   });
 
   test('wide header: time, short date, offset line and day difference', async ({ page }) => {
@@ -792,15 +791,17 @@ test.describe('row headers', () => {
     }
 
     // Two one-line rows of text in each button; date and offset stay in the popover.
-    const lines = await page.locator('.grid__trigger').evaluateAll((buttons) =>
-      buttons.map((button) =>
-        ['.grid__name', '.grid__clock'].map((sel) => {
-          const el = /** @type {HTMLElement} */ (button.querySelector(sel));
-          const style = getComputedStyle(el);
-          return el.getBoundingClientRect().height / parseFloat(style.lineHeight);
-        }),
-      ),
-    );
+    const lines = await page
+      .locator('.grid__trigger:not(.grid__trigger--wide)')
+      .evaluateAll((buttons) =>
+        buttons.map((button) =>
+          ['.grid__name', '.grid__clock'].map((sel) => {
+            const el = /** @type {HTMLElement} */ (button.querySelector(sel));
+            const style = getComputedStyle(el);
+            return el.getBoundingClientRect().height / parseFloat(style.lineHeight);
+          }),
+        ),
+      );
     expect(lines).toHaveLength(3);
     for (const ratios of lines) for (const ratio of ratios) expect(ratio).toBeLessThan(1.5);
     for (const zone of ['Australia/Sydney', 'Pacific/Kiritimati', 'Europe/London']) {
@@ -810,25 +811,19 @@ test.describe('row headers', () => {
       useInnerText: true,
     });
 
-    const kiritimati = row(page, 'Pacific/Kiritimati').locator('.grid__trigger');
+    const kiritimati = row(page, 'Pacific/Kiritimati').locator(
+      '.grid__trigger:not(.grid__trigger--wide)',
+    );
     await expect(kiritimati.locator('.grid__badge')).toBeVisible();
     await expect(kiritimati.locator('.grid__badge')).toHaveText('+1');
     await expect(kiritimati).toHaveAccessibleName('Kiritimati 00:30 Tomorrow');
 
-    // The remove button sits beside the time, never over it.
-    const clockRight = await kiritimati
-      .locator('.grid__clock')
-      .evaluate((el) => el.getBoundingClientRect().right);
-    const remove = await row(page, 'Pacific/Kiritimati')
-      .getByRole('button', { name: 'Remove Kiritimati' })
-      .boundingBox();
-    expect(clockRight).toBeLessThanOrEqual(/** @type {{ x: number }} */ (remove).x);
     const badgeClipped = await kiritimati
       .locator('.grid__clock')
       .evaluate((el) => el.scrollWidth > el.clientWidth);
     expect(badgeClipped).toBe(false);
 
-    const office = row(page, 'Europe/London').locator('.grid__trigger');
+    const office = row(page, 'Europe/London').locator('.grid__trigger:not(.grid__trigger--wide)');
     const name = await office.locator('.grid__name').evaluate((el) => ({
       cut: el.scrollWidth > el.clientWidth,
       overflow: getComputedStyle(el).textOverflow,
@@ -898,7 +893,9 @@ test.describe('row headers', () => {
         expect(size.row).toBeGreaterThanOrEqual(rowHeight);
       }
       if (width < 640) return;
-      await expect(page.locator('[role="rowheader"] [aria-expanded]:visible')).toHaveCount(0);
+      await expect(
+        page.locator('[role="rowheader"] .grid__trigger:not(.grid__trigger--wide):visible'),
+      ).toHaveCount(0);
       for (const text of ['Tue 17 Nov', 'AEDT · UTC+11']) {
         await expect(header(page, 'Australia/Sydney')).toContainText(text, {
           useInnerText: true,
@@ -921,7 +918,9 @@ test.describe('row headers', () => {
       await expectNoA11yViolations(page);
 
       await page.setViewportSize({ width: 390, height: 844 });
-      await row(page, 'Pacific/Pago_Pago').locator('.grid__trigger').click();
+      await row(page, 'Pacific/Pago_Pago')
+        .locator('.grid__trigger:not(.grid__trigger--wide)')
+        .click();
       await expect(page.getByRole('group', { name: 'Time zone details' })).toBeVisible();
       await expectNoA11yViolations(page);
     });

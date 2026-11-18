@@ -199,32 +199,31 @@ test.describe('DST banner at 320 px', () => {
 test.describe('Row header badges', () => {
   test('follow the shown date', async ({ page }) => {
     await open(page, [LONDON], MARCH_1);
-    const warning = row(page, 'Europe/London').locator('button.grid__warning');
+    const warning = row(page, 'Europe/London').locator('.grid__trigger--wide .grid__warning');
     await expect(warning).toBeHidden();
     await pickDate(page, '2026-03-20');
     await expect(warning).toBeVisible();
   });
 
-  test('show DST, the clock-change button and nothing for fixed zones at 1280 px', async ({
+  test('show DST, the clock-change chip and nothing for fixed zones at 1280 px', async ({
     page,
   }) => {
     await open(page, [LONDON, FIXED], MARCH_20);
-    const warning = row(page, 'Europe/London').locator('button.grid__warning');
+    const trigger = row(page, 'Europe/London').locator('.grid__trigger--wide');
+    const warning = trigger.locator('.grid__warning');
     await expect(warning).toBeVisible();
-    await expect(warning).toHaveText('29 Mar');
-    await expect(warning).toHaveAccessibleName('Clocks change Sun 29 Mar');
-    const box = await warning.boundingBox();
-    expect(box?.width).toBeGreaterThanOrEqual(24);
-    expect(box?.height).toBeGreaterThanOrEqual(24);
+    await expect(warning).toHaveText(/29 Mar/);
+    await expect(trigger).toHaveAccessibleName(/Clocks change Sun 29 Mar/);
 
-    await warning.click();
+    await trigger.click();
     const popover = page.locator('.popover');
     await expect(popover).toBeVisible();
     await expect(popover).toContainText('London moves to BST on Sun 29 Mar');
-    await expect(warning).toHaveAttribute('aria-expanded', 'true');
+    await expect(popover.getByRole('button', { name: 'Change' })).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('Escape');
     await expect(popover).toBeHidden();
-    await expect(warning).toBeFocused();
+    await expect(trigger).toBeFocused();
 
     const sydney = row(page, 'Australia/Sydney');
     await expect(sydney.locator('.grid__details .grid__dst')).toBeVisible();
@@ -236,19 +235,47 @@ test.describe('Row header badges', () => {
     await expect(fixed.locator('.grid__meta')).toContainText('No DST');
   });
 
+  test.describe('with a London home', () => {
+    test.use({ timezoneId: 'Europe/London' });
+
+    test("show the home row's clock-change button at 1280 px", async ({ page }) => {
+      await open(page, [FIXED], MARCH_20);
+      const warning = row(page, 'Europe/London').locator('button.grid__warning');
+      await expect(warning).toBeVisible();
+      await expect(warning).toHaveText('29 Mar');
+      await expect(warning).toHaveAccessibleName('Clocks change Sun 29 Mar');
+      const box = await warning.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(24);
+      expect(box?.height).toBeGreaterThanOrEqual(24);
+
+      await warning.click();
+      const popover = page.locator('.popover');
+      await expect(popover).toBeVisible();
+      await expect(popover).toContainText('Sun 29 Mar');
+      await expect(warning).toHaveAttribute('aria-expanded', 'true');
+      await page.keyboard.press('Escape');
+      await expect(popover).toBeHidden();
+      await expect(warning).toBeFocused();
+    });
+  });
+
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 375, height: 720 } });
 
     test('show the chips inside the header button', async ({ page }) => {
       await open(page, [LONDON, FIXED], MARCH_20);
-      const trigger = row(page, 'Europe/London').locator('.grid__trigger');
+      const trigger = row(page, 'Europe/London').locator(
+        '.grid__trigger:not(.grid__trigger--wide)',
+      );
       await expect(trigger.locator('.grid__warning')).toBeVisible();
       await expect(trigger).toHaveAccessibleName(/Clocks change Sun 29 Mar/);
       await trigger.click();
       await expect(page.locator('.popover')).toContainText('London moves to BST on Sun 29 Mar');
 
       await expect(
-        row(page, 'Australia/Sydney').locator('.grid__trigger .grid__dst'),
+        row(page, 'Australia/Sydney').locator(
+          '.grid__trigger:not(.grid__trigger--wide) .grid__dst',
+        ),
       ).toBeVisible();
       await expect(row(page, 'fixed:330').locator('.grid__dst, .grid__warning')).toHaveCount(0);
     });
@@ -266,7 +293,9 @@ test.describe('Accessibility', () => {
       await expect(dstBanner(page)).toContainText('2 clock changes');
       await expectNoA11yViolations(page);
       await pickDate(page, '2026-03-20');
-      await expect(row(page, 'Europe/London').locator('button.grid__warning')).toBeVisible();
+      await expect(
+        row(page, 'Europe/London').locator('.grid__trigger--wide .grid__warning'),
+      ).toBeVisible();
       await expectNoA11yViolations(page);
     });
   }

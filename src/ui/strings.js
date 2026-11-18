@@ -91,6 +91,7 @@ export const strings = /** @satisfies {Strings} */ ({
     resetDone: 'All data was reset.',
     /** @param {string} city */
     travelled: (city) => `You're now in ${city} time`,
+    undo: 'Undo',
   },
   update: {
     available: 'Update available',
@@ -115,6 +116,12 @@ export const strings = /** @satisfies {Strings} */ ({
     added: (city) => `Added ${city}.`,
     /** @param {string} city */
     removed: (city) => `Removed ${city}.`,
+    /** @param {string} city */
+    restored: (city) => `Restored ${city}.`,
+    /** @param {string} city */
+    changeTitle: (city) => `Change ${city}`,
+    /** @param {string} from @param {string} to */
+    changed: (from, to) => `Changed ${from} to ${to}.`,
   },
   timelines: {
     cardTitle: 'Timelines',
@@ -141,9 +148,15 @@ export const strings = /** @satisfies {Strings} */ ({
     },
     details: 'Time zone details',
     noDst: 'No DST',
-    removeLabel: '×',
-    /** @param {string} city */
-    remove: (city) => `Remove ${city}`,
+    /** Row actions in a user row's popover. */
+    actions: {
+      change: 'Change',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
+      delete: 'Delete',
+    },
+    /** @param {string} city @param {number} n @param {number} count */
+    moved: (city, n, count) => `${city} moved to position ${n} of ${count}`,
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
     /**

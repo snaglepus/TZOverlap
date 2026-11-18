@@ -2,7 +2,14 @@
 // city sheet (lazy city data, popular list, search, duplicates, focus).
 
 import { expect, test } from '@playwright/test';
-import { NOW, addZone, expectNoA11yViolations, openSettings, seedZones } from './helpers.js';
+import {
+  NOW,
+  addZone,
+  deleteZone,
+  expectNoA11yViolations,
+  openSettings,
+  seedZones,
+} from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
@@ -157,7 +164,7 @@ test('limit: at 7 zones the note replaces the button; removing one brings it bac
   await page.locator('body').press('a');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Remove Tokyo' }).click();
+  await deleteZone(page, 'Asia/Tokyo');
   await expect(addButton(page)).toBeFocused();
   await expect(page.getByText(LIMIT_NOTE)).toHaveCount(0);
 });

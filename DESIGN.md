@@ -269,7 +269,7 @@ ad hoc in `app.css`. Do not add a component without adding it here.
 
 Variants: `primary` (accent fill: the one main action in a view, e.g. "Add
 city"), `secondary` (bordered surface: other actions such as "Try again"),
-`ghost` (no border: toolbar and in-row actions, e.g. Settings, remove zone).
+`ghost` (no border: toolbar and in-row actions, e.g. Settings, row actions).
 Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
 (WCAG 2.5.8). Always a real `<button>` with a text label. `icon` adds an Icon
 (below) before the label; with `iconOnly: true` the label
@@ -364,9 +364,11 @@ resize; positions go in as `--popover-left` / `--popover-top`. Esc closes it and
 returns focus to the anchor; a click outside closes it. The anchor gets
 `aria-expanded`; give it `aria-controls` with the popover's id, and in its click
 handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One
-popover can serve many anchors. Use for read-only details of one item, such as
-a phone row header's full name, date and offset; later row actions add to
-`body`. Not for tasks: use a Sheet.
+popover can serve many anchors. Use for details of one item, such as a row
+header's full name, date and offset, plus that item's few actions: a user
+row's popover shows its details, then `.popover__actions` (ghost `sm` buttons
+above a hairline), and opening it moves focus to the first enabled action. The
+home row's popover is details only. Not for tasks: use a Sheet.
 
 ### Toast — `createToaster()` · `.toast`
 
@@ -375,7 +377,8 @@ optional ghost `sm` action. Shown in the shell's persistent
 `role="status"` polite region, fixed above the phone toolbar or near the bottom
 centre from `--bp-md`, so it never shifts layout. It dismisses itself after 6s
 (pausing while hovered or focused). Use to confirm something that happened
-outside the user's view, e.g. "All data was reset."
+outside the user's view, e.g. "All data was reset." A toast with an Undo action (a deleted
+row) passes `duration` 5000 and keeps only the latest deletion undoable.
 
 ### Banner — `createBanner()` · `.banner`
 
@@ -491,7 +494,7 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 | Name      | Min width | Changes                                                                                                                                                                                              |
 | --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | base      | 0         | Single column, `--space-4` gutters, compact row headers (a button: name, then time and day badge; details in a popover), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline and no button, 64px rows, toolbar in the title bar, sheets are centred modals                                                        |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                              |
 | `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                               |
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
@@ -505,7 +508,7 @@ days either side of the anchor, and adding days on the left keeps the content
 still. Header clocks show the current time; offsets follow the date shown. Row headers stay sticky on the left; names truncate
 with an ellipsis, and the full name is always in the accessible name. Each zone
 header has the name (the home row is the plain city, "Sydney", after a
-`location` symbol, with no remove control), the live local time, the short date
+`location` symbol, with no actions), the live local time, the short date
 ("Tue 17 Nov"), the offset line ("AEDT · UTC+11", or "UTC+9" without a real
 abbreviation), "No DST" for fixed offsets, and the day difference from home
 ("Tomorrow", "Yesterday", "+2 days") when it is not 0. At the offset line's
@@ -513,16 +516,21 @@ instant, a "DST" chip shows while the zone observes daylight saving time, and a
 clock-change warning shows when its clocks change within 14 days; both can
 show at once, and fixed zones get neither. All of it updates on the
 minute tick without rebuilding cells. Below `--bp-md` the header is a button
-with two lines (name; time plus a "+1" / "−1" badge) beside the remove button;
-it opens the grid's one details Popover with the full name, time, full date,
-offset line, day difference and "No DST". On phone the "DST" and warning
-chips sit on line 2 after the day badge, `aria-hidden` with visually hidden
-"Daylight saving time" and "Clocks change Sun 29 Mar"; the popover then adds
-"Daylight saving time" and the change's full sentence. From `--bp-md` every
-detail is inline and there is no button; "DST" is visible text in the meta
-line, and the warning is a button ("29 Mar", named "Clocks change Sun 29 Mar",
-at least 24×24 px) that opens the details popover with the full name and the
-change's sentence. Each row's track is window hours × `--slot-width` wide and clips
+with two lines (name; time plus a "+1" / "−1" badge); it opens the grid's one
+details Popover with the full name, time, full date, offset line, day
+difference and "No DST". On phone the "DST" and warning chips sit on line 2
+after the day badge, `aria-hidden` with visually hidden "Daylight saving time"
+and "Clocks change Sun 29 Mar"; the popover then adds "Daylight saving time"
+and the change's full sentence. From `--bp-md` every detail is inline: on user
+rows inside a wide trigger button with the same hover and expanded background,
+opening the same Popover; on the home row as static text. The Everyone header
+is plain text. From `--bp-md` "DST" is visible text in the meta line, and the
+warning is a bordered chip ("29 Mar") with the alert icon. On user rows it sits
+inside the wide trigger, named by visually hidden "Clocks change Sun 29 Mar",
+and the trigger's Popover adds the change's sentence. On the home row it is a
+button (named "Clocks change Sun 29 Mar", at least 24×24 px) that opens the
+details popover with the full name and the change's sentence. Each row's track
+is window hours × `--slot-width` wide and clips
 cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
 (clocks going back) gets a second cell with a small "2" and a tooltip. Each zone
@@ -534,6 +542,17 @@ cells but under the sticky row header; the day's first cell names the date
 instead ("00:00, Wed 18, Unsuitable"). Weekend cells are shaded as in §3.1. The
 page itself never scrolls sideways.
 
+Row actions: a user row's trigger, or a right-click anywhere in its header,
+opens the Popover with Change, Move up, Move down and Delete. Change opens the
+Add city sheet titled "Change Tokyo" and replaces the zone in place (a zone
+already listed is blocked with the usual note); focus returns to the row.
+Delete removes the row at once, with no confirmation, and shows a toast
+"Removed Tokyo." with Undo for 5 s; Undo restores the row at its old position
+and focuses it. Move up / Move down (disabled at the ends) move the row one
+place among the user rows, keep focus on its trigger and announce "London
+moved to position 2 of 5" in the polite live region. Crossing `--bp-md` with
+the Popover open closes it and keeps focus on the row's visible trigger.
+
 Scrolling: touch and trackpad scrolling are native; the grid sets
 `overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never
 takes over page scroll or swipe-back. A vertical mouse wheel over the grid
@@ -541,7 +560,7 @@ scrolls it sideways (at either end the wheel falls through to the page; a
 horizontal or ctrl/pinch wheel is left to the browser). A mouse drag that
 starts on the hour cells or Everyone segments scrolls it; tracks are
 `user-select: none`, while header text stays selectable (and selecting it never
-scrolls the timeline) and the Remove buttons work as before. With focus in the
+scrolls the timeline) and the header triggers work as before. With focus in the
 grid, ←/→ scroll one column and Shift+←/→ six. The maths lives in
 `src/lib/scroll.js`.
 

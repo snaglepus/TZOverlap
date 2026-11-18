@@ -1,5 +1,5 @@
 // The Add city sheet: popular cities by region and a search over the lazily
-// loaded city data. Built from the shared components in ./components.js; page
+// loaded city data. In change mode it replaces one stored zone in place. Built from the shared components in ./components.js; page
 // styles in src/styles/app.css.
 
 import { loadCityData } from '../lib/city-data.js';
@@ -17,6 +17,7 @@ import { strings } from './strings.js';
  * @typedef {import('../data/cities.js').City} City
  * @typedef {import('../data/cities.js').CityData} CityData
  * @typedef {import('../lib/store.js').NewZone} NewZone
+ * @typedef {import('../lib/store.js').StoredZone} StoredZone
  */
 
 /** Phones and tablets get no autofocus, so the on-screen keyboard stays down. */
@@ -32,9 +33,10 @@ const pad = (n) => String(n).padStart(2, '0');
  *   now: () => Date,
  *   announcer: HTMLElement,
  *   focusTarget: () => HTMLElement | null,
- * }} deps
+ *   focusRow: (id: string) => boolean,
+ * }} deps `focusRow` focuses a changed zone's row on close; else `focusTarget()`.
  */
-export function addCitySheet({ store, homeZone, now, announcer, focusTarget }) {
+export function addCitySheet({ store, homeZone, now, announcer, focusTarget, focusRow }) {
   const search = field({ label: strings.addCity.search, name: 'city-search' });
   const results = h('div', { class: 'add-city__results' });
   const note = h('p', { class: 'add-city__note', attrs: { 'aria-live': 'polite' } });
@@ -42,6 +44,10 @@ export function addCitySheet({ store, homeZone, now, announcer, focusTarget }) {
     title: strings.addCity.title,
     children: [h('div', { class: 'add-city' }, [search.root, note, results])],
   });
+  const title = /** @type {HTMLElement} */ (panel.root.querySelector('.sheet__title'));
+
+  /** The zone being changed, in change mode. @type {StoredZone | null} */
+  let target = null;
 
   /** @type {CityData | null} */
   let data = null;
@@ -148,6 +154,18 @@ export function addCitySheet({ store, homeZone, now, announcer, focusTarget }) {
             country: result.city.cc,
           }
         : result.zone;
+    if (target) {
+      const from = target.label;
+      const outcome = store.replace(target.id, zone);
+      if (!outcome.ok) {
+        if (outcome.error === 'duplicate') note.textContent = strings.addCity.alreadyAdded;
+        else if (outcome.error === 'missing') panel.close();
+        return;
+      }
+      panel.close();
+      announcer.textContent = strings.addCity.changed(from, outcome.zone.label);
+      return;
+    }
     const outcome = store.add(zone);
     if (!outcome.ok) {
       if (outcome.error === 'limit') note.textContent = strings.addCity.limit(MAX_EXTRA_ZONES);
@@ -176,18 +194,33 @@ export function addCitySheet({ store, homeZone, now, announcer, focusTarget }) {
   }
 
   search.input.addEventListener('input', renderResults);
-  panel.root.addEventListener('close', () => focusTarget()?.focus());
+  panel.root.addEventListener('close', () => {
+    const id = target?.id;
+    target = null;
+    if (!(id && focusRow(id))) focusTarget()?.focus();
+  });
+  // Another tab can delete the zone being changed, or reset all data.
+  store.subscribe(({ zones }) => {
+    if (target && panel.root.open && !zones.some((z) => z.id === target?.id)) panel.close();
+  });
+
+  /** @param {StoredZone | null} zone */
+  function show(zone) {
+    if (panel.root.open) return;
+    target = zone;
+    title.textContent = zone ? strings.addCity.changeTitle(zone.label) : strings.addCity.title;
+    search.input.value = '';
+    note.textContent = '';
+    if (data) renderResults();
+    else if (!loading) load();
+    panel.open();
+    if (window.matchMedia(DESKTOP_POINTER).matches) search.input.focus();
+  }
 
   return {
     root: panel.root,
-    open() {
-      if (panel.root.open) return;
-      search.input.value = '';
-      note.textContent = '';
-      if (data) renderResults();
-      else if (!loading) load();
-      panel.open();
-      if (window.matchMedia(DESKTOP_POINTER).matches) search.input.focus();
-    },
+    open: () => show(null),
+    /** Open in change mode for `zone`. @param {StoredZone} zone */
+    change: (zone) => show(zone),
   };
 }
