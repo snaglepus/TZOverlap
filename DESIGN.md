@@ -21,7 +21,10 @@ calm, precise, legible at a glance, and trustworthy with numbers.
 - **No decoration for its own sake.** No gradients, illustrations, glassmorphism
   or emoji in UI. Motion is short and functional.
 - **Nothing third-party.** System fonts only; no web fonts, icon fonts, CDNs or
-  analytics. Icons, if needed, are inline SVG using `currentColor`.
+  analytics. Icons, if needed, are inline SVG using `currentColor`. The
+  exception is the app/home-screen icons in `src/icons/`: PNGs generated from
+  `--color-accent` and `--color-on-accent` by `scripts/make-icons.js`.
+  Regenerate them (`node scripts/make-icons.js`) whenever those tokens change.
 
 ## 2. Where tokens live
 
