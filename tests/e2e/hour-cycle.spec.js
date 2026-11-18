@@ -28,7 +28,8 @@ const row = (page, zone) => page.locator(`[role="row"][data-zone="${zone}"]`);
 const inlineTime = (page) => row(page, HOME).locator('.grid__details .grid__time');
 
 /** @param {import('@playwright/test').Page} page */
-const phoneTime = (page) => row(page, HOME).locator('.grid__trigger .grid__time');
+const phoneTime = (page) =>
+  row(page, HOME).locator('.grid__trigger:not(.grid__trigger--wide) .grid__time');
 
 /**
  * A home row cell label with exactly `text`.
@@ -220,10 +221,11 @@ test.describe('desktop toggle', () => {
     await expect(inlineTime(page)).toHaveText('09:30');
     await expect.poll(() => storedHourCycle(page)).toBe('auto');
 
-    await page.getByRole('button', { name: 'Remove Tokyo' }).focus();
+    const tokyo = page.locator('[data-zone="Asia/Tokyo"] .grid__trigger:visible');
+    await tokyo.focus();
     await page.keyboard.press('t');
     await expect(inlineTime(page)).toHaveText('9:30 am');
-    await expect(page.getByRole('button', { name: 'Remove Tokyo' })).toBeFocused();
+    await expect(tokyo).toBeFocused();
 
     // Phone: the header trigger is inside the grid too.
     await page.setViewportSize({ width: 390, height: 844 });
@@ -392,25 +394,29 @@ test.describe('phone header time', () => {
       await expect(row(page, 'Pacific/Kiritimati')).toBeVisible();
       await expect(row(page, 'Pacific/Pago_Pago').locator('.grid__badge')).toHaveText('−1');
       await expect(
-        row(page, 'Pacific/Kiritimati').locator('.grid__trigger .grid__time'),
+        row(page, 'Pacific/Kiritimati').locator(
+          '.grid__trigger:not(.grid__trigger--wide) .grid__time',
+        ),
       ).toHaveText('10:30 pm');
 
       const report = await page.evaluate(() =>
-        [...document.querySelectorAll('.grid__trigger .grid__time')].map((time) => {
-          const header = /** @type {Element} */ (time.closest('[role="rowheader"]'));
-          const t = time.getBoundingClientRect();
-          const box = header.getBoundingClientRect();
-          const style = getComputedStyle(time);
-          return {
-            inside:
-              t.left >= box.left - 0.5 &&
-              t.right <= box.right + 0.5 &&
-              t.top >= box.top - 0.5 &&
-              t.bottom <= box.bottom + 0.5,
-            oneLine: t.height <= parseFloat(style.lineHeight) + 0.5,
-            text: time.textContent,
-          };
-        }),
+        [...document.querySelectorAll('.grid__trigger:not(.grid__trigger--wide) .grid__time')].map(
+          (time) => {
+            const header = /** @type {Element} */ (time.closest('[role="rowheader"]'));
+            const t = time.getBoundingClientRect();
+            const box = header.getBoundingClientRect();
+            const style = getComputedStyle(time);
+            return {
+              inside:
+                t.left >= box.left - 0.5 &&
+                t.right <= box.right + 0.5 &&
+                t.top >= box.top - 0.5 &&
+                t.bottom <= box.bottom + 0.5,
+              oneLine: t.height <= parseFloat(style.lineHeight) + 0.5,
+              text: time.textContent,
+            };
+          },
+        ),
       );
       expect(report).toHaveLength(3);
       for (const entry of report) {

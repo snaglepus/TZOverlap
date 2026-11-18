@@ -287,7 +287,8 @@
   line-height: var(--line-height-tight);
 }
 
-/* Phone: name and time in a button that opens the details popover. */
+/* Phone: name and time in a button that opens the details popover. From
+   --bp-md, user rows wrap the inline details in a wide trigger instead. */
 .grid__trigger {
   display: flex;
   flex: 1;
@@ -309,7 +310,11 @@
   background: var(--color-surface);
 }
 
-/* From --bp-md: every detail inline, no button. */
+.grid__trigger--wide {
+  display: none;
+}
+
+/* From --bp-md: every detail inline; static on the home row. */
 .grid__details {
   display: none;
   min-width: var(--space-0);
@@ -590,6 +595,7 @@
     display: none;
   }
 
+  .grid__trigger--wide,
   .grid__details {
     display: block;
   }

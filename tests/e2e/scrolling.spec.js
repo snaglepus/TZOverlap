@@ -192,7 +192,7 @@ test('N works only while focus is in the grid', async ({ page }) => {
   await expect(dialog).toBeHidden();
   expect(await scrollLeft(page)).toBe(far);
 
-  await page.getByRole('button', { name: 'Remove Tokyo' }).focus();
+  await page.locator('[data-zone="Asia/Tokyo"] .grid__trigger:visible').focus();
   await page.keyboard.press('n');
   await expectLineAtOneThird(page);
 });
