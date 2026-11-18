@@ -468,3 +468,28 @@ test('the now line stays on now when days are added on the left', async ({ page 
   await expect.poll(() => homeCount(page)).toBe(n + 24);
   expect(Math.abs((await lineLeft()) - (await cellLeft()))).toBeLessThanOrEqual(1);
 });
+
+test('midnight dividers follow the days added on either side', async ({ page }) => {
+  await page.goto('/');
+  const dividers = () =>
+    row(page, HOME)
+      .locator('.grid__divider')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-start')));
+  expect(await dividers()).toEqual([
+    '2026-11-16T13:00:00.000Z',
+    '2026-11-17T13:00:00.000Z',
+    '2026-11-18T13:00:00.000Z',
+  ]);
+  const n = await homeCount(page);
+  await probe(page, HOME, 0);
+  await expect.poll(() => homeCount(page)).toBe(n + 24);
+  await probe(page, HOME, 'end');
+  await expect.poll(() => homeCount(page)).toBe(n + 48);
+  expect(await dividers()).toEqual([
+    '2026-11-15T13:00:00.000Z',
+    '2026-11-16T13:00:00.000Z',
+    '2026-11-17T13:00:00.000Z',
+    '2026-11-18T13:00:00.000Z',
+    '2026-11-19T13:00:00.000Z',
+  ]);
+});
