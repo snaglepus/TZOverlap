@@ -127,7 +127,9 @@ src/                    the app (served as-is in dev; bundled for prod)
                         errorState, sheet, popover, createToaster (toast), createBanner, radioGroup,
                         switchControl
     theme.js            light/dark controller
-    app.js              the timelines page; re-checks the home zone on launch, focus, visibility and each minute
+    app.js              the timelines page: grid, Add city button, first-run prompt, limit note;
+                        re-checks the home zone on launch, focus, visibility and each minute
+    add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line
     settings.js         the Settings sheet: Appearance, Treat weekends as unavailable and
                         Reset all data

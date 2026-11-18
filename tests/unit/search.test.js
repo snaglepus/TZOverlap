@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as data from '../../src/data/cities.js';
-import { fixedOffsetLabel, searchZones } from '../../src/lib/search.js';
+import { fixedOffsetLabel, popularByRegion, searchZones } from '../../src/lib/search.js';
 
 /** @param {string} query */
 function firstCity(query) {
@@ -95,5 +95,65 @@ describe('fixedOffsetLabel', () => {
     assert.equal(fixedOffsetLabel(-210), 'UTC-3:30 (fixed, no daylight saving)');
     assert.equal(fixedOffsetLabel(345), 'UTC+5:45 (fixed, no daylight saving)');
     assert.equal(fixedOffsetLabel(0), 'UTC+0:00 (fixed, no daylight saving)');
+  });
+});
+
+describe('popularByRegion', () => {
+  /**
+   * @param {string} name
+   * @param {number} rank
+   * @param {import('../../src/data/cities.js').City['region']} region
+   * @param {boolean} popular
+   * @returns {import('../../src/data/cities.js').City}
+   */
+  const city = (name, rank, region, popular) => ({
+    name,
+    ascii: name,
+    aliases: [],
+    cc: 'XX',
+    country: 'Testland',
+    tz: 'UTC',
+    rank,
+    region,
+    popular,
+  });
+
+  it('puts regions in alphabetical order', () => {
+    const groups = popularByRegion([
+      city('A', 1, 'Oceania', true),
+      city('B', 2, 'Asia', true),
+      city('C', 3, 'Europe', true),
+    ]);
+    assert.deepEqual(
+      groups.map((g) => g.region),
+      ['Asia', 'Europe', 'Oceania'],
+    );
+  });
+
+  it('orders cities by rank within a region', () => {
+    const groups = popularByRegion([
+      city('Third', 9, 'Europe', true),
+      city('First', 2, 'Europe', true),
+      city('Second', 5, 'Europe', true),
+    ]);
+    assert.deepEqual(
+      groups[0]?.cities.map((c) => c.name),
+      ['First', 'Second', 'Third'],
+    );
+  });
+
+  it('keeps popular cities only', () => {
+    const groups = popularByRegion([
+      city('Shown', 1, 'Europe', true),
+      city('Hidden', 2, 'Europe', false),
+      city('Alone', 3, 'Africa', false),
+    ]);
+    assert.deepEqual(groups, [{ region: 'Europe', cities: [city('Shown', 1, 'Europe', true)] }]);
+  });
+
+  it('covers every popular city in the bundled data', () => {
+    const total = popularByRegion(data.cities).reduce((n, g) => n + g.cities.length, 0);
+    assert.equal(total, data.cities.filter((c) => c.popular).length);
+    assert.ok(total > 0);
   });
 });

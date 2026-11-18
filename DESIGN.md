@@ -230,7 +230,7 @@ ad hoc in `app.css`. Do not add a component without adding it here.
 ### Button — `button()` · `.btn`
 
 Variants: `primary` (accent fill: the one main action in a view, e.g. "Add
-zone"), `secondary` (bordered surface: other actions such as "Try again"),
+city"), `secondary` (bordered surface: other actions such as "Try again"),
 `ghost` (no border: toolbar and in-row actions, e.g. Settings, remove zone).
 Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
 (WCAG 2.5.8). Always a real `<button>` with a text label. `icon` adds an Icon
@@ -355,6 +355,31 @@ sentence on what the user can do, and an optional "Try again" secondary button.
 Use when a view or the whole app cannot render (e.g. the browser lacks time zone
 support). For a single bad input value, use the Input error message instead.
 
+### Add city — `addCitySheet()` (`src/ui/add-city.js`) · `.add-city*`
+
+Page pattern, not a shared component. The Timelines card ends with an "Add
+city" row directly after the grid (outside `role="grid"`): a `secondary`
+button. With no user zones the row is the first-run Empty state ("Add the
+cities you work with", one sentence on the 7-zone limit) with the button as its
+`primary` action. At 7 stored zones the button gives way to a muted
+`--font-size-sm` limit note ("Maximum of 7 time zones. Remove one to add
+another."). The button and the **A** key (outside text fields and open
+dialogs) open the Add city Sheet.
+
+The sheet loads the city data on its first open only, showing "Loading
+cities…" meanwhile and an Error state with no action if the load fails. A
+search field (Input) sits on top; with an empty query the popular cities are
+listed under one `<h3>` per region (alphabetical), by population rank. Each
+result is a full-width plain `<button>` at least `--control-height` tall: name
+over a muted secondary line (country or full abbreviation name), then local
+time and offset in fixed-width, end-aligned columns of `--font-mono` tabular
+numerals, so they line up down the list. A zone already on the board
+(stored or home) shows a pill "Added" marker that is part of its accessible
+name; choosing it changes nothing and a polite note says so. On desktop
+(`(hover: hover) and (pointer: fine)`) the search field gets focus on open;
+elsewhere focus stays on Close so no on-screen keyboard pops up. On close,
+focus goes to the Add city button if rendered, else the grid.
+
 ## 7. Layout and breakpoints
 
 Mobile first. Breakpoints are fixed values because `@media` cannot read custom
@@ -364,7 +389,7 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 | Name      | Min width | Changes                                                                                                                                                                                              |
 | --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | base      | 0         | Single column, `--space-4` gutters, compact row headers (a button: name, then time and day badge; details in a popover), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline and no button, 64px rows, add-zone field and button inline, toolbar in the title bar, sheets are centred modals                      |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline and no button, 64px rows, toolbar in the title bar, sheets are centred modals                                                        |
 | `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                               |
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
