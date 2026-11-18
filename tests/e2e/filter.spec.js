@@ -310,6 +310,8 @@ test.describe('no-overlap message (FR-29b, PRD T10)', () => {
       'No time works for everyone in the next 14 days either.',
     );
     await expect(message(page).getByRole('button')).toHaveCount(0);
+    // Both lines share the message style (weight and wrapping).
+    await expect(message(page).locator('.no-overlap__message')).toHaveCount(2);
     await expect(dateInput(page)).toHaveValue(date);
     await expect(grid(page)).toBeFocused();
     await choose(page, 'All');

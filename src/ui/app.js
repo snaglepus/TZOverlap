@@ -252,8 +252,13 @@ export function mountApp(
       variant: 'secondary',
       onClick: () => {
         const found = nextQualifyingDay(dayOptions());
-        if (found) resetTo(found);
-        else next.replaceWith(h('p', { text: strings.filter.noneFound(MAX_DAYS) }));
+        if (found) {
+          resetTo(found);
+        } else {
+          next.replaceWith(
+            h('p', { class: 'no-overlap__message', text: strings.filter.noneFound(MAX_DAYS) }),
+          );
+        }
         view?.root.focus({ preventScroll: true });
       },
     });
