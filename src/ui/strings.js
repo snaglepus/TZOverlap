@@ -17,6 +17,12 @@ export const strings = /** @satisfies {Strings} */ ({
     settings: 'Settings',
     toolbar: 'Toolbar',
   },
+  /** The date control and the Today button in the toolbar. */
+  date: {
+    today: 'Today',
+    other: 'Date',
+    todayButton: 'Today',
+  },
   sheet: {
     close: 'Close',
   },

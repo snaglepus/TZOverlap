@@ -219,6 +219,16 @@
   font-size: var(--font-size-xs);
 }
 
+/* Invisible markers at each end of the home track: lazy extension watches them. */
+.grid__edge {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--cell-left) * var(--slot-width));
+  width: calc(var(--cell-width) * var(--slot-width));
+  pointer-events: none;
+}
+
 /* ---------- Heat: Best, Good (three steps, hatched), Unsuitable ---------- */
 .heat[data-rating='best'] {
   background-color: var(--color-best);
