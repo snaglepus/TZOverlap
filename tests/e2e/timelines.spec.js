@@ -186,6 +186,44 @@ test('layout: no sideways page scroll on a phone; timeline scrolls inside its re
   expect(region).toBeGreaterThan(0);
 });
 
+test('type scale: phone-first sizes at 390px (17px body, 13px secondary, 11px floor)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await addZone(page, 'Asia/Tokyo');
+  await expect(page.locator('tr[data-zone="Asia/Tokyo"]')).toBeVisible();
+
+  const sizes = await page.evaluate(() => {
+    /** @param {string} selector */
+    const sizesOf = (selector) =>
+      [...document.querySelectorAll(selector)].map((el) =>
+        parseFloat(getComputedStyle(el).fontSize),
+      );
+    const visibleText = [...document.querySelectorAll('body *')]
+      .filter(
+        (el) =>
+          !el.closest('.visually-hidden') &&
+          [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()),
+      )
+      .map((el) => parseFloat(getComputedStyle(el).fontSize));
+    return {
+      body: getComputedStyle(document.body).fontSize,
+      slots: sizesOf('.timeline td.slot'),
+      secondary: sizesOf('.timeline__meta, .slot__day'),
+      dayMarkers: document.querySelectorAll('.slot__day').length,
+      visibleText,
+    };
+  });
+
+  expect(sizes.body).toBe('17px');
+  expect(sizes.slots.length).toBeGreaterThan(0);
+  expect(Math.min(...sizes.slots)).toBeGreaterThanOrEqual(13);
+  expect(sizes.dayMarkers).toBeGreaterThan(0);
+  expect(Math.min(...sizes.secondary)).toBeGreaterThanOrEqual(13);
+  expect(Math.min(...sizes.visibleText)).toBeGreaterThanOrEqual(11);
+});
+
 test('error state: browsers without time zone data get a clear failure message', async ({
   page,
 }) => {

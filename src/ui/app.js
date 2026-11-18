@@ -6,6 +6,7 @@ import { buildTimeline, startOfLocalDay } from '../lib/timeline.js';
 import { formatOffset, zoneCity } from '../lib/timezones.js';
 import { appShell, button, card, emptyState, errorState, field } from './components.js';
 import { h } from './dom.js';
+import { strings } from './strings.js';
 
 /**
  * @typedef {ReturnType<typeof import('../lib/store.js').createStore>} Store
@@ -13,23 +14,12 @@ import { h } from './dom.js';
  * @typedef {import('../lib/hours.js').Band} Band
  */
 
-/** @type {Record<Band, string>} */
-const BAND_LABEL = {
-  ideal: 'Ideal',
-  acceptable: 'Acceptable',
-  unacceptable: 'Unacceptable',
-};
-
-/** @type {Record<Band, string>} visible text in the "All zones" row */
-const OVERLAP_TEXT = { ideal: 'best', acceptable: 'ok', unacceptable: 'no' };
-
 /** @type {Record<'empty' | 'invalid' | 'duplicate' | 'limit', (input: string) => string>} */
 const ADD_ERRORS = {
-  empty: () => 'Enter a time zone, for example Asia/Tokyo.',
-  invalid: (input) =>
-    `“${input.trim()}” isn’t a time zone this browser recognises. Use a name like America/New_York.`,
-  duplicate: () => 'That time zone is already on the board.',
-  limit: () => `You can compare up to ${MAX_EXTRA_ZONES + 1} zones. Remove one to add another.`,
+  empty: () => strings.errors.empty,
+  invalid: (input) => strings.errors.invalid(input.trim()),
+  duplicate: () => strings.errors.duplicate,
+  limit: () => strings.errors.limit(MAX_EXTRA_ZONES + 1),
 };
 
 /**
@@ -37,7 +27,7 @@ const ADD_ERRORS = {
  */
 function themeToggle(theme) {
   const btn = button({
-    label: 'Dark theme',
+    label: strings.app.themeToggle,
     variant: 'ghost',
     pressed: theme.get() === 'dark',
     onClick: () => theme.toggle(),
@@ -61,26 +51,23 @@ export function mountApp(root, { store, theme, now = () => new Date(), suggestio
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
   });
   const shell = appShell({
-    title: 'TZ Overlap',
-    tagline: 'Find the hours that work in every time zone.',
+    title: strings.app.title,
+    tagline: strings.app.tagline,
     actions: [themeToggle(theme)],
-    footer: [
-      h('p', { text: 'Runs entirely in your browser. Nothing you enter leaves this device.' }),
-      announcer,
-    ],
+    footer: [h('p', { text: strings.app.footer }), announcer],
   });
 
   // --- Add-zone card ---------------------------------------------------------
   const zoneField = field({
-    label: 'Time zone',
+    label: strings.addZone.label,
     name: 'zone',
-    placeholder: 'e.g. Asia/Tokyo',
+    placeholder: strings.addZone.placeholder,
     suggestions,
   });
   const form = h('form', { class: 'add-zone', attrs: { novalidate: true } }, [
     zoneField.root,
     h('div', { class: 'add-zone__submit' }, [
-      button({ label: 'Add zone', variant: 'primary', type: 'submit' }),
+      button({ label: strings.addZone.submit, variant: 'primary', type: 'submit' }),
     ]),
   ]);
   form.addEventListener('submit', (event) => {
@@ -95,21 +82,17 @@ export function mountApp(root, { store, theme, now = () => new Date(), suggestio
     const added = store.getState().zones.at(-1) ?? value;
     zoneField.setError(null);
     zoneField.input.value = '';
-    announcer.textContent = `Added ${zoneCity(added)}.`;
+    announcer.textContent = strings.addZone.added(zoneCity(added));
   });
-  const addCard = card({ title: 'Add a time zone', children: [form] });
+  const addCard = card({ title: strings.addZone.cardTitle, children: [form] });
 
   // --- Timelines card --------------------------------------------------------
-  const timelinesCard = card({ title: 'Timelines', actions: [legend()] });
+  const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
 
   function render() {
     const { zones } = store.getState();
     const remaining = MAX_EXTRA_ZONES - zones.length;
-    zoneField.setHelp(
-      remaining > 0
-        ? `Use an IANA name. You can add ${remaining} more.`
-        : 'All eight slots are in use.',
-    );
+    zoneField.setHelp(remaining > 0 ? strings.addZone.help(remaining) : strings.addZone.full);
 
     const current = now();
     const all = store.allZones();
@@ -122,10 +105,10 @@ export function mountApp(root, { store, theme, now = () => new Date(), suggestio
     if (zones.length === 0) {
       body.push(
         emptyState({
-          title: 'Only your time zone so far',
-          body: `Add up to ${MAX_EXTRA_ZONES} more to see which hours work for everyone.`,
+          title: strings.empty.title,
+          body: strings.empty.body(MAX_EXTRA_ZONES),
           action: button({
-            label: 'Add a time zone',
+            label: strings.empty.action,
             variant: 'secondary',
             onClick: () => zoneField.input.focus(),
           }),
@@ -138,7 +121,7 @@ export function mountApp(root, { store, theme, now = () => new Date(), suggestio
   /** @param {string} zone */
   function remove(zone) {
     store.removeZone(zone);
-    announcer.textContent = `Removed ${zoneCity(zone)}.`;
+    announcer.textContent = strings.addZone.removed(zoneCity(zone));
     zoneField.input.focus();
   }
 
@@ -157,11 +140,11 @@ function legend() {
   ];
   return h(
     'ul',
-    { class: 'legend', attrs: { 'aria-label': 'Legend' } },
+    { class: 'legend', attrs: { 'aria-label': strings.timelines.legend } },
     items.map(([cls, band]) =>
       h('li', { class: 'legend__item' }, [
         h('span', { class: `legend__swatch ${cls}`, attrs: { 'aria-hidden': 'true' } }),
-        BAND_LABEL[band],
+        strings.bands[band],
       ]),
     ),
   );
@@ -183,9 +166,9 @@ function timelineTable(timeline, current, onRemove) {
 
   const head = h('thead', { class: 'visually-hidden' }, [
     h('tr', {}, [
-      h('th', { text: 'Zone', attrs: { scope: 'col' } }),
+      h('th', { text: strings.timelines.zoneHeader, attrs: { scope: 'col' } }),
       ...(reference?.slots ?? []).map((slot) =>
-        h('th', { text: `Your ${slot.label}`, attrs: { scope: 'col' } }),
+        h('th', { text: strings.timelines.slotHeader(slot.label), attrs: { scope: 'col' } }),
       ),
     ]),
   ]);
@@ -197,20 +180,23 @@ function timelineTable(timeline, current, onRemove) {
           h('div', {}, [
             h('span', {
               class: 'timeline__city',
-              text: rowIndex === 0 ? `${zoneCity(row.timeZone)} (you)` : zoneCity(row.timeZone),
+              text:
+                rowIndex === 0
+                  ? strings.timelines.you(zoneCity(row.timeZone))
+                  : zoneCity(row.timeZone),
             }),
             h('span', {
               class: 'timeline__meta',
-              text: `${formatOffset(row.offsetMinutes)}`,
+              text: formatOffset(row.offsetMinutes),
             }),
           ]),
           rowIndex === 0
             ? null
             : button({
-                label: '×',
+                label: strings.timelines.removeLabel,
                 variant: 'ghost',
                 size: 'sm',
-                ariaLabel: `Remove ${zoneCity(row.timeZone)}`,
+                ariaLabel: strings.timelines.remove(zoneCity(row.timeZone)),
                 onClick: () => onRemove(row.timeZone),
               }),
         ]),
@@ -224,11 +210,14 @@ function timelineTable(timeline, current, onRemove) {
           },
           [
             slot.label.slice(0, 2),
-            h('span', { class: 'visually-hidden', text: ` ${slot.label}, ${slot.band}` }),
+            h('span', {
+              class: 'visually-hidden',
+              text: strings.timelines.slotDetail(slot.label, slot.band),
+            }),
             slot.dayShift
               ? h('span', {
                   class: 'slot__day',
-                  text: slot.dayShift > 0 ? `+${slot.dayShift}d` : `${slot.dayShift}d`,
+                  text: strings.timelines.dayShift(slot.dayShift),
                 })
               : null,
           ],
@@ -241,8 +230,8 @@ function timelineTable(timeline, current, onRemove) {
     rows.push(
       h('tr', { class: 'timeline__row--overlap', attrs: { 'data-zone': 'overlap' } }, [
         h('th', { class: 'timeline__zone', attrs: { scope: 'row' } }, [
-          h('span', { class: 'timeline__city', text: 'All zones' }),
-          h('span', { class: 'timeline__meta', text: 'overlap' }),
+          h('span', { class: 'timeline__city', text: strings.timelines.overlapTitle }),
+          h('span', { class: 'timeline__meta', text: strings.timelines.overlapMeta }),
         ]),
         ...timeline.overlap.map((o, i) =>
           h(
@@ -252,8 +241,11 @@ function timelineTable(timeline, current, onRemove) {
               attrs: { 'data-band': o.band },
             },
             [
-              OVERLAP_TEXT[o.band],
-              h('span', { class: 'visually-hidden', text: `, ${o.band} for everyone` }),
+              strings.overlap[o.band],
+              h('span', {
+                class: 'visually-hidden',
+                text: strings.timelines.overlapDetail(o.band),
+              }),
             ],
           ),
         ),
@@ -271,7 +263,7 @@ function timelineTable(timeline, current, onRemove) {
       h('table', { class: 'timeline__table' }, [
         h('caption', {
           class: 'visually-hidden',
-          text: 'Today’s hours in each time zone, aligned on the same moment. Scroll sideways for more.',
+          text: strings.timelines.caption,
           attrs: { id: captionId },
         }),
         head,
@@ -287,13 +279,13 @@ function timelineTable(timeline, current, onRemove) {
  * @param {{ title: string, body: string }} message
  */
 export function mountFatalError(root, { title, body }) {
-  const shell = appShell({ title: 'TZ Overlap' });
+  const shell = appShell({ title: strings.app.title });
   shell.main.append(
     errorState({
       title,
       body,
       action: button({
-        label: 'Try again',
+        label: strings.fatal.retry,
         variant: 'secondary',
         onClick: () => window.location.reload(),
       }),

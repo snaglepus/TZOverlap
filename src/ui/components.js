@@ -2,6 +2,7 @@
 // Add a component here only together with its DESIGN.md entry.
 
 import { h, uid } from './dom.js';
+import { strings } from './strings.js';
 
 /** @typedef {import('./dom.js').Child} Child */
 
@@ -158,7 +159,7 @@ export function errorState({ title, body, action }) {
 export function appShell({ title, tagline, actions = [], footer = [] }) {
   const main = h('main', { class: 'shell__main', attrs: { id: 'main', tabindex: '-1' } });
   const root = h('div', { class: 'shell' }, [
-    h('a', { class: 'shell__skip', text: 'Skip to content', attrs: { href: '#main' } }),
+    h('a', { class: 'shell__skip', text: strings.app.skipLink, attrs: { href: '#main' } }),
     h('header', { class: 'shell__header' }, [
       h('div', { class: 'shell__brand' }, [
         h('h1', { class: 'shell__title', text: title }),
