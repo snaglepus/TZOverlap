@@ -45,14 +45,13 @@ export const strings = /** @satisfies {Strings} */ ({
     notNow: 'Not now',
     ios: {
       heading: 'iPhone or iPad',
-      // In order. `launch` is PRD 9.3 step 5 shortened until the service worker
-      // (T16) ships; see AGENTS.md.
+      // In order, as PRD 9.3.
       steps: {
         open: 'Open the app’s address in Safari.',
         share: 'Tap the Share button (square with an up arrow).',
         add: 'Scroll down and tap Add to Home Screen (you may need to tap “View More” first).',
         confirm: 'Check that “Open as Web App” is on if shown, then tap Add.',
-        launch: 'Open it from the home screen. It runs full screen.',
+        launch: 'Open it from the home screen. It runs full screen and works without a connection.',
       },
     },
     android: {

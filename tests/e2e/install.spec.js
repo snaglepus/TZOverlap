@@ -10,7 +10,8 @@ import { copyOfSrc, productionBuild } from './production-build.js';
 
 const IPHONE_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
-const LAST_IOS_STEP = 'Open it from the home screen. It runs full screen.';
+const LAST_IOS_STEP =
+  'Open it from the home screen. It runs full screen and works without a connection.';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
@@ -179,7 +180,6 @@ test('Settings → Install lists the steps for every platform', async ({ page })
     'Chrome or Edge: click the install icon in the address bar (or menu → Install TZ Overlap).',
     'Safari on Mac: File → Add to Dock.',
   ]);
-  await expect(dialog).not.toContainText(/offline|without a connection/i);
 
   // After Appearance and the weekends switch, before Reset all data.
   const order = await dialog.evaluate((el) =>
@@ -221,7 +221,6 @@ test.describe('iPhone', () => {
       await expect(steps.last()).toHaveText(LAST_IOS_STEP);
       await expect(sheet.locator('svg.icon')).toBeVisible();
       await expect(sheet.locator('svg.icon')).toHaveAttribute('aria-hidden', 'true');
-      await expect(sheet).not.toContainText(/offline|without a connection/i);
       await expectNoA11yViolations(page);
 
       await sheet.getByRole('button', { name: 'Close' }).click();

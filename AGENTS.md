@@ -13,10 +13,7 @@ zone plus up to seven others as horizontal, scrollable timelines aligned on the
 same moment. A heat scale shows which hours are ideal, acceptable (the shoulder
 hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
-to install it as an app (`src/lib/install.js`, `src/ui/install.js`). Their copy
-leaves out PRD 9.3's "works without a connection" (written before the service
-worker shipped); restoring it is a follow-up in
-`strings.install.ios.steps.launch`.
+to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
 Planned next: select a slot to see the exact local time in every zone, share a
 proposal link, and export to a calendar.
