@@ -2,8 +2,11 @@
 // button for beforeinstallprompt browsers, the one-time iOS sheet, the
 // Settings → Install instructions, and nothing at all when running installed.
 
+import { appendFile, rm } from 'node:fs/promises';
+import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { NOW, expectNoA11yViolations, openSettings } from './helpers.js';
+import { copyOfSrc, productionBuild } from './production-build.js';
 
 const IPHONE_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
@@ -65,6 +68,34 @@ test.describe('beforeinstallprompt browsers', () => {
     await openSettings(page);
     await expect(dialog.getByRole('button', { name: 'Install app' })).toHaveCount(0);
     await expect.poll(() => hintDismissed(page)).toBe(true);
+  });
+
+  test('the hint and the Update available banner show together', async ({ page }) => {
+    test.setTimeout(30_000);
+    const app = await productionBuild();
+    const src = await copyOfSrc();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    try {
+      await page.goto(app.url);
+      await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+      await page.reload();
+      await appendFile(path.join(src, 'index.html'), '<!-- update test -->\n');
+      await app.rebuild(src);
+      await offerInstall(page);
+      await page.evaluate(async () => {
+        await (await navigator.serviceWorker.getRegistration())?.update();
+      });
+
+      await expect(page.getByRole('status').filter({ hasText: 'Update available' })).toBeVisible();
+      await expect(hint(page)).toBeVisible();
+      await expectNoA11yViolations(page);
+      await hint(page).getByRole('button', { name: 'Install app' }).click();
+      expect(await promptCount(page)).toBe(1);
+      await expect(page.getByRole('status').filter({ hasText: 'Update available' })).toBeVisible();
+    } finally {
+      await app.close();
+      await rm(src, { recursive: true, force: true });
+    }
   });
 
   test('Install app in Settings prompts once and keeps focus in the sheet', async ({ page }) => {
