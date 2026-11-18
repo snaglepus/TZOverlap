@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  ianaZoneFromInput,
   parseFixedOffset,
   zoneAbbreviation,
   zoneLocalParts,
@@ -151,5 +152,32 @@ describe('fixed offsets stay arithmetic', () => {
     for (const file of filesUnder(srcDir)) {
       assert.equal(readFileSync(file, 'utf8').includes('Etc/GMT'), false, file);
     }
+  });
+});
+
+describe('ianaZoneFromInput', () => {
+  it('rejects empty input', () => {
+    assert.deepEqual(ianaZoneFromInput('   ', 'Europe/London'), { ok: false, error: 'empty' });
+  });
+
+  it('rejects an unknown zone', () => {
+    assert.deepEqual(ianaZoneFromInput('Mars/Olympus', 'Europe/London'), {
+      ok: false,
+      error: 'invalid',
+    });
+  });
+
+  it('rejects the home zone as a duplicate', () => {
+    assert.deepEqual(ianaZoneFromInput(' europe/london ', 'Europe/London'), {
+      ok: false,
+      error: 'duplicate',
+    });
+  });
+
+  it('trims and canonicalises the input', () => {
+    assert.deepEqual(ianaZoneFromInput('  asia/tokyo ', 'Europe/London'), {
+      ok: true,
+      zone: { kind: 'iana', tz: 'Asia/Tokyo' },
+    });
   });
 });
