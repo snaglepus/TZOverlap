@@ -394,3 +394,40 @@ test.describe('skipped adjacent date', () => {
     await expect(dateInput(page)).not.toHaveValue('2011-12-30');
   });
 });
+
+test('now line and Now: hidden on another date, Now goes back to today', async ({ page }) => {
+  await page.goto('/');
+  const line = page.locator('.grid__now');
+  const now = page.getByRole('button', { name: 'Go to now' });
+  await expect(line).toBeAttached();
+  await expect(line).not.toHaveAttribute('hidden');
+  await expect(now).toBeDisabled();
+
+  await pickDate(page, '2026-07-15');
+  await expect(line).toHaveAttribute('hidden');
+  await expect(now).toBeEnabled();
+
+  await now.click();
+  await expect(dateInput(page)).toHaveValue('2026-11-18');
+  await expect(dateLabel(page)).toHaveText('Today');
+  await expect(todayButton(page)).toBeHidden();
+  await expect(line).not.toHaveAttribute('hidden');
+  await expect(now).toBeDisabled();
+  expect(await inVisibleTrack(page, '2026-11-18T01:00:00.000Z')).toBe(true);
+});
+
+test('the now line stays on now when days are added on the left', async ({ page }) => {
+  await page.goto('/');
+  const lineLeft = () =>
+    page.locator('.grid__now').evaluate((el) => el.getBoundingClientRect().left);
+  const cellLeft = () =>
+    row(page, HOME)
+      .locator('[data-start="2026-11-18T01:00:00.000Z"]')
+      .evaluate((el) => el.getBoundingClientRect().left);
+  // The line sits at the start of the 12:00 cell (now is 12:00 exactly).
+  expect(Math.abs((await lineLeft()) - (await cellLeft()))).toBeLessThanOrEqual(1);
+  const n = await homeCount(page);
+  await probe(page, HOME, 0);
+  await expect.poll(() => homeCount(page)).toBe(n + 24);
+  expect(Math.abs((await lineLeft()) - (await cellLeft()))).toBeLessThanOrEqual(1);
+});
