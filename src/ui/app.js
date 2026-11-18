@@ -4,6 +4,7 @@
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { buildTimeline, startOfLocalDay } from '../lib/timeline.js';
 import { formatOffset, zoneCity } from '../lib/timezones.js';
+import { ianaZoneFromInput } from '../lib/zones.js';
 import { appShell, button, card, emptyState, errorState, field } from './components.js';
 import { h } from './dom.js';
 import { strings } from './strings.js';
@@ -11,6 +12,8 @@ import { strings } from './strings.js';
 /**
  * @typedef {ReturnType<typeof import('../lib/store.js').createStore>} Store
  * @typedef {ReturnType<typeof import('./theme.js').createTheme>} ThemeController
+ * @typedef {import('../lib/store.js').StoredZone} StoredZone
+ * @typedef {Extract<StoredZone, { kind: 'iana' }>} IanaZone
  * @typedef {import('../lib/hours.js').Band} Band
  */
 
@@ -41,11 +44,15 @@ function themeToggle(theme) {
  * @param {{
  *   store: Store,
  *   theme: ThemeController,
+ *   homeZone: string,
  *   now?: () => Date,
  *   suggestions?: readonly string[],
  * }} deps
  */
-export function mountApp(root, { store, theme, now = () => new Date(), suggestions = [] }) {
+export function mountApp(
+  root,
+  { store, theme, homeZone, now = () => new Date(), suggestions = [] },
+) {
   const announcer = h('p', {
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
@@ -73,35 +80,46 @@ export function mountApp(root, { store, theme, now = () => new Date(), suggestio
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const value = zoneField.input.value;
-    const result = store.addZone(value);
+    const parsed = ianaZoneFromInput(value, homeZone);
+    const result = parsed.ok ? store.add(parsed.zone) : parsed;
     if (!result.ok) {
       zoneField.setError(ADD_ERRORS[result.error](value));
       zoneField.input.focus();
       return;
     }
-    const added = store.getState().zones.at(-1) ?? value;
     zoneField.setError(null);
     zoneField.input.value = '';
-    announcer.textContent = strings.addZone.added(zoneCity(added));
+    announcer.textContent = strings.addZone.added(result.zone.label);
   });
   const addCard = card({ title: strings.addZone.cardTitle, children: [form] });
 
   // --- Timelines card --------------------------------------------------------
   const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
 
+  /** Zone list of the last render; settings-only changes keep the DOM. */
+  let renderedKey = '';
+
   function render() {
     const { zones } = store.getState();
+    const key = JSON.stringify(
+      zones.map((z) => [z.id, z.kind, z.kind === 'iana' ? z.tz : z.minutes, z.label]),
+    );
+    if (key === renderedKey) return;
+    renderedKey = key;
     const remaining = MAX_EXTRA_ZONES - zones.length;
     zoneField.setHelp(remaining > 0 ? strings.addZone.help(remaining) : strings.addZone.full);
 
+    // Fixed zones wait for TZO-8; a stored copy of the home zone stays hidden.
+    const shown = /** @type {IanaZone[]} */ (
+      zones.filter((z) => z.kind === 'iana' && z.tz !== homeZone)
+    );
     const current = now();
-    const all = store.allZones();
     const timeline = buildTimeline({
-      zones: all,
-      start: startOfLocalDay(store.getState().localZone, current),
+      zones: [homeZone, ...shown.map((z) => z.tz)],
+      start: startOfLocalDay(homeZone, current),
       hours: 24,
     });
-    const body = [timelineTable(timeline, current, (zone) => remove(zone))];
+    const body = [timelineTable(timeline, current, shown, (zone) => remove(zone))];
     if (zones.length === 0) {
       body.push(
         emptyState({
@@ -118,10 +136,10 @@ export function mountApp(root, { store, theme, now = () => new Date(), suggestio
     timelinesCard.body.replaceChildren(...body);
   }
 
-  /** @param {string} zone */
+  /** @param {StoredZone} zone */
   function remove(zone) {
-    store.removeZone(zone);
-    announcer.textContent = strings.addZone.removed(zoneCity(zone));
+    store.remove(zone.id);
+    announcer.textContent = strings.addZone.removed(zone.label);
     zoneField.input.focus();
   }
 
@@ -153,9 +171,10 @@ function legend() {
 /**
  * @param {import('../lib/timeline.js').Timeline} timeline
  * @param {Date} current
- * @param {(zone: string) => void} onRemove
+ * @param {IanaZone[]} zones stored zones for rows 1.., in order
+ * @param {(zone: StoredZone) => void} onRemove
  */
-function timelineTable(timeline, current, onRemove) {
+function timelineTable(timeline, current, zones, onRemove) {
   const captionId = 'timeline-caption';
   const reference = timeline.rows[0];
   const nowIndex = reference
@@ -173,32 +192,30 @@ function timelineTable(timeline, current, onRemove) {
     ]),
   ]);
 
-  const rows = timeline.rows.map((row, rowIndex) =>
-    h('tr', { attrs: { 'data-zone': row.timeZone } }, [
+  const rows = timeline.rows.map((row, rowIndex) => {
+    const zone = rowIndex === 0 ? null : zones[rowIndex - 1];
+    return h('tr', { attrs: { 'data-zone': row.timeZone } }, [
       h('th', { class: 'timeline__zone', attrs: { scope: 'row' } }, [
         h('div', { class: 'timeline__zone-inner' }, [
           h('div', {}, [
             h('span', {
               class: 'timeline__city',
-              text:
-                rowIndex === 0
-                  ? strings.timelines.you(zoneCity(row.timeZone))
-                  : zoneCity(row.timeZone),
+              text: zone ? zone.label : strings.timelines.you(zoneCity(row.timeZone)),
             }),
             h('span', {
               class: 'timeline__meta',
               text: formatOffset(row.offsetMinutes),
             }),
           ]),
-          rowIndex === 0
-            ? null
-            : button({
+          zone
+            ? button({
                 label: strings.timelines.removeLabel,
                 variant: 'ghost',
                 size: 'sm',
-                ariaLabel: strings.timelines.remove(zoneCity(row.timeZone)),
-                onClick: () => onRemove(row.timeZone),
-              }),
+                ariaLabel: strings.timelines.remove(zone.label),
+                onClick: () => onRemove(zone),
+              })
+            : null,
         ]),
       ]),
       ...row.slots.map((slot, i) =>
@@ -223,8 +240,8 @@ function timelineTable(timeline, current, onRemove) {
           ],
         ),
       ),
-    ]),
-  );
+    ]);
+  });
 
   if (timeline.rows.length > 1) {
     rows.push(

@@ -99,7 +99,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     timeline.js         aligned timelines, local-day start, overlap row
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
-    store.js            zone list state + persistence via injected Storage
+    store.js            versioned state (zones, settings, meta): validated load, legacy-key
+                        migration, debounced save via injected Storage, cross-tab sync
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
     components.js       shared components: button, field, card, appShell, emptyState, errorState

@@ -143,7 +143,8 @@ durations become `0ms` (handled in `tokens.css`).
 
 - Light is the default. Dark is defined by overriding the colour and shadow
   tokens only; no component has theme-specific CSS.
-- Selection order: saved preference (`localStorage["tz-overlap:theme"]`) →
+- Selection order: saved preference (`settings.theme` in
+  `localStorage["tzoverlap.state"]`, where `'system'` means follow the OS) →
   operating-system preference (`prefers-color-scheme`) → light.
 - `src/theme-init.js` runs synchronously in `<head>` and sets
   `<html data-theme="light|dark">` before first paint so there is no flash.
