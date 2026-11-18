@@ -507,3 +507,11 @@ anywhere, including behind sheets.
   wheel, drag, the first position and restores after a rebuild are instant.
 - **Automated check.** E2E tests run axe-core against the page in both themes
   and fail on any WCAG A/AA violation.
+  One documented exception: axe's Label in Name rule
+  (`label-content-name-mismatch`, SC 2.5.3) is not applied to hour cells
+  (`.grid__cell[data-hour]`); it still runs on everything else. A 12-hour cell
+  shows the compact `9a` while its name is the full `9:00 am, Best`, which the
+  rule's word match can't connect. The cells can't be focused or activated
+  (dragging them only scrolls), and the name is a fuller form of the same time, so
+  no user loses the visible label. `tests/e2e/helpers.js` applies the
+  exclusion.
