@@ -565,6 +565,18 @@ test.describe('phone', () => {
               const box = header.getBoundingClientRect();
               const n = name.getBoundingClientRect();
               const style = getComputedStyle(el);
+              // Words of the time that span two line boxes (split inside themselves).
+              const broken = [...el.childNodes]
+                .filter((node) => node instanceof Text)
+                .flatMap((text) =>
+                  [...text.data.matchAll(/\S+/g)].filter((m) => {
+                    const range = document.createRange();
+                    range.setStart(text, m.index ?? 0);
+                    range.setEnd(text, (m.index ?? 0) + m[0].length);
+                    return range.getClientRects().length > 1;
+                  }),
+                )
+                .map((m) => m[0]);
               return {
                 outline: parseFloat(style.outlineWidth) + parseFloat(style.borderTopWidth),
                 inside:
@@ -573,16 +585,21 @@ test.describe('phone', () => {
                   t.top >= box.top - 0.5 &&
                   t.bottom <= box.bottom + 0.5,
                 oneLine: t.height <= parseFloat(style.lineHeight) + 0.5,
+                unclipped: el.scrollWidth <= el.clientWidth + 1,
+                broken,
                 nameOneLine: n.height <= parseFloat(getComputedStyle(name).lineHeight) + 0.5,
                 below: t.top >= n.bottom - 0.5,
               };
             });
             expect(report, zone).toMatchObject({
               inside: true,
-              oneLine: true,
               nameOneLine: true,
               below: true,
             });
+            // One line up to 150% text. At 200% a 40% header may wrap the
+            // time between words, but never clips it or splits a word.
+            if (fontSize !== '200%') expect(report.oneLine, zone).toBe(true);
+            else expect(report, zone).toMatchObject({ unclipped: true, broken: [] });
             expect(report.outline, zone).toBeGreaterThan(0);
           }
         });

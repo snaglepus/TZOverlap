@@ -388,8 +388,13 @@ test.describe('large text', () => {
         await expectEditing(page);
         const { grid: g, rows, overflow } = await headerLayout(page);
         expect(rows).toHaveLength(4);
+        const home = await row(page, HOME)
+          .locator('[role="rowheader"]')
+          .evaluate((el) => el.getBoundingClientRect().width);
         for (const { header, trigger, remove, handle: grip } of rows) {
-          expect(Math.abs(header.width - 224)).toBeLessThanOrEqual(2);
+          // At most 40% of the viewport (PRD 6.7), as wide as the home header.
+          expect(header.width).toBeLessThanOrEqual(viewport.width * 0.4);
+          expect(Math.abs(header.width - home)).toBeLessThanOrEqual(2);
           for (const part of [trigger, remove, grip]) {
             expectInside(part, header);
             expect(part.left).toBeGreaterThanOrEqual(g.left);
