@@ -56,6 +56,7 @@ const PAIRS = /** @type {const} */ ([
   ['--color-focus', '--color-bg', 3],
   ['--color-focus', '--color-surface', 3],
   ['--color-focus', '--color-surface-sunken', 3],
+  // Text on Best cells, and the inner edge on Everyone Best segments (needs 3:1).
   ['--color-best-ink', '--color-best', 4.5],
   // Good: greenest step, reddest step, the no-color-mix middle step and the hatch.
   ['--color-heat-ink', '--color-heat-near', 4.5],

@@ -480,6 +480,31 @@ test.describe('grid', () => {
       .locator('.legend__swatch')
       .evaluateAll((els) => els.map((el) => getComputedStyle(el).borderTopColor));
     expect(new Set(outlines)).toEqual(new Set(['rgb(125, 119, 108)']));
+
+    // The edge is a non-text cue: at least 3:1 against the Best fill, in both themes.
+    const edgeContrast = () =>
+      row(page, 'everyone')
+        .locator('[data-rating="best"]')
+        .first()
+        .evaluate((el) => {
+          /** @param {string} css */
+          const luminance = (css) => {
+            const [r = 0, g = 0, b = 0] = (css.match(/\d+(\.\d+)?/g) ?? []).map((v) => {
+              const c = Number(v) / 255;
+              return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          };
+          const style = getComputedStyle(el);
+          const edge = luminance(style.boxShadow.slice(0, style.boxShadow.indexOf(')') + 1));
+          const fill = luminance(style.backgroundColor);
+          return (Math.max(edge, fill) + 0.05) / (Math.min(edge, fill) + 0.05);
+        });
+    for (const scheme of /** @type {const} */ (['light', 'dark'])) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', scheme);
+      await expect.poll(edgeContrast).toBeGreaterThanOrEqual(3);
+    }
   });
 
   test('Everyone takes the reddest step among the zones', async ({ page }) => {
