@@ -358,11 +358,51 @@
   white-space: nowrap;
 }
 
-.grid__badge {
+.grid__badge,
+.grid__dst {
   padding-inline: var(--space-1);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   font-weight: var(--font-weight-medium);
+}
+
+/* Clock change within 14 days: an icon chip in the phone trigger; from --bp-md a
+   bordered chip in a user row's trigger, and a button on the home row. */
+.grid__warning {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text);
+}
+
+.grid__warning .icon {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+button.grid__warning {
+  justify-content: center;
+  min-width: var(--space-5);
+  min-height: var(--space-5);
+  padding: var(--space-0) var(--space-1);
+  background: transparent;
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.grid__meta .grid__warning {
+  padding-inline: var(--space-1);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+button.grid__warning:hover,
+button.grid__warning[aria-expanded='true'] {
+  background: var(--color-surface);
 }
 
 .grid__meta {
@@ -599,4 +639,13 @@
   .grid__details {
     display: block;
   }
+}
+
+/* The Clock changes sheet: one sentence per change, in date order. */
+.clock-changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-0);
+  padding-inline-start: var(--space-5);
 }

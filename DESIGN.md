@@ -139,7 +139,9 @@ repeated-hour "2"). Sentence case everywhere.
 Row headers: the name is `sm` bold on one line, cut off with an ellipsis; the
 time is `xs` in `--font-mono` with tabular numerals; the date, offset line
 ("AEDT · UTC+11") and "No DST" are `xs` muted; the day difference ("Tomorrow",
-or the phone badge "+1") is `xs` medium in `--color-text`.
+or the phone badge "+1") is `xs` medium in `--color-text`. The "DST" chip is
+styled like the day badge, and the clock-change warning (the `alert` icon,
+plus "29 Mar" from `--bp-md`) is `xs` medium in `--color-text`.
 
 Phone minimums: body text 17px (`md`, 1.0625rem); hour labels and secondary
 text at least 13px, so `xs` (0.8125rem) is the floor; nothing below 11px. All
@@ -287,7 +289,8 @@ icon stands alone, a wrapper with `role="img"` and an `aria-label` from strings.
 Icons: `gear` (Settings), `location` (a pin: the home row's symbol, wrapped as
 `role="img"` "Your location" and sized `--space-4` in the row header) and
 `share` (the iOS Share button: a tray with an up arrow, in the iOS install
-sheet). Add a name to the `IconName` union and its path data together.
+sheet) and `alert` (a warning triangle: the row header's clock-change badge,
+sized `--space-3`). Add a name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -389,6 +392,25 @@ it, so it stays until the user acts. `hide()` empties it. Surface, strong
 hairline border, `--radius-md`, `--shadow-sm`. Use for something the user must
 act on eventually but not right now; for passing confirmations use a Toast.
 
+`message` is a string ("Update available") or `{ long, short, compact? }`: the
+`.banner__short` text shows below `--bp-md` and `.banner__long` from it. With
+`compact`, the banner measures the short text as laid out, inside `show()` and
+again on window resize, and swaps it for `compact` when it is taller than two
+of its line heights, so a phone banner never takes more than two lines and
+never truncates. No character counts are used. A `show()` whose action label
+matches the button on screen replaces only the message and keeps the button,
+so focus stays on it.
+
+The timelines page adds a second Banner for date notes right after the shell's
+update banner: the DST banner, shown while the picked date is later than today
+and a clock change in any listed zone lies between now and then. One change
+shows its sentence ("London: clocks go forward 29 Mar. Gap now 10 h." on
+phone; the long form from `--bp-md`), falling back to "1 clock change on Sun
+29 Mar." on phone; several show "2 clock changes before Fri 10 Apr.". Its
+Details button opens the "Clock changes" Sheet with every change's full
+sentence. The two banners stack, and neither shows, hides or replaces the
+other.
+
 ### Radio group — `radioGroup()` · `.radio-group`
 
 A `<fieldset>` with a `<legend>` and one native radio per option, each inside
@@ -489,14 +511,26 @@ header has the name (the home row is the plain city, "Sydney", after a
 `location` symbol, with no actions), the live local time, the short date
 ("Tue 17 Nov"), the offset line ("AEDT · UTC+11", or "UTC+9" without a real
 abbreviation), "No DST" for fixed offsets, and the day difference from home
-("Tomorrow", "Yesterday", "+2 days") when it is not 0. All of it updates on the
+("Tomorrow", "Yesterday", "+2 days") when it is not 0. At the offset line's
+instant, a "DST" chip shows while the zone observes daylight saving time, and a
+clock-change warning shows when its clocks change within 14 days; both can
+show at once, and fixed zones get neither. All of it updates on the
 minute tick without rebuilding cells. Below `--bp-md` the header is a button
 with two lines (name; time plus a "+1" / "−1" badge); it opens the grid's one
 details Popover with the full name, time, full date, offset line, day
-difference and "No DST". From `--bp-md` every detail is inline: on user rows
-inside a wide trigger button with the same hover and expanded background,
+difference and "No DST". On phone the "DST" and warning chips sit on line 2
+after the day badge, `aria-hidden` with visually hidden "Daylight saving time"
+and "Clocks change Sun 29 Mar"; the popover then adds "Daylight saving time"
+and the change's full sentence. From `--bp-md` every detail is inline: on user
+rows inside a wide trigger button with the same hover and expanded background,
 opening the same Popover; on the home row as static text. The Everyone header
-is plain text. Each row's track is window hours × `--slot-width` wide and clips
+is plain text. From `--bp-md` "DST" is visible text in the meta line, and the
+warning is a bordered chip ("29 Mar") with the alert icon. On user rows it sits
+inside the wide trigger, named by visually hidden "Clocks change Sun 29 Mar",
+and the trigger's Popover adds the change's sentence. On the home row it is a
+button (named "Clocks change Sun 29 Mar", at least 24×24 px) that opens the
+details popover with the full name and the change's sentence. Each row's track
+is window hours × `--slot-width` wide and clips
 cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
 (clocks going back) gets a second cell with a small "2" and a tooltip. Each zone
@@ -611,7 +645,9 @@ anywhere, including behind sheets.
   announced through the shell's polite `role="status"` region, which is mounted
   empty and filled in a later task. The banner is a second polite
   `role="status"` region at the top of `<main>`, also mounted empty, so
-  "Update available" is announced when it appears.
+  "Update available" is announced when it appears. The DST banner is a third
+  polite `role="status"` region after it; it is re-shown only when its text
+  changes, so the minute tick never re-announces it.
 - **Dialogs.** A sheet traps Tab and Shift+Tab inside itself, Esc closes it,
   and focus returns to the control that opened it.
 - **Motion.** Respect `prefers-reduced-motion` (tokens collapse durations).

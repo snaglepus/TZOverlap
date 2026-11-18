@@ -528,6 +528,25 @@
   overflow-wrap: anywhere;
 }
 
+/* Phone and wide wording; the banner measures the short one as rendered. */
+.banner__short {
+  display: block;
+}
+
+.banner__long {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .banner__short {
+    display: none;
+  }
+
+  .banner__long {
+    display: block;
+  }
+}
+
 /* ---------- Radio group ---------- */
 .radio-group {
   display: flex;

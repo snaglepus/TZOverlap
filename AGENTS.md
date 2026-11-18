@@ -127,6 +127,7 @@ src/                    the app (served as-is in dev; bundled for prod)
                         cityDataIfLoaded(): the data once loaded, else null
     row-header.js       row header text: names, day difference, dates, abbreviation and offset line
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
+    dst.js              DST badges status, clock changes between dates, banner sentences
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
     row-order.js        Move up / Move down: store.move index and position among shown user rows
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps

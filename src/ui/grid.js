@@ -5,12 +5,14 @@
 // trackpad scrolling stay native. An IntersectionObserver extends the window
 // by a day when the visible track area comes within EXTEND_COLUMNS of either end.
 
+import { changeSentence, describeChange, dstStatus } from '../lib/dst.js';
 import { greyedSpans, qualifies } from '../lib/filter.js';
 import { EXTEND_COLUMNS } from '../lib/grid.js';
 import {
   dayDifference,
   dayDifferenceLabel,
   dayLabel,
+  dayMonth,
   fullDate,
   offsetLine,
   rowName,
@@ -43,6 +45,25 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/filter.js').Filter} Filter
  * @typedef {import('../lib/filter.js').Span} Span
  */
+
+const HOUR_MS = 3600000;
+
+/**
+ * Put `nodes` at the end of `parent` (before `before` when it is there) while
+ * `show`, else take them out; nodes already in place are left alone.
+ * @param {HTMLElement} parent
+ * @param {HTMLElement[]} nodes
+ * @param {boolean} show
+ * @param {HTMLElement | null} before
+ */
+function place(parent, nodes, show, before) {
+  for (const node of nodes) {
+    if (!show) node.remove();
+    else if (node.parentNode !== parent) {
+      parent.insertBefore(node, before?.parentNode === parent ? before : null);
+    }
+  }
+}
 
 /**
  * The full time ("2:30 pm" or "14:30") in `zone` at `date`.
@@ -361,12 +382,21 @@ export function timelineGrid({
   const tracks = [];
   let cycle = hourCycle;
   let filter = initialFilter;
+  // Every row's names, for the DST sentences' gaps to home.
+  const named = grid.rows.map(({ zone }, i) => {
+    const stored = i === 0 ? null : zones[i - 1];
+    const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
+    return { zone, name: full, display };
+  });
+  const homeNamed = /** @type {import('../lib/dst.js').NamedZone} */ (named[0]);
 
   const zoneRows = grid.rows.map((gridRow, i) => {
     const { zone } = gridRow;
     const stored = i === 0 ? null : zones[i - 1];
     const isHome = !stored;
-    const { full, display } = rowName({ zone, label: stored?.label ?? homeLabel, cities });
+    const self = /** @type {import('../lib/dst.js').NamedZone} */ (named[i]);
+    const { name: full, display } = self;
+    const dst = zone.kind !== 'fixed';
 
     // Shows `display`; screen readers get `full`.
     const nameText = () =>
@@ -382,6 +412,22 @@ export function timelineGrid({
     const buttonTime = h('span', { class: 'grid__time' });
     const badge = h('span', { class: 'grid__badge', attrs: { 'aria-hidden': 'true' } });
     const badgeLong = h('span', { class: 'visually-hidden' });
+    // DST and clock-change chips, aria-hidden with their long wording as hidden text.
+    const dstChip = h('span', {
+      class: 'grid__dst',
+      text: strings.dst.badge,
+      attrs: { 'aria-hidden': 'true' },
+    });
+    const dstLong = h('span', { class: 'visually-hidden', text: strings.dst.badgeLong });
+    const warningChip = h('span', { class: 'grid__warning', attrs: { 'aria-hidden': 'true' } }, [
+      icon('alert'),
+    ]);
+    const warningLong = h('span', { class: 'visually-hidden' });
+    const clockLine = h('span', { class: 'grid__line grid__clock' }, [
+      buttonTime,
+      badge,
+      badgeLong,
+    ]);
     const triggerAttrs = {
       type: 'button',
       'aria-expanded': 'false',
@@ -392,7 +438,7 @@ export function timelineGrid({
         isHome ? homeSymbol() : null,
         h('span', { class: 'grid__name' }, nameText()),
       ]),
-      h('span', { class: 'grid__line grid__clock' }, [buttonTime, badge, badgeLong]),
+      clockLine,
     ]);
 
     // From --bp-md: every detail inline; a button for user rows.
@@ -400,18 +446,27 @@ export function timelineGrid({
     const day = h('span', { class: 'grid__day' });
     const date = h('span');
     const offset = h('span');
+    const dstMeta = h('span', { class: 'grid__dst', text: strings.dst.badge });
+    // The home row's warning is its own button; a user row's sits inside its
+    // wide trigger, so it is a chip named by hidden text.
+    const warningText = h('span', { attrs: isHome ? {} : { 'aria-hidden': 'true' } });
+    const warningMetaLong = h('span', { class: 'visually-hidden' });
+    const warning = isHome
+      ? h('button', { class: 'grid__warning', attrs: triggerAttrs }, [icon('alert'), warningText])
+      : h('span', { class: 'grid__warning' }, [icon('alert'), warningText, warningMetaLong]);
+    const meta = h('span', { class: 'grid__meta' }, [
+      time,
+      day,
+      date,
+      offset,
+      zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
+    ]);
     const inline = h('span', { class: 'grid__details' }, [
       h('span', { class: 'grid__line' }, [
         isHome ? homeSymbol() : null,
         h('span', { class: 'grid__name' }, nameText()),
       ]),
-      h('span', { class: 'grid__meta' }, [
-        time,
-        day,
-        date,
-        offset,
-        zone.kind === 'fixed' ? h('span', { text: strings.timelines.noDst }) : null,
-      ]),
+      meta,
     ]);
 
     const wideTrigger = stored
@@ -434,7 +489,50 @@ export function timelineGrid({
         h('p', { text: fullDate(zone, at) }),
         h('p', { text: offsetLine(zone, offsetInstant) }),
         zone.kind === 'fixed' ? h('p', { text: strings.timelines.noDst }) : null,
+        status?.observing ? h('p', { text: strings.dst.badgeLong }) : null,
+        sentence ? h('p', { text: sentence }) : null,
       ]);
+    }
+
+    // The status at the header instant, recomputed once per UTC hour or when its change arrives.
+    /** @type {{ observing: boolean, change: import('../lib/time-engine.js').Transition | null } | null} */
+    let status = null;
+    let statusHour = NaN;
+    let sentence = '';
+    /** @param {Date} offsetInstant */
+    function syncStatus(offsetInstant) {
+      const t = offsetInstant.getTime();
+      const hour = Math.floor(t / HOUR_MS);
+      const due = status?.change && t >= status.change.at.getTime();
+      if (status && hour === statusHour && !due) return;
+      status = dstStatus(zone, offsetInstant);
+      statusHour = hour;
+      const others = named.filter((other) => other !== self && other !== homeNamed);
+      sentence = status.change
+        ? changeSentence(
+            describeChange({ zone: self, transition: status.change, home: homeNamed, others }),
+          ).long
+        : '';
+    }
+
+    function fillWarning() {
+      details.body.replaceChildren();
+      append(details.body, [
+        h('p', { class: 'popover__title', text: full }),
+        h('p', { text: sentence }),
+      ]);
+    }
+
+    if (isHome) {
+      warning.addEventListener('click', () => {
+        if (details.isOpenFor(warning)) {
+          details.close();
+          return;
+        }
+        fillWarning();
+        details.open(warning);
+        openRow = { trigger: () => trigger, hidden: () => warning };
+      });
     }
 
     /** @param {StoredZone} zone */
@@ -496,6 +594,27 @@ export function timelineGrid({
       day.hidden = !diff;
       date.textContent = shortDate(zone, at);
       offset.textContent = offsetLine(zone, offsetInstant);
+      if (dst) {
+        syncStatus(offsetInstant);
+        const change = status?.change;
+        const observing = Boolean(status?.observing);
+        // Badges are in the DOM only while shown, DST before the warning.
+        place(clockLine, [dstChip, dstLong], observing, warningChip);
+        place(meta, [dstMeta], observing, warning);
+        place(clockLine, [warningChip, warningLong], Boolean(change), null);
+        place(meta, [warning], Boolean(change), null);
+        if (change) {
+          const label = strings.dst.warning(shortDate(zone, change.at));
+          warningLong.textContent = label;
+          warningMetaLong.textContent = label;
+          if (isHome) warning.setAttribute('aria-label', label);
+          warningText.textContent = dayMonth(zone, change.at);
+        }
+        if (details.isOpenFor(warning)) {
+          if (change) fillWarning();
+          else details.close();
+        }
+      }
       if (isOpen()) fill(at, offsetInstant);
     }
     update(now, offsetAt);
