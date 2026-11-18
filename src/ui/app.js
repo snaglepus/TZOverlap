@@ -206,6 +206,13 @@ export function mountApp(
     variant: 'ghost',
     onClick: () => setEditing(!editing),
   });
+  // Both labels share one cell, the other one invisible, so the button keeps
+  // the wider one's width and the card header never reflows on a toggle.
+  editButton.replaceChildren(
+    h('span', { class: 'edit-toggle__label', text: strings.edit.edit }),
+    h('span', { class: 'edit-toggle__label edit-toggle__label--done', text: strings.edit.done }),
+  );
+  editButton.classList.add('edit-toggle');
   editButton.hidden = true;
 
   /** Whether focus is on a user row's Delete button. */
@@ -222,7 +229,7 @@ export function mountApp(
   function setEditing(on, refocus = deleteFocused()) {
     if (on === editing) return;
     editing = on;
-    editButton.textContent = on ? strings.edit.done : strings.edit.edit;
+    editButton.toggleAttribute('data-editing', on);
     editButton.setAttribute('aria-label', on ? strings.edit.doneLabel : strings.edit.editLabel);
     view?.setEditing(on);
     view?.refresh();

@@ -95,14 +95,14 @@ async function centre(locator) {
 /** @param {Page} page */
 async function expectEditing(page) {
   await expect(doneButton(page)).toBeVisible();
-  await expect(doneButton(page)).toHaveText('Done');
+  await expect(doneButton(page)).toHaveText('Done', { useInnerText: true });
   await expect(editButton(page)).toHaveCount(0);
 }
 
 /** @param {Page} page */
 async function expectNotEditing(page) {
   await expect(editButton(page)).toBeVisible();
-  await expect(editButton(page)).toHaveText('Edit');
+  await expect(editButton(page)).toHaveText('Edit', { useInnerText: true });
   await expect(doneButton(page)).toHaveCount(0);
   await expect(anyDelete(page)).toHaveCount(0);
 }
@@ -405,6 +405,45 @@ test.describe('large text', () => {
         expect(overflow).toBe(0);
       });
     });
+  }
+});
+
+/** The card header's and the Edit button's boxes, relative to the header. @param {Page} page */
+const cardHeader = (page) =>
+  page.locator('.card__header').evaluate((el) => {
+    const header = el.getBoundingClientRect();
+    const legend = /** @type {Element} */ (el.querySelector('.legend')).getBoundingClientRect();
+    const toggle = /** @type {Element} */ (
+      el.querySelector('.edit-toggle')
+    ).getBoundingClientRect();
+    return {
+      height: header.height,
+      button: { x: toggle.x - header.x, y: toggle.y - header.y, width: toggle.width },
+      sameLine: toggle.top <= legend.bottom && toggle.bottom >= legend.top,
+    };
+  });
+
+test.describe('card header', () => {
+  for (const viewport of [PHONE, { width: 320, height: 740 }]) {
+    for (const size of ['100%', '200%']) {
+      test(`Edit and Done keep the header's layout at ${viewport.width} px, ${size} text`, async ({
+        page,
+      }) => {
+        await page.setViewportSize(viewport);
+        await seedZones(page, seeded(THREE));
+        await page.goto('/');
+        await setRootFontSize(page, size);
+        const before = await cardHeader(page);
+        await editButton(page).click();
+        await expectEditing(page);
+        expect(await cardHeader(page)).toEqual(before);
+        await doneButton(page).click();
+        await expectNotEditing(page);
+        expect(await cardHeader(page)).toEqual(before);
+        // At 390 px with default text the button shares the legend's line.
+        if (viewport.width === PHONE.width && size === '100%') expect(before.sameLine).toBe(true);
+      });
+    }
   }
 });
 

@@ -243,6 +243,23 @@
   border: var(--border-width) solid var(--color-border-strong);
 }
 
+/* The Timelines card's Edit / Done button: both labels in one cell, the
+   inactive one invisible, so its width doesn't change between them. Narrow
+   padding keeps it on the legend's line at 390px. */
+.edit-toggle {
+  display: inline-grid;
+  padding-inline: var(--space-2);
+}
+
+.edit-toggle__label {
+  grid-area: 1 / 1;
+}
+
+.edit-toggle:not([data-editing]) .edit-toggle__label--done,
+.edit-toggle[data-editing] .edit-toggle__label:not(.edit-toggle__label--done) {
+  visibility: hidden;
+}
+
 /* ---------- Timeline grid ---------- */
 /* Positions come from JS as unitless custom properties in home columns:
    --grid-hours and --now-left on .grid, --selection-left / --selection-width on

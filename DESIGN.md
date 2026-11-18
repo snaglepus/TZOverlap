@@ -640,7 +640,10 @@ is `1`).
 Edit mode (`src/ui/app.js`, `src/ui/grid.js`): a ghost "Edit" button after the
 legend in the Timelines card header (named "Edit time zones"; "Done", named
 "Done editing time zones", while on) turns it on and off. It is `hidden` while
-there are no user rows. The mode is held in memory only, survives grid
+there are no user rows. Both labels sit in one grid cell (`.edit-toggle`, the
+inactive one `visibility: hidden`) with `--space-2` inline padding, so its
+width never changes and the card header doesn't reflow on a toggle; at 390px
+it shares the legend's line. The mode is held in memory only, survives grid
 rebuilds (`data-editing` on the grid) and is off after a reload. In Edit mode
 every user row header shows a Delete button (`.grid__delete`, an icon-only
 ghost Button with the `remove` icon in `--color-danger`, named "Delete Tokyo",
