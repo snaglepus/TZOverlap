@@ -329,18 +329,19 @@ export function popover({ label, onClose }) {
   function place() {
     if (!anchor) return;
     const a = anchor.getBoundingClientRect();
-    const { width, height } = root.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
+    const left = Math.max(0, Math.min(a.left, vw - root.getBoundingClientRect().width));
+    root.style.setProperty('--popover-left', String(Math.round(left)));
+    // Measured at its new left: less room on the right can wrap its actions.
+    const { height } = root.getBoundingClientRect();
     // Above the phone's fixed bottom toolbar, so it never lies over it.
     const toolbar = document.querySelector('.toolbar');
     const vh =
       toolbar && getComputedStyle(toolbar).position === 'fixed'
         ? toolbar.getBoundingClientRect().top
         : document.documentElement.clientHeight;
-    const left = Math.max(0, Math.min(a.left, vw - width));
     const below = a.bottom + height <= vh || a.top < height;
     const top = below ? Math.min(a.bottom, Math.max(0, vh - height)) : a.top - height;
-    root.style.setProperty('--popover-left', String(Math.round(left)));
     root.style.setProperty('--popover-top', String(Math.round(top)));
   }
 
