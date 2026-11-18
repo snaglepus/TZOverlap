@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { validateCityData } from '../../scripts/check-cities.js';
 import * as data from '../../src/data/cities.js';
-import { loadCityData } from '../../src/lib/city-data.js';
+import { cityDataIfLoaded, loadCityData } from '../../src/lib/city-data.js';
 
 /** @typedef {import('../../src/data/cities.js').City} City */
 
@@ -106,6 +106,12 @@ describe('validateCityData', () => {
 });
 
 describe('loadCityData', () => {
+  it('cityDataIfLoaded is null until the data has loaded', async () => {
+    assert.equal(cityDataIfLoaded(), null);
+    const loaded = await loadCityData();
+    assert.equal(cityDataIfLoaded(), loaded);
+  });
+
   it('imports the data once and caches the promise', async () => {
     const first = loadCityData();
     assert.equal(loadCityData(), first);
