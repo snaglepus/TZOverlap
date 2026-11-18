@@ -486,7 +486,10 @@ test.describe('phone', () => {
 
     for (const [width, fontSize] of /** @type {const} */ ([
       [390, '100%'],
+      [390, '150%'],
+      [390, '200%'],
       [320, '100%'],
+      [320, '150%'],
       [320, '200%'],
     ])) {
       test.describe(`${locale} at ${width} px, root font ${fontSize}`, () => {
@@ -505,14 +508,37 @@ test.describe('phone', () => {
           await expect(bar(page)).toBeVisible();
 
           const lines = await bar(page).evaluate((el) => {
-            const when = /** @type {Element} */ (el.querySelector('.selection-bar__when'));
-            const rating = /** @type {Element} */ (el.querySelector('.selection-bar__rating'));
+            const when = /** @type {HTMLElement} */ (el.querySelector('.selection-bar__when'));
+            const rating = /** @type {HTMLElement} */ (el.querySelector('.selection-bar__rating'));
+            const clear = /** @type {HTMLElement} */ (el.querySelector('.btn'));
+            // Words split inside themselves: a word whose text spans two line boxes.
+            const broken = [when, rating].flatMap((span) => {
+              const text = /** @type {Text} */ (span.firstChild);
+              return [...text.data.matchAll(/[^\s–]+/g)]
+                .filter((m) => {
+                  const range = document.createRange();
+                  range.setStart(text, m.index ?? 0);
+                  range.setEnd(text, (m.index ?? 0) + m[0].length);
+                  return range.getClientRects().length > 1;
+                })
+                .map((m) => m[0]);
+            });
             return {
               whenBottom: when.getBoundingClientRect().bottom,
+              whenLines: Math.round(
+                when.getBoundingClientRect().height / parseFloat(getComputedStyle(when).lineHeight),
+              ),
               ratingTop: rating.getBoundingClientRect().top,
+              clearTop: clear.getBoundingClientRect().top,
+              broken,
             };
           });
           expect(lines.ratingTop).toBeGreaterThanOrEqual(lines.whenBottom - 0.5);
+          // The clear button sits on or after the rating line, never beside the range.
+          expect(lines.clearTop).toBeGreaterThanOrEqual(lines.whenBottom - 0.5);
+          expect(lines.broken).toEqual([]);
+          // At 390 px with default text the range fits one line: the bar is two lines.
+          if (width === 390 && fontSize === '100%') expect(lines.whenLines).toBe(1);
           expect(
             await page.evaluate(
               () => document.documentElement.scrollWidth === document.documentElement.clientWidth,

@@ -558,29 +558,38 @@
 }
 
 /* ---------- Selection bar ---------- */
-/* Phone: the date and time on line 1, the rating on line 2, clear beside both. */
+/* Phone: the time range takes the whole first line; the rating and the clear
+   button share the second, and the button wraps below the rating when both
+   don't fit. Text breaks between words; only a word wider than the whole bar
+   (large text on a narrow phone) is hyphenated. */
 .selection-bar {
-  display: grid;
-  grid-template-columns: minmax(var(--space-0), 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
   min-width: var(--space-0);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--selection-bar-inset);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  font-size: var(--font-size-sm);
 }
 
 .selection-bar__when,
 .selection-bar__rating {
-  grid-column: 1;
   min-width: var(--space-0);
   overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .selection-bar__when {
+  flex: 1 1 100%;
   font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-medium);
+}
+
+.selection-bar__rating {
+  flex: 1 1 auto;
 }
 
 .selection-bar__separator {
@@ -588,8 +597,7 @@
 }
 
 .selection-bar .btn {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+  margin-inline-start: auto;
 }
 
 /* ---------- Heat: Best, Good (three steps, hatched), Unsuitable ---------- */
@@ -675,9 +683,14 @@
 
   /* One line where it fits. */
   .selection-bar {
-    display: flex;
-    flex-wrap: wrap;
     gap: var(--space-1);
+    padding-inline: var(--space-3);
+    font-size: var(--font-size-md);
+  }
+
+  .selection-bar__when,
+  .selection-bar__rating {
+    flex: 0 1 auto;
   }
 
   .selection-bar__separator {

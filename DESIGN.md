@@ -191,6 +191,8 @@ padding above and below, and the top border) · `--min-viewport-height` 100dvh �
 `--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--selection-edge-width` 3px (the four sides of the selection band, in
 `--color-accent`) ·
+`--selection-bar-inset` 8px (the selection bar's inline padding below
+`--bp-md`; px, not rem, so large text keeps the room for its words) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
@@ -449,10 +451,15 @@ range in `--font-weight-medium` with tabular numerals (`.selection-bar__when`,
 text), a " · " separator (`aria-hidden`), the rating
 in words (`.selection-bar__rating`: "Best for all", "Good for all" or
 "Unsuitable for some") and a ghost `sm` "×" button named "Clear selection".
-From `--bp-md` it is one line where it fits; below it, two lines (the time
-range, then the rating) with the separator hidden and the button beside both.
-Every text container has `min-width: 0` and `overflow-wrap: anywhere`, so it
-never scrolls the page sideways. `show(summary)` fills and shows it, `hide()`
+From `--bp-md` it is one line where it fits, in `--font-size-md`. Below it the
+bar is `--font-size-sm` with `--selection-bar-inset` inline padding, the
+separator is hidden, the time range takes the whole first line (one line at
+390px in default text) and the rating the second, with the button at the end
+of the rating line, or under it when the two don't fit. With large text on a
+narrow phone the range and rating wrap between words, never inside one that
+fits the bar's width. Every text container has `min-width: 0`,
+`overflow-wrap: anywhere` and `hyphens: auto`, so it never scrolls the page
+sideways. `show(summary)` fills and shows it, `hide()`
 hides it.
 
 ### Add city — `addCitySheet()` (`src/ui/add-city.js`) · `.add-city*`
