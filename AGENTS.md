@@ -120,6 +120,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     row-header.js       row header text: names, day difference, dates, abbreviation and offset line
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
+    scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
     components.js       shared components: button, icon, field, card, appShell, emptyState,
@@ -127,7 +128,7 @@ src/                    the app (served as-is in dev; bundled for prod)
                         switchControl
     theme.js            light/dark controller
     app.js              the timelines page; re-checks the home zone on launch, focus, visibility and each minute
-    grid.js             timeline grid DOM (role="grid"), header clocks
+    grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line
     settings.js         the Settings sheet: Appearance, Treat weekends as unavailable and
                         Reset all data
     strings.js          all user-visible text (en-AU), short/long variants

@@ -1,6 +1,8 @@
 // The timeline grid: one horizontal scroll container (role="grid") with a row
 // per zone plus the Everyone row. Cells are absolutely positioned in each
-// row's track from the grid model (src/lib/grid.js), in home columns.
+// row's track from the grid model (src/lib/grid.js), in home columns. Adds
+// wheel, mouse-drag and arrow-key scrolling and the now line; touch and
+// trackpad scrolling stay native.
 
 import {
   dayDifference,
@@ -11,6 +13,13 @@ import {
   rowName,
   shortDate,
 } from '../lib/row-header.js';
+import {
+  columnsAt,
+  isLineVisible,
+  keyStep,
+  nowScrollLeft,
+  wheelToHorizontal,
+} from '../lib/scroll.js';
 import { zoneLocalParts } from '../lib/zones.js';
 import { button, icon, popover } from './components.js';
 import { append, h } from './dom.js';
@@ -26,6 +35,8 @@ import { strings } from './strings.js';
  * @typedef {import('../data/cities.js').City} City
  */
 
+const HOUR = 3600000;
+
 /** @param {number} n */
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -37,6 +48,11 @@ const pad = (n) => String(n).padStart(2, '0');
 function clock(zone, date) {
   const { hour, minute } = zoneLocalParts(zone, date);
   return `${pad(hour)}:${pad(minute)}`;
+}
+
+/** Smooth scrolling unless the user asks for reduced motion. */
+function smoothBehavior() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
 }
 
 /** @param {Zone} zone */
@@ -145,9 +161,22 @@ function homeSymbol() {
 }
 
 /**
+ * @typedef {{
+ *   root: HTMLElement,
+ *   popover: HTMLElement,
+ *   tick: (now: Date) => void,
+ *   scrollToNow: (options?: { animate?: boolean }) => void,
+ *   leftInstant: () => Date | null,
+ *   showInstant: (instant: Date) => void,
+ *   refresh: () => void,
+ * }} GridView
+ */
+
+/**
  * Render the grid. `zones` are the stored zones behind rows 1.. of `grid`.
  * `homeLabel` is the label of a hidden stored copy of the home zone, if any;
- * `cities` is the city data when it is already loaded.
+ * `cities` is the city data when it is already loaded. `onNowVisible` is told
+ * whenever the now line comes into or goes out of view.
  * @param {{
  *   grid: Grid,
  *   zones: readonly StoredZone[],
@@ -155,10 +184,19 @@ function homeSymbol() {
  *   onRemove: (zone: StoredZone) => void,
  *   homeLabel?: string,
  *   cities?: readonly City[],
+ *   onNowVisible?: (visible: boolean) => void,
  * }} options
- * @returns {{ root: HTMLElement, popover: HTMLElement, tick: (now: Date) => void }}
+ * @returns {GridView}
  */
-export function timelineGrid({ grid, zones, now, onRemove, homeLabel, cities }) {
+export function timelineGrid({
+  grid,
+  zones,
+  now,
+  onRemove,
+  homeLabel,
+  cities,
+  onNowVisible = () => {},
+}) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   // One details popover for every phone header, filled from the one that opened it.
   const details = popover({ label: strings.timelines.details });
@@ -302,22 +340,156 @@ export function timelineGrid({ grid, zones, now, onRemove, homeLabel, cities }) 
   );
 
   const [homeRow, ...userRows] = zoneRows;
+  const line = h('div', { class: 'grid__now', attrs: { 'aria-hidden': 'true' } });
   const root = h(
     'div',
     {
       class: 'grid',
       attrs: { role: 'grid', 'aria-label': strings.timelines.gridLabel, tabindex: '0' },
     },
-    [homeRow, everyone, ...userRows],
+    [homeRow, everyone, ...userRows, line],
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
+
+  /** @param {Date} date */
+  const placeLine = (date) => {
+    current = date;
+    root.style.setProperty('--now-left', String(columnsAt(grid.start, date)));
+  };
+  placeLine(now);
+
+  /** Track geometry in px; null before layout. */
+  function measure() {
+    const header = root.querySelector('.grid__header');
+    const track = root.querySelector('.grid__track');
+    if (!header || !track) return null;
+    const trackWidth = track.getBoundingClientRect().width;
+    if (trackWidth === 0) return null;
+    const column = trackWidth / grid.hours;
+    return {
+      column,
+      linePx: columnsAt(grid.start, current) * column,
+      visibleWidth: root.clientWidth - header.getBoundingClientRect().width,
+      maxScroll: root.scrollWidth - root.clientWidth,
+    };
+  }
+
+  /** @type {boolean | undefined} */
+  let lineVisible;
+  function refresh() {
+    const m = measure();
+    if (!m) return;
+    const visible = isLineVisible({ ...m, scrollLeft: root.scrollLeft });
+    if (visible === lineVisible) return;
+    lineVisible = visible;
+    onNowVisible(visible);
+  }
+
+  /** @param {{ animate?: boolean }} [options] animate: smooth unless reduced motion */
+  function scrollToNow({ animate = false } = {}) {
+    const m = measure();
+    if (!m) return;
+    root.scrollTo({ left: nowScrollLeft(m), behavior: animate ? smoothBehavior() : 'instant' });
+    refresh();
+  }
+
+  /** Scroll position held while header text is being selected with the mouse. */
+  let held = -1;
+  let frame = 0;
+  root.addEventListener('scroll', () => {
+    // Selecting header text past the grid's edge would autoscroll the timeline.
+    if (held >= 0) root.scrollLeft = held;
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      refresh();
+    });
+  });
+
+  root.addEventListener(
+    'wheel',
+    (event) => {
+      const m = measure();
+      if (!m) return;
+      const dx = wheelToHorizontal(event, { linePx: m.column / 3, pagePx: m.visibleWidth });
+      if (dx === null) return;
+      // At the edge, let the page scroll instead.
+      if ((dx < 0 && root.scrollLeft <= 0) || (dx > 0 && root.scrollLeft >= m.maxScroll - 1)) {
+        return;
+      }
+      root.scrollLeft += dx;
+      event.preventDefault();
+    },
+    { passive: false },
+  );
+
+  /** @type {{ id: number, x: number, scrollLeft: number } | null} */
+  let drag = null;
+  root.addEventListener('pointerdown', (event) => {
+    const target = /** @type {Element} */ (event.target);
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    if (target.closest('.grid__header')) {
+      held = root.scrollLeft;
+      // The press can end outside the grid, so listen on the window.
+      const release = () => {
+        held = -1;
+        window.removeEventListener('pointerup', release);
+        window.removeEventListener('pointercancel', release);
+      };
+      window.addEventListener('pointerup', release);
+      window.addEventListener('pointercancel', release);
+      return;
+    }
+    if (!target.closest('.grid__track')) return;
+    root.setPointerCapture(event.pointerId);
+    drag = { id: event.pointerId, x: event.clientX, scrollLeft: root.scrollLeft };
+  });
+  root.addEventListener('pointermove', (event) => {
+    if (drag?.id !== event.pointerId) return;
+    root.scrollLeft = drag.scrollLeft - (event.clientX - drag.x);
+  });
+  /** @param {PointerEvent} event */
+  const endDrag = (event) => {
+    if (drag?.id === event.pointerId) drag = null;
+  };
+  root.addEventListener('pointerup', endDrag);
+  root.addEventListener('pointercancel', endDrag);
+
+  root.addEventListener('keydown', (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'n' || event.key === 'N') {
+      if (event.shiftKey) return;
+      scrollToNow({ animate: true });
+      event.preventDefault();
+      return;
+    }
+    const step = keyStep(event);
+    const m = step === null ? null : measure();
+    if (step === null || !m) return;
+    root.scrollBy({ left: step * m.column, behavior: smoothBehavior() });
+    event.preventDefault();
+  });
 
   return {
     root,
     popover: details.root,
     tick(date) {
-      current = date;
       for (const update of updates) update(date);
+      placeLine(date);
+      refresh();
     },
+    scrollToNow,
+    leftInstant() {
+      const m = measure();
+      if (!m) return null;
+      return new Date(grid.start.getTime() + (root.scrollLeft / m.column) * HOUR);
+    },
+    showInstant(instant) {
+      const m = measure();
+      if (!m) return;
+      root.scrollLeft = columnsAt(grid.start, instant) * m.column;
+      refresh();
+    },
+    refresh,
   };
 }

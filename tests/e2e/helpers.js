@@ -47,3 +47,30 @@ export async function chooseAppearance(page, option) {
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(dialog).toBeHidden();
 }
+
+/**
+ * Seed `tzoverlap.state` with `zones` before the first load only.
+ * @param {import('@playwright/test').Page} page
+ * @param {object[]} zones
+ */
+export async function seedZones(page, zones) {
+  await page.addInitScript((list) => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem(
+      'tzoverlap.state',
+      JSON.stringify({
+        version: 1,
+        zones: list,
+        settings: {
+          hourCycle: 'auto',
+          theme: 'system',
+          filter: 'all',
+          weekendsUnavailable: true,
+          defaultDuration: 60,
+        },
+        meta: { installHintDismissed: false, lastHomeTz: null },
+      }),
+    );
+  }, zones);
+}
