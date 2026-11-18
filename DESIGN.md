@@ -189,6 +189,8 @@ from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
 `--icon-size` 1.25rem · `--row-header-trigger-basis` 4.5rem (a user row
 header's trigger before it grows: room for "10:30 pm" at any text size; when
 the trigger and the drag handle don't fit on one line, the handle wraps) ·
+`--edit-handle-size` 3.25rem (52px: a user row's drag handle in Edit mode) ·
+`--edit-handle-icon-size` 1.5rem (24px: its grip icon) ·
 `--lift-scale` 1.02 (the dragged row's scale; `1` under reduced motion) ·
 `--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 157px (phone bottom toolbar before the safe-area
@@ -308,7 +310,8 @@ Icons: `gear` (Settings), `location` (a pin: the home row's symbol, wrapped as
 `share` (the iOS Share button: a tray with an up arrow, in the iOS install
 sheet) and `alert` (a warning triangle: the row header's clock-change badge,
 sized `--space-3`) and `grip` (three horizontal bars: a user row's drag
-handle). Add a name to the `IconName` union and its path data together.
+handle) and `remove` (a circle with a minus bar: a user row's Delete button in
+Edit mode, in `--color-danger`). Add a name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -634,6 +637,30 @@ or user rows cancel: the rows go back and nothing is saved. The click or
 rows jump into place and the lifted row keeps only its shadow (`--lift-scale`
 is `1`).
 
+Edit mode (`src/ui/app.js`, `src/ui/grid.js`): a ghost "Edit" button after the
+legend in the Timelines card header (named "Edit time zones"; "Done", named
+"Done editing time zones", while on) turns it on and off. It is `hidden` while
+there are no user rows. The mode is held in memory only, survives grid
+rebuilds (`data-editing` on the grid) and is off after a reload. In Edit mode
+every user row header shows a Delete button (`.grid__delete`, an icon-only
+ghost Button with the `remove` icon in `--color-danger`, named "Delete Tokyo",
+between the trigger and the handle; `display: none` otherwise) and an enlarged
+`--edit-handle-size` handle with an `--edit-handle-icon-size` grip, which drags
+and opens the details exactly as before. The header becomes two lines at every
+width: the visible trigger takes the first line, Delete and the handle follow
+at the inline start, `--space-1` apart. Header widths don't change; the grid
+is an inline-size container and the header's inline-end padding grows so its
+content never passes the grid's visible width (at 320px with 200% text the
+handle wraps under Delete). User rows grow taller while it is on (about 108px
+on a phone at default text); the home and Everyone rows don't change. Delete
+removes the row at once with the usual Undo toast, and focus moves to the
+Delete button of the row now in its place, else the previous row's. When no
+user row is left the mode ends and focus goes to Add city; Undo restores the
+row with the mode as it is (focus on the row's trigger). Esc does one thing:
+it cancels a drag, else closes an open sheet or popover, else clears the
+selection, else leaves Edit mode (focus on a Delete button then moves to the
+Edit button).
+
 Scrolling: touch and trackpad scrolling are native; the grid sets
 `overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never
 takes over page scroll or swipe-back. A vertical mouse wheel over the grid
@@ -767,7 +794,13 @@ anywhere, including behind sheets.
   "Reorder Tokyo" (the row's full name), the tab stop after the row's phone
   header button (or wide trigger); it opens the same details Popover, whose
   Move up / Move down are the keyboard alternative to dragging. A drag in
-  progress cancels on Esc. The focused slot's name starts with its visible
+  progress cancels on Esc. The Timelines card's Edit button is named "Edit
+  time zones", and "Done editing time zones" while Edit mode is on (the name
+  changes instead of `aria-pressed`; both start with the visible text). In
+  Edit mode each user row's Delete button is named "Delete Tokyo" and sits
+  before its handle in the tab order. Esc cancels a drag, else closes a sheet
+  or popover, else clears the selection, else leaves Edit mode; Shift, Ctrl,
+  Meta or Alt with Esc leave the mode alone. The focused slot's name starts with its visible
   label, then the date, home time and name, the overall rating and each zone's
   time and rating for a `defaultDuration` meeting there ("9a, Wednesday 18
   November, 9:00 am Sydney. Best for everyone. London 10:00 pm Tuesday,
@@ -786,7 +819,10 @@ anywhere, including behind sheets.
   `role="status"` region at the top of `<main>`, also mounted empty, so
   "Update available" is announced when it appears. The DST banner is a third
   polite `role="status"` region after it; it is re-shown only when its text
-  changes, so the minute tick never re-announces it.
+  changes, so the minute tick never re-announces it. Entering Edit mode
+  announces "Editing time zones. Each row has a Delete button and a reorder
+  handle." and leaving it (Done, Esc or the automatic end) "Finished editing
+  time zones." in the polite announcer.
 - **Dialogs.** A sheet traps Tab and Shift+Tab inside itself, Esc closes it,
   and focus returns to the control that opened it.
 - **Motion.** Respect `prefers-reduced-motion` (tokens collapse durations).
