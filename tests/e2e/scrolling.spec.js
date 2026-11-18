@@ -283,6 +283,11 @@ test.describe('rebuilds keep the scroll position', () => {
     await page.goto('/');
     await scrollTo(page, 300);
     const before = await visibleLeftInstant(page);
+    // Let this tab's debounced launch save (lastHomeTz) land first, or it
+    // would overwrite the other tab's zone.
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('tzoverlap.state')))
+      .not.toBeNull();
 
     const other = await context.newPage();
     await other.clock.setFixedTime(NOW);
