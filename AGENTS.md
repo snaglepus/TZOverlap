@@ -90,6 +90,7 @@ src/                    the app (served as-is in dev; bundled for prod)
   theme-init.js         sets data-theme before first paint (classic script)
   lib/                  pure logic, no DOM: unit-test it
     timezones.js        Intl-based tz primitives (validation, offsets, formatting)
+    zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
     hours.js            hour → score (0–4) → band; combining scores across zones
     timeline.js         aligned timelines, local-day start, overlap row
     store.js            zone list state + persistence via injected Storage
