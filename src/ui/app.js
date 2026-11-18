@@ -1,4 +1,4 @@
-// The main page: app shell, add-zone card, timelines card. Built only from the
+// The main page: app shell, timelines card with the Add city button. Built only from the
 // shared components in ./components.js and the tokens in src/styles/.
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
@@ -6,8 +6,8 @@ import { buildGrid } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
-import { ianaZoneFromInput } from '../lib/zones.js';
-import { appShell, button, card, emptyState, errorState, field } from './components.js';
+import { addCitySheet } from './add-city.js';
+import { appShell, button, card, emptyState, errorState } from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
 import { settingsSheet } from './settings.js';
@@ -23,14 +23,6 @@ import { strings } from './strings.js';
 
 const MINUTE_MS = 60000;
 
-/** @type {Record<'empty' | 'invalid' | 'duplicate' | 'limit', (input: string) => string>} */
-const ADD_ERRORS = {
-  empty: () => strings.errors.empty,
-  invalid: (input) => strings.errors.invalid(input.trim()),
-  duplicate: () => strings.errors.duplicate,
-  limit: () => strings.errors.limit(MAX_EXTRA_ZONES + 1),
-};
-
 /**
  * @param {HTMLElement} root
  * @param {{
@@ -38,12 +30,11 @@ const ADD_ERRORS = {
  *   theme: ThemeController,
  *   deviceZone?: () => string,
  *   now?: () => Date,
- *   suggestions?: readonly string[],
  * }} deps
  */
 export function mountApp(
   root,
-  { store, theme, deviceZone = getLocalTimeZone, now = () => new Date(), suggestions = [] },
+  { store, theme, deviceZone = getLocalTimeZone, now = () => new Date() },
 ) {
   const home = createHomeTracker({ store, deviceZone });
   const announcer = h('p', {
@@ -77,34 +68,15 @@ export function mountApp(
   });
   const settings = settingsSheet({ store, theme, toaster: shell.toaster });
 
-  // --- Add-zone card ---------------------------------------------------------
-  const zoneField = field({
-    label: strings.addZone.label,
-    name: 'zone',
-    placeholder: strings.addZone.placeholder,
-    suggestions,
+  const addCity = addCitySheet({
+    store,
+    homeZone: home.current,
+    now,
+    announcer,
+    focusTarget: () =>
+      timelinesCard.body.querySelector('.add-city-button') ??
+      timelinesCard.body.querySelector('[role="grid"]'),
   });
-  const form = h('form', { class: 'add-zone', attrs: { novalidate: true } }, [
-    zoneField.root,
-    h('div', { class: 'add-zone__submit' }, [
-      button({ label: strings.addZone.submit, variant: 'primary', type: 'submit' }),
-    ]),
-  ]);
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const value = zoneField.input.value;
-    const parsed = ianaZoneFromInput(value, home.current());
-    const result = parsed.ok ? store.add(parsed.zone) : parsed;
-    if (!result.ok) {
-      zoneField.setError(ADD_ERRORS[result.error](value));
-      zoneField.input.focus();
-      return;
-    }
-    zoneField.setError(null);
-    zoneField.input.value = '';
-    announcer.textContent = strings.addZone.added(result.zone.label);
-  });
-  const addCard = card({ title: strings.addZone.cardTitle, children: [form] });
 
   // --- Timelines card --------------------------------------------------------
   const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
@@ -115,6 +87,8 @@ export function mountApp(
   let view = null;
   /** Every render builds the same window, so a saved scroll instant stays inside it. */
   const anchor = now();
+  /** @type {HTMLButtonElement | null} */
+  let addButton = null;
 
   function render() {
     const { zones, settings } = store.getState();
@@ -126,8 +100,6 @@ export function mountApp(
     ]);
     if (key === renderedKey) return;
     renderedKey = key;
-    const remaining = MAX_EXTRA_ZONES - zones.length;
-    zoneField.setHelp(remaining > 0 ? strings.addZone.help(remaining) : strings.addZone.full);
 
     // A stored copy of the home zone stays hidden; its label names the home row.
     const isHome = (/** @type {StoredZone} */ z) => z.kind === 'iana' && z.tz === homeZone;
@@ -152,18 +124,27 @@ export function mountApp(
       },
     });
     const body = [view.root, view.popover];
-    if (zones.length === 0) {
-      body.push(
-        emptyState({
-          title: strings.empty.title,
-          body: strings.empty.body(MAX_EXTRA_ZONES),
-          action: button({
-            label: strings.empty.action,
-            variant: 'secondary',
-            onClick: () => zoneField.input.focus(),
+    addButton = null;
+    if (zones.length >= MAX_EXTRA_ZONES) {
+      body.push(h('p', { class: 'add-city-limit', text: strings.addCity.limit(MAX_EXTRA_ZONES) }));
+    } else {
+      addButton = button({
+        label: strings.addCity.button,
+        variant: shown.length === 0 ? 'primary' : 'secondary',
+        onClick: () => addCity.open(),
+      });
+      addButton.classList.add('add-city-button');
+      if (shown.length === 0) {
+        body.push(
+          emptyState({
+            title: strings.addCity.promptTitle,
+            body: strings.addCity.promptBody(MAX_EXTRA_ZONES),
+            action: addButton,
           }),
-        }),
-      );
+        );
+      } else {
+        body.push(h('div', { class: 'add-city-row' }, [addButton]));
+      }
     }
     timelinesCard.body.replaceChildren(...body);
     if (left) view.showInstant(left);
@@ -195,16 +176,33 @@ export function mountApp(
   /** @param {StoredZone} zone */
   function remove(zone) {
     store.remove(zone.id);
-    announcer.textContent = strings.addZone.removed(zone.label);
-    zoneField.input.focus();
+    announcer.textContent = strings.addCity.removed(zone.label);
+    addButton?.focus();
+  }
+
+  /** The A key opens Add city, outside text fields and other dialogs. @param {KeyboardEvent} event */
+  function onKeydown(event) {
+    if (event.key !== 'a' && event.key !== 'A') return;
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+    ) {
+      return;
+    }
+    if (document.querySelector('dialog[open]') || !addButton?.isConnected) return;
+    event.preventDefault();
+    addCity.open();
   }
 
   const launch = home.check();
   store.subscribe(render);
   render();
   scheduleTick();
-  shell.main.append(addCard.root, timelinesCard.root);
-  root.replaceChildren(shell.root, settings.root);
+  document.addEventListener('keydown', onKeydown);
+  shell.main.append(timelinesCard.root);
+  root.replaceChildren(shell.root, settings.root, addCity.root);
   // TS narrows `view` to null here; render() above has set it.
   /** @type {GridView | null} */ (view)?.scrollToNow();
   window.addEventListener('resize', () => view?.refresh());

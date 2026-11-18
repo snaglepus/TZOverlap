@@ -1,25 +1,93 @@
-/* Page-specific layout: add-zone form, legend, timeline grid. Tokens only. */
+/* Page-specific layout: Add city, Settings, legend, timeline grid. Tokens only. */
 
-.add-zone {
+/* ---------- Add city ---------- */
+.add-city-row {
+  margin-block-start: var(--space-4);
+}
+
+.add-city-limit {
+  margin-block-start: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.add-city {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
 
-.add-zone .field {
-  flex: 1;
+.add-city__note:empty {
+  display: none;
 }
 
-@media (min-width: 40rem) {
-  .add-zone {
-    flex-direction: row;
-    align-items: flex-start;
-  }
+.add-city__loading,
+.add-city__empty {
+  color: var(--color-text-muted);
+}
 
-  /* Align the button with the input, below the label. */
-  .add-zone__submit {
-    margin-block-start: calc(var(--font-size-md) * var(--line-height-base) + var(--space-1));
-  }
+.add-city__region {
+  margin-block: var(--space-3) var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.add-city__list {
+  margin: var(--space-0);
+  padding: var(--space-0);
+  list-style: none;
+}
+
+.add-city__result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.add-city__result:hover {
+  background: var(--color-surface-sunken);
+}
+
+.add-city__name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: var(--space-0);
+}
+
+.add-city__primary {
+  font-weight: var(--font-weight-medium);
+}
+
+.add-city__secondary {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.add-city__added {
+  padding-inline: var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+}
+
+.add-city__time,
+.add-city__offset {
+  font-size: var(--font-size-sm);
+}
+
+.add-city__offset {
+  color: var(--color-text-muted);
 }
 
 /* ---------- Settings sheet ---------- */
