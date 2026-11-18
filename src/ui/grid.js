@@ -441,7 +441,8 @@ export function timelineGrid({
     // Phone: a button with the name and the time, opening the details popover.
     // Its name comes from its content, so the badge's long wording is hidden text.
     const buttonTime = h('span', { class: 'grid__time' });
-    // While a slot is selected, the time shows the selected time instead.
+    // While a slot is selected, the time shows the selected time instead,
+    // after this prefix; in the DOM only while selected, like the badges.
     const selectedPrefix = h('span', {
       class: 'visually-hidden',
       text: strings.selection.headerPrefix,
@@ -460,7 +461,6 @@ export function timelineGrid({
     ]);
     const warningLong = h('span', { class: 'visually-hidden' });
     const clockLine = h('span', { class: 'grid__line grid__clock' }, [
-      selectedPrefix,
       buttonTime,
       badge,
       badgeLong,
@@ -509,7 +509,6 @@ export function timelineGrid({
         h('span', { class: 'grid__name' }, nameText()),
       ]),
       meta,
-      selectedLine,
     ]);
 
     const wideTrigger = stored
@@ -635,9 +634,9 @@ export function timelineGrid({
       buttonTime.textContent = chosen ?? hhmm;
       if (chosen) buttonTime.dataset.selected = 'true';
       else delete buttonTime.dataset.selected;
-      selectedPrefix.hidden = !chosen;
+      place(clockLine, [selectedPrefix], Boolean(chosen), buttonTime);
       selectedTime.textContent = chosen ?? '';
-      selectedLine.hidden = !chosen;
+      place(inline, [selectedLine], Boolean(chosen), null);
       time.textContent = hhmm;
       badge.textContent = diff?.short ?? '';
       badge.hidden = !diff || Boolean(chosen);
