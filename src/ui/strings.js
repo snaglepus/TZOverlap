@@ -37,6 +37,42 @@ export const strings = /** @satisfies {Strings} */ ({
     resetConfirmAction: 'Reset everything',
     cancel: 'Cancel',
   },
+  install: {
+    heading: 'Install',
+    title: 'Install TZ Overlap',
+    hintBody: 'Add it to your device to open it like any other app.',
+    installApp: 'Install app',
+    notNow: 'Not now',
+    ios: {
+      heading: 'iPhone or iPad',
+      // In order. `launch` is PRD 9.3 step 5 shortened until the service worker
+      // (T16) ships; see AGENTS.md.
+      steps: {
+        open: 'Open the app’s address in Safari.',
+        share: 'Tap the Share button (square with an up arrow).',
+        add: 'Scroll down and tap Add to Home Screen (you may need to tap “View More” first).',
+        confirm: 'Check that “Open as Web App” is on if shown, then tap Add.',
+        launch: 'Open it from the home screen. It runs full screen.',
+      },
+    },
+    android: {
+      heading: 'Android (Chrome)',
+      steps: {
+        open: 'Open the app’s address in Chrome.',
+        install:
+          'Tap Install app in the app’s Settings, or the browser’s ⋮ menu → Add to Home screen / Install app.',
+        confirm: 'Confirm with Install.',
+      },
+    },
+    desktop: {
+      heading: 'Mac, Windows or Linux desktop',
+      steps: {
+        chromium:
+          'Chrome or Edge: click the install icon in the address bar (or menu → Install TZ Overlap).',
+        safari: 'Safari on Mac: File → Add to Dock.',
+      },
+    },
+  },
   toasts: {
     dataReset: 'Your saved data could not be read and was reset',
     resetDone: 'All data was reset.',

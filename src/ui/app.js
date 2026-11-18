@@ -10,6 +10,7 @@ import { addCitySheet } from './add-city.js';
 import { appShell, button, card, emptyState, errorState } from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
+import { installController } from './install.js';
 import { settingsSheet } from './settings.js';
 import { strings } from './strings.js';
 
@@ -19,6 +20,7 @@ import { strings } from './strings.js';
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../lib/suitability.js').Rating} Rating
  * @typedef {import('./grid.js').GridView} GridView
+ * @typedef {import('../lib/install.js').InstallKind} InstallKind
  */
 
 const MINUTE_MS = 60000;
@@ -30,11 +32,12 @@ const MINUTE_MS = 60000;
  *   theme: ThemeController,
  *   deviceZone?: () => string,
  *   now?: () => Date,
+ *   installKind?: InstallKind,
  * }} deps
  */
 export function mountApp(
   root,
-  { store, theme, deviceZone = getLocalTimeZone, now = () => new Date() },
+  { store, theme, deviceZone = getLocalTimeZone, now = () => new Date(), installKind = 'other' },
 ) {
   const home = createHomeTracker({ store, deviceZone });
   const announcer = h('p', {
@@ -66,7 +69,8 @@ export function mountApp(
     actions: [nowButton, settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
-  const settings = settingsSheet({ store, theme, toaster: shell.toaster });
+  const install = installController({ store, kind: installKind, main: shell.main });
+  const settings = settingsSheet({ store, theme, toaster: shell.toaster, install });
 
   const addCity = addCitySheet({
     store,
@@ -202,7 +206,8 @@ export function mountApp(
   scheduleTick();
   document.addEventListener('keydown', onKeydown);
   shell.main.append(timelinesCard.root);
-  root.replaceChildren(shell.root, settings.root, addCity.root);
+  root.replaceChildren(shell.root, settings.root, addCity.root, ...install.roots);
+  install.start();
   // TS narrows `view` to null here; render() above has set it.
   /** @type {GridView | null} */ (view)?.scrollToNow();
   window.addEventListener('resize', () => view?.refresh());
