@@ -110,6 +110,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
     time-engine.js      offset transitions, zone gaps, per-zone hour cells, DST status
     grid.js             grid model: home yesterday–tomorrow window, positioned hour cells, Everyone segments
+    time-format.js      formatTime() compact/full in 12- or 24-hour; resolves `auto` from the locale
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
@@ -127,7 +128,7 @@ src/                    the app (served as-is in dev; bundled for prod)
     theme.js            light/dark controller
     app.js              the timelines page; re-checks the home zone on launch, focus, visibility and each minute
     grid.js             timeline grid DOM (role="grid"), header clocks
-    settings.js         the Settings sheet: Appearance and Reset all data
+    settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle) and Reset all data
     strings.js          all user-visible text (en-AU), short/long variants
   styles/
     tokens.css          ALL design tokens (the only place for raw values)

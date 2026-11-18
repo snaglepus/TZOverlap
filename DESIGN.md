@@ -149,7 +149,7 @@ durations become `0ms` (handled in `tokens.css`).
 ### 3.6 Layout sizes
 
 `--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
-`--slot-width` 3rem · `--slot-height` 3.5rem (56px, phone rows) ·
+`--slot-width` 48px · `--slot-height` 3.5rem (56px, phone rows) ·
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
 `--row-header-width-compact` 7rem (112px, phone) · `--row-header-width`
 11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
@@ -161,7 +161,10 @@ safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
-`--slot-width` is the width of one home-zone hour (a grid column).
+`--slot-width` is the width of one home-zone hour (a grid column). It is a
+fixed 48px, not rem, on purpose: columns don't widen with the text size, so
+more hours stay in view at large text, and labels that no longer fit trigger
+the alternate-label rule (§7).
 `--slot-height` is the minimum height of a grid row below `--bp-md` and
 `--slot-height-wide` from it. Row headers are `--row-header-width-compact`
 wide, `--row-header-width` from `--bp-md` and `--row-header-width-wide` from
@@ -194,6 +197,10 @@ are not tokens and are never declared in a stylesheet. The Popover sets
   default" follows the OS live, with no reload; "Light" and "Dark" are saved to
   `settings.theme` and hold under any OS setting. Reset all data returns to
   System default.
+- Settings → Time format, right after Appearance, is a second Radio group:
+  "Automatic" (follows the locale's hour cycle), "12-hour" and "24-hour",
+  saved to `settings.hourCycle`. It follows the title bar toggle, the T key,
+  Reset all data (back to Automatic) and other tabs.
 - `color-scheme` is set per theme so native controls and scrollbars match.
 
 ## 5. Typography rules
@@ -201,6 +208,12 @@ are not tokens and are never declared in a stylesheet. The Popover sets
 - System font stacks only (see §3.2). No `@font-face`.
 - One `<h1>` per page (the app name in the shell). Card titles are `<h2>`.
 - Clock times, offsets and hour numbers: `--font-mono` + tabular numerals.
+- Times go through `formatTime()` in `src/lib/time-format.js`, in the cycle
+  from `settings.hourCycle` (`auto` follows the locale). Compact style for
+  hour cells, hour only: `9a`, `12p` (12-hour) or `09` (24-hour). Full style
+  for row header times, the details popover and every accessible label:
+  `9:30 am`, `12:00 pm` (12-hour) or `09:30` (24-hour). The am/pm words come
+  from `strings.time`. Header times never wrap or truncate.
 - Max line length for prose: 65ch.
 - All user-visible text lives in `src/ui/strings.js` (en-AU), never inline.
 
@@ -220,7 +233,10 @@ Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
 (below) before the label; with `iconOnly: true` the label
 becomes the `aria-label`, no text shows, and `.btn--icon` makes the button at
 least `--control-height` (44px) square. Disabled buttons use the `disabled`
-attribute, not just a class.
+attribute, not just a class. `pressed` makes a toggle button
+(`aria-pressed`); while pressed it gets a `--color-border-strong` border and the
+`--color-surface-sunken` fill, so the state shows without relying on colour
+alone. Example: the title bar "24-hour" toggle.
 
 ### Icon — `icon()` · `.icon`
 
@@ -255,7 +271,10 @@ page's one toast region (returned as `toaster`). The toolbar
 DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
 bottom of the viewport on a surface with a top hairline, padded by the bottom,
 left and right safe-area insets, and the shell pads its bottom to match; from
-`--bp-md` it sits in the title bar at the end. The title bar pads its top by
+`--bp-md` it sits in the title bar at the end. On the timelines page the
+actions are the "24-hour" toggle (a ghost pressed-state Button, pressed while
+24-hour times show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`, where
+the toolbar is in the title bar) and the Settings gear. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
 renders inside exactly one shell.
@@ -314,7 +333,7 @@ A `<fieldset>` with a `<legend>` and one native radio per option, each inside
 its `<label>` row of at least `--control-height`, with `accent-color` from
 `--color-accent`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a choice of a few mutually exclusive settings, e.g.
-Appearance.
+Appearance and Time format.
 
 ### Empty state — `emptyState()` · `.empty-state`
 
@@ -360,6 +379,15 @@ cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
 (clocks going back) gets a second cell with a small "2" and a tooltip. The page
 itself never scrolls sideways.
+
+Hour cells show the compact time in a `.grid__label` element. After each build,
+12/24-hour switch and size change of the grid (a `ResizeObserver`, which also
+catches root font-size changes), the grid measures the widest label (with the
+repeat marker) plus `--space-1` on each side against one column. If it doesn't
+fit, the grid gets `data-labels="alternate"` and labels on odd hours get
+`visibility: hidden`: every second label shows. Text is never shrunk to fit.
+Hidden labels stay in the cell's `aria-label`. Switching the hour cycle
+rewrites every time in place, keeping the scroll position and focus.
 Chrome is solid: no translucent materials and no `backdrop-filter` or blur
 anywhere, including behind sheets.
 
@@ -375,6 +403,11 @@ anywhere, including behind sheets.
 - **Keyboard.** Everything is reachable and operable by keyboard in a logical
   order. The skip link is the first focusable element. Scrollable regions are
   focusable (`tabindex="0"`) and labelled. Forms submit with Enter.
+  Shortcut: T switches between 12-hour and 24-hour times, at every width, but
+  only while focus is in the timeline grid (the grid, a header button or a
+  remove button) and with no Ctrl, Alt, Meta or Shift. Scoping it to the
+  focused component meets SC 2.1.4 (Character Key Shortcuts) without a
+  setting to turn it off.
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
   `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
   The timeline is a labelled `role="grid"` with `role="row"`, `role="rowheader"`
