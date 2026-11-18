@@ -371,6 +371,36 @@
   }
 }
 
+/* ---------- Popover ---------- */
+/* Native popover in the top layer. JS sets --popover-left / --popover-top in px
+   (unitless, so multiplied by --hairline) to anchor it inside the viewport. */
+.popover {
+  position: fixed;
+  inset: auto;
+  left: calc(var(--popover-left, 0) * var(--hairline));
+  top: calc(var(--popover-top, 0) * var(--hairline));
+  max-width: min(var(--sheet-max-width), 100%);
+  margin: var(--space-0);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.popover__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.popover__title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
 /* ---------- Toast ---------- */
 /* Fixed, so it never shifts layout. Above the bottom toolbar on phones. */
 .toast-region {
