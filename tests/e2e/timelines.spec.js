@@ -2,7 +2,14 @@
 // card (empty state + timeline grid), theme switching and the error state.
 
 import { expect, test } from '@playwright/test';
-import { NOW, addZone, chooseAppearance, expectNoA11yViolations, openSettings } from './helpers.js';
+import {
+  NOW,
+  addZone,
+  chooseAppearance,
+  expectNoA11yViolations,
+  openSettings,
+  seedZones,
+} from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
@@ -143,6 +150,12 @@ for (const scheme of /** @type {const} */ (['light', 'dark'])) {
     await expect(page.getByRole('rowheader', { name: /Kolkata/ })).toContainText('UTC+5:30');
     await expect(row(page, 'Asia/Kolkata').locator('[data-rating="good"]').first()).toBeVisible();
     await addZone(page, 'Nope/Nope'); // field error visible
+    await expectNoA11yViolations(page);
+    // Scrolled away from now: the Now button is enabled.
+    await grid(page).evaluate((el) => {
+      el.scrollLeft = 0;
+    });
+    await expect(page.getByRole('button', { name: 'Go to now' })).toBeEnabled();
     await expectNoA11yViolations(page);
   });
 }
@@ -337,33 +350,6 @@ test('error state: browsers without time zone data get a clear failure message',
 
 /** Wednesday 18 Nov 2026, 12:00 in Sydney (AEDT). */
 const SYDNEY_NOON = new Date('2026-11-18T01:00:00Z');
-
-/**
- * Seed `tzoverlap.state` with `zones` before the first load only.
- * @param {import('@playwright/test').Page} page
- * @param {object[]} zones
- */
-async function seedZones(page, zones) {
-  await page.addInitScript((list) => {
-    if (sessionStorage.getItem('seeded')) return;
-    sessionStorage.setItem('seeded', '1');
-    localStorage.setItem(
-      'tzoverlap.state',
-      JSON.stringify({
-        version: 1,
-        zones: list,
-        settings: {
-          hourCycle: 'auto',
-          theme: 'system',
-          filter: 'all',
-          weekendsUnavailable: true,
-          defaultDuration: 60,
-        },
-        meta: { installHintDismissed: false, lastHomeTz: null },
-      }),
-    );
-  }, zones);
-}
 
 /**
  * Left edge and width of every matching element, in CSS px.
