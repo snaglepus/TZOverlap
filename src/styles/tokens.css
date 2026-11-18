@@ -33,6 +33,7 @@
   --color-heat-0: #e4e2ea;
   --color-heat-ink-0: #3a3842;
   --color-heat-hatch: #cbc8d3;
+  --color-backdrop: rgb(29 27 24 / 0.4);
 
   /* Shadow — light */
   --shadow-sm: 0 1px 2px rgb(29 27 24 / 0.06), 0 1px 1px rgb(29 27 24 / 0.04);
@@ -89,6 +90,8 @@
   --row-header-width: 12rem;
   --row-header-width-compact: 7.5rem;
   --icon-size: 1.25rem;
+  --sheet-max-width: 32rem;
+  --toolbar-height: 3.75rem;
   --min-viewport-height: 100dvh;
   --hatch-size: 6px;
   --hairline: 1px;
@@ -99,7 +102,7 @@
   --bp-lg: 64rem;
 }
 
-/* Dark theme: explicit choice. */
+/* Dark: explicit choice. */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --color-bg: #121316;
@@ -127,11 +130,12 @@
   --color-heat-0: #24232a;
   --color-heat-ink-0: #b9b6c4;
   --color-heat-hatch: #34323c;
+  --color-backdrop: rgb(0 0 0 / 0.6);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
 }
 
-/* Dark theme: no-JS fallback when the OS prefers dark and nothing is chosen. */
+/* Dark: no-JS fallback when the OS prefers dark and nothing is chosen. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
@@ -160,6 +164,7 @@
     --color-heat-0: #24232a;
     --color-heat-ink-0: #b9b6c4;
     --color-heat-hatch: #34323c;
+    --color-backdrop: rgb(0 0 0 / 0.6);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
   }

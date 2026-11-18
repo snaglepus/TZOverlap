@@ -57,6 +57,11 @@ a {
   outline-offset: var(--focus-ring-offset);
 }
 
+/* Components set display, so make the hidden attribute win. */
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute;
   width: var(--hairline);
