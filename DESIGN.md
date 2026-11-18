@@ -317,8 +317,10 @@ fit the second row at 320px. Use for the toolbar's date control (labelled
 
 ### Card — `card()` · `.card`
 
-Surface with `--radius-lg`, hairline border and `--shadow-sm`. Has an `<h2>`
-title and a body. Use to group one task or one view (e.g. "Add a time zone",
+Surface with `--radius-lg`, hairline border and `--shadow-sm`, padded
+`--space-4` below `--bp-md` and `--space-5` from it (on a 320px phone at 200%
+text the wider padding left too little room for a whole word in a wide font).
+Has an `<h2>` title and a body. Use to group one task or one view (e.g. "Add a time zone",
 "Timelines"). The one-time install hint ("Install TZ Overlap", with "Install
 app" and "Not now") is a card placed first in `<main>`: non-modal, no timeout.
 Do not nest cards.

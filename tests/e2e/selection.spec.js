@@ -484,23 +484,27 @@ test.describe('phone', () => {
       ? { [HOME]: '12:00 pm', 'Europe/London': '1:00 am', 'Asia/Kolkata': '6:30 am' }
       : { [HOME]: '12:00', 'Europe/London': '01:00', 'Asia/Kolkata': '06:30' };
 
-    for (const [width, fontSize] of /** @type {const} */ ([
-      [390, '100%'],
-      [390, '150%'],
-      [390, '200%'],
-      [320, '100%'],
-      [320, '150%'],
-      [320, '200%'],
+    // The last case forces a wide sans (Verdana on macOS, DejaVu Sans on Linux CI).
+    for (const [width, fontSize, font] of /** @type {const} */ ([
+      [390, '100%', ''],
+      [390, '150%', ''],
+      [390, '200%', ''],
+      [320, '100%', ''],
+      [320, '150%', ''],
+      [320, '200%', ''],
+      [320, '200%', 'Verdana, "DejaVu Sans", sans-serif'],
     ])) {
-      test.describe(`${locale} at ${width} px, root font ${fontSize}`, () => {
+      const fontName = font ? `, ${font.split(',')[0]}` : '';
+      test.describe(`${locale} at ${width} px, root font ${fontSize}${fontName}`, () => {
         test.use({ locale, viewport: { width, height: 844 } });
 
         test('the bar is two lines and the headers show the selected time', async ({ page }) => {
           await seed(page, SEEDED);
           await page.goto('/');
-          await page.evaluate((size) => {
+          await page.evaluate(([size, family]) => {
             document.documentElement.style.fontSize = size;
-          }, fontSize);
+            if (family) document.documentElement.style.setProperty('--font-sans', family);
+          }, /** @type {[string, string]} */ ([fontSize, font]));
           // Select 12:00 Sydney from the keyboard.
           await roving(page).focus();
           await page.keyboard.press('Enter');
