@@ -111,7 +111,9 @@ if (isMain) {
       host: config.host,
       root: config.serveDir,
     });
-    console.log(`TZ Overlap serving ${path.relative(process.cwd(), config.serveDir) || '.'} at ${url}`);
+    console.log(
+      `TZ Overlap serving ${path.relative(process.cwd(), config.serveDir) || '.'} at ${url}`,
+    );
     const shutdown = () => server.close(() => process.exit(0));
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);

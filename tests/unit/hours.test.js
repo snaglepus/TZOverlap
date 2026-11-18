@@ -8,10 +8,7 @@ describe('scoreHour', () => {
   });
 
   it('ramps down through the shoulder hours', () => {
-    assert.deepEqual(
-      [7, 8, 17, 18, 19, 20].map(scoreHour),
-      [2, 3, 3, 2, 1, 1],
-    );
+    assert.deepEqual([7, 8, 17, 18, 19, 20].map(scoreHour), [2, 3, 3, 2, 1, 1]);
   });
 
   it('treats night hours as unacceptable', () => {

@@ -19,7 +19,8 @@ test('LCP and CLS stay within budget on first load', async ({ page }) => {
         }).observe({ type: 'largest-contentful-paint', buffered: true });
         new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            const shift = /** @type {PerformanceEntry & { value: number, hadRecentInput: boolean }} */ (entry);
+            const shift =
+              /** @type {PerformanceEntry & { value: number, hadRecentInput: boolean }} */ (entry);
             if (!shift.hadRecentInput) cls += shift.value;
           }
         }).observe({ type: 'layout-shift', buffered: true });
@@ -29,7 +30,9 @@ test('LCP and CLS stay within budget on first load', async ({ page }) => {
   );
 
   const { lcp, cls } = /** @type {{ lcp: number, cls: number }} */ (vitals);
-  console.log(`LCP=${Math.round(lcp)}ms (budget ${budget.webVitals.lcpMs}) CLS=${cls.toFixed(3)} (budget ${budget.webVitals.cls})`);
+  console.log(
+    `LCP=${Math.round(lcp)}ms (budget ${budget.webVitals.lcpMs}) CLS=${cls.toFixed(3)} (budget ${budget.webVitals.cls})`,
+  );
   expect(lcp, 'LCP should have been recorded').toBeGreaterThan(0);
   expect(lcp).toBeLessThanOrEqual(budget.webVitals.lcpMs);
   expect(cls).toBeLessThanOrEqual(budget.webVitals.cls);

@@ -41,7 +41,10 @@ function dayDiff(a, b) {
 export function buildTimeline({ zones, start, hours = 24 }) {
   if (zones.length === 0) throw new Error('buildTimeline needs at least one zone');
   const origin = floorToHour(start);
-  const instants = Array.from({ length: hours }, (_, i) => new Date(origin.getTime() + i * HOUR_MS));
+  const instants = Array.from(
+    { length: hours },
+    (_, i) => new Date(origin.getTime() + i * HOUR_MS),
+  );
   const reference = /** @type {string} */ (zones[0]);
 
   const rows = zones.map((timeZone) => ({
