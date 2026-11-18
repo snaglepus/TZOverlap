@@ -60,7 +60,7 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-border-strong`                         | Input borders (≥3:1 against surface)            | `#7D776C`             | `#7C808C`             |
 | `--color-text`                                  | Body text                                       | `#1D1B18`             | `#ECEAE6`             |
 | `--color-text-muted`                            | Secondary text, help text, offsets              | `#5F5A52`             | `#A8A49C`             |
-| `--color-accent`                                | Primary button fill, links                      | `#2F45B5`             | `#9DB0FF`             |
+| `--color-accent`                                | Primary button fill, links, timeline now line   | `#2F45B5`             | `#9DB0FF`             |
 | `--color-accent-hover`                          | Primary button hover                            | `#23369A`             | `#B9C7FF`             |
 | `--color-on-accent`                             | Text on accent fill                             | `#FFFFFF`             | `#0E1440`             |
 | `--color-focus`                                 | Focus ring                                      | `#2F45B5`             | `#9DB0FF`             |
@@ -153,26 +153,30 @@ durations become `0ms` (handled in `tokens.css`).
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
 `--row-header-width-compact` 7rem (112px, phone) · `--row-header-width`
 11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
-from `--bp-lg`) · `--control-height-sm` 2rem ·
+from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
+`--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
 safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
+`--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
 `--slot-width` is the width of one home-zone hour (a grid column).
 `--slot-height` is the minimum height of a grid row below `--bp-md` and
-`--slot-height-wide` from it. Row headers are `--row-header-width-compact`
-wide, `--row-header-width` from `--bp-md` and `--row-header-width-wide` from
-`--bp-lg`. The
-grid sets three unitless runtime properties through
-`style.setProperty()` (CSSOM, allowed by the CSP): `--grid-hours` on the grid
-(track width = hours × `--slot-width`), and `--cell-left` / `--cell-width` on
-each cell and segment (in columns, multiplied by `--slot-width` in CSS). They
-are not tokens and are never declared in a stylesheet. The Popover sets
-`--popover-left` / `--popover-top` the same way, in px, multiplied by
-`--hairline` in CSS.
+`--slot-height-wide` from it. Row headers are `--grid-header-width` wide:
+`--row-header-width-compact`, `--row-header-width` from `--bp-md` and
+`--row-header-width-wide` from `--bp-lg` (switched in `tokens.css`, so the
+headers and the now line read the same value). The grid sets four unitless
+runtime properties through `style.setProperty()` (CSSOM, allowed by the CSP):
+`--grid-hours` on the grid (track width = hours × `--slot-width`), `--now-left`
+on the grid (hours from the window start to now; the now line sits at
+`--grid-header-width` + `--now-left` × `--slot-width`), and `--cell-left` /
+`--cell-width` on each cell and segment (in columns, multiplied by
+`--slot-width` in CSS). They are not tokens and are never declared in a
+stylesheet. The Popover sets `--popover-left` / `--popover-top` the same way,
+in px, multiplied by `--hairline` in CSS.
 
 ### 3.7 Other
 
@@ -251,7 +255,8 @@ Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
 toolbar, `<main id="main">` constrained to `--content-max-width` and opening
 with the page's one banner region (returned as `banner`), footer, and the
 page's one toast region (returned as `toaster`). The toolbar
-(`role="group"`, "Toolbar") holds the `actions`, comes right after the brand in
+(`role="group"`, "Toolbar") holds the `actions` (on the timelines page: a ghost
+**Now** button, named "Go to now", then Settings), comes right after the brand in
 DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
 bottom of the viewport on a surface with a top hairline, padded by the bottom,
 left and right safe-area insets, and the shell pads its bottom to match; from
@@ -360,6 +365,27 @@ cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
 (clocks going back) gets a second cell with a small "2" and a tooltip. The page
 itself never scrolls sideways.
+
+Scrolling: touch and trackpad scrolling are native; the grid sets
+`overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never
+takes over page scroll or swipe-back. A vertical mouse wheel over the grid
+scrolls it sideways (at either end the wheel falls through to the page; a
+horizontal or ctrl/pinch wheel is left to the browser). A mouse drag that
+starts on the hour cells or Everyone segments scrolls it; tracks are
+`user-select: none`, while header text stays selectable (and selecting it never
+scrolls the timeline) and the Remove buttons work as before. With focus in the
+grid, ←/→ scroll one column and Shift+←/→ six. The maths lives in
+`src/lib/scroll.js`.
+
+Now line: an `aria-hidden` `--now-line-width` line in `--color-accent`, the last
+child of the grid, crossing every row. It is painted above the cells and below
+the sticky headers, so it passes under the header column. The minute tick moves
+it by updating `--now-left` only; cells are never rebuilt. On load the grid
+scrolls so the line sits one third of the way across the visible track (the
+part right of the headers). The toolbar's Now button, and N with focus in the
+grid, bring it back; Now is disabled while the line is on screen. A rebuild
+(zone added or removed, weekend setting, another tab) keeps the window and the
+instant at the left of the visible track.
 Chrome is solid: no translucent materials and no `backdrop-filter` or blur
 anywhere, including behind sheets.
 
@@ -374,7 +400,12 @@ anywhere, including behind sheets.
   Never remove outlines without this replacement.
 - **Keyboard.** Everything is reachable and operable by keyboard in a logical
   order. The skip link is the first focusable element. Scrollable regions are
-  focusable (`tabindex="0"`) and labelled. Forms submit with Enter.
+  focusable (`tabindex="0"`) and labelled. Forms submit with Enter. In the
+  timeline grid, ←/→ scroll one hour, Shift+←/→ six hours and N goes to now;
+  these keys work only while focus is inside the grid (WCAG 2.1.4), and are
+  ignored with Alt, Ctrl or Meta held (N also with Shift), so Alt+← stays
+  browser Back. When the focused Now button disables itself, focus moves to the
+  grid.
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
   `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
   The timeline is a labelled `role="grid"` with `role="row"`, `role="rowheader"`
@@ -391,5 +422,7 @@ anywhere, including behind sheets.
 - **Dialogs.** A sheet traps Tab and Shift+Tab inside itself, Esc closes it,
   and focus returns to the control that opened it.
 - **Motion.** Respect `prefers-reduced-motion` (tokens collapse durations).
+  Now, N and the arrow keys scroll smoothly only without reduced motion;
+  wheel, drag, the first position and restores after a rebuild are instant.
 - **Automated check.** E2E tests run axe-core against the page in both themes
   and fail on any WCAG A/AA violation.
