@@ -55,6 +55,16 @@ function zoneLookup() {
 }
 
 /**
+ * The runtime's proper-cased ID if `text` (any casing) is in its zone list,
+ * else null: "antarctica/troll" -> "Antarctica/Troll".
+ * @param {string} text
+ * @returns {string | null}
+ */
+export function listedTimeZone(text) {
+  return zoneLookup().get(text.trim().toLowerCase()) ?? null;
+}
+
+/**
  * Proper casing for a zone the runtime accepts, preserving the name the user
  * chose: "europe/paris" -> "Europe/Paris", "Asia/Kolkata" stays "Asia/Kolkata"
  * (Chromium's resolvedOptions() would turn it into the legacy "Asia/Calcutta").

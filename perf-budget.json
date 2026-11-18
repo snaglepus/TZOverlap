@@ -1,10 +1,11 @@
 {
-  "$comment": "Performance budget. tests/perf/ fails if any limit is exceeded. Raise a limit only with a reason in the PR.",
+  "$comment": "Performance budget. tests/perf/ fails if any limit is exceeded. Raise a limit only with a reason in the PR. The lazily loaded city data (dist/data/cities.js) counts only against cityData, not js or total.",
   "gzipBytes": {
     "html": 4096,
     "js": 34816,
     "css": 12288,
-    "total": 51200
+    "total": 51200,
+    "cityData": 40960
   },
   "webVitals": {
     "lcpMs": 1500,

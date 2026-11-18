@@ -80,6 +80,8 @@ To fix formatting, run `npm run format`. This is the only script that writes
 files. `npm test` runs just the four test layers.
 
 Budgets live in `perf-budget.json`. If a PR has to raise one, say why in the PR.
+The lazily loaded city data (`dist/data/cities.js`) has its own `cityData`
+budget and is not counted in the `js` or `total` shell budgets.
 
 ## Where things live
 
@@ -91,6 +93,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         `node scripts/make-icons.js` after changing accent tokens
   main.js               boot: wires store, theme and UI; top-level error boundary
   theme-init.js         sets data-theme before first paint (classic script)
+  data/
+    cities.js           curated city and abbreviation data, lazy-loaded; never fetched or downloaded
   lib/                  pure logic, no DOM: unit-test it
     timezones.js        Intl-based tz primitives (validation, offsets, formatting)
     zones.js            zone model: iana/fixed zones, offsets, labels, equality, fixed-offset parser
@@ -101,6 +105,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
                         migration, debounced save via injected Storage, cross-tab sync
+    city-data.js        loadCityData(): cached dynamic import() of data/cities.js
+    search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
     components.js       shared components: button, field, card, appShell, emptyState, errorState
@@ -116,13 +122,15 @@ scripts/
   build.js              production build
   make-icons.js         generates src/icons/ from the accent tokens (run by hand)
   lint-tokens.js        design-token enforcement
+  check-cities.js       validates src/data/cities.js; run `node scripts/check-cities.js`
+                        after editing the data
 tests/
   unit/                 node:test, pure modules + contrast + token linter
   integration/          node:test, store↔storage↔timeline, config↔server over HTTP
   e2e/                  Playwright specs (*.spec.js)
   perf/                 budget.test.js (size) + vitals.spec.js (LCP/CLS)
 DESIGN.md               design system: the source of truth for UI
-perf-budget.json        performance budgets
+perf-budget.json        performance budgets (city data has its own cityData budget)
 playwright.config.js    e2e config;  playwright.perf.config.js: perf config
 .github/workflows/ci.yml  runs npm run check on every push and PR
 ```
