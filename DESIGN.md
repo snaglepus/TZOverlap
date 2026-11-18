@@ -257,8 +257,9 @@ title and a body. Use to group one task or one view (e.g. "Add a time zone",
 ### App shell — `appShell()` · `.shell`
 
 Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
-toolbar, `<main id="main">` constrained to `--content-max-width`, footer, and
-the page's one toast region (returned as `toaster`). The toolbar
+toolbar, `<main id="main">` constrained to `--content-max-width` and opening
+with the page's one banner region (returned as `banner`), footer, and the
+page's one toast region (returned as `toaster`). The toolbar
 (`role="group"`, "Toolbar") holds the `actions`, comes right after the brand in
 DOM order (on the timelines page: the Date field, a ghost "Today" button that is
 hidden while the date shown is today, and Settings), and is omitted when there are none. Below `--bp-md` it is fixed to the
@@ -304,6 +305,18 @@ optional ghost `sm` action. Shown in the shell's persistent
 centre from `--bp-md`, so it never shifts layout. It dismisses itself after 6s
 (pausing while hovered or focused). Use to confirm something that happened
 outside the user's view, e.g. "All data was reset."
+
+### Banner — `createBanner()` · `.banner`
+
+A persistent message with one action, e.g. "Update available" with "Reload"
+when a new version of the app is waiting. It lives in the page flow as the first
+child of `<main>`, above the cards, so it never covers controls and is never
+modal; while empty it takes no space. It is a `role="status"` polite live
+region, mounted empty by the shell. `show({ message, action })` renders the
+message and a secondary `sm` button; there is no timer and toasts never replace
+it, so it stays until the user acts. `hide()` empties it. Surface, strong
+hairline border, `--radius-md`, `--shadow-sm`. Use for something the user must
+act on eventually but not right now; for passing confirmations use a Toast.
 
 ### Radio group — `radioGroup()` · `.radio-group`
 
@@ -387,7 +400,9 @@ anywhere, including behind sheets.
 - **Announcements.** Field errors and zone additions/removals are announced
   through polite live regions; error states use `role="alert"`. Toasts are
   announced through the shell's polite `role="status"` region, which is mounted
-  empty and filled in a later task.
+  empty and filled in a later task. The banner is a second polite
+  `role="status"` region at the top of `<main>`, also mounted empty, so
+  "Update available" is announced when it appears.
 - **Dialogs.** A sheet traps Tab and Shift+Tab inside itself, Esc closes it,
   and focus returns to the control that opened it.
 - **Motion.** Respect `prefers-reduced-motion` (tokens collapse durations).

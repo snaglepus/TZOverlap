@@ -44,6 +44,11 @@ export default [
       ],
     },
   },
+  // The service worker also gets the worker globals; the rules above still apply.
+  {
+    files: ['src/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
   // Tooling, config and tests run in Node.
   {
     files: ['scripts/**/*.js', 'config/**/*.js', 'tests/**/*.js', '*.config.js'],

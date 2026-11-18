@@ -46,6 +46,10 @@ export const strings = /** @satisfies {Strings} */ ({
     /** @param {string} city */
     travelled: (city) => `You're now in ${city} time`,
   },
+  update: {
+    available: 'Update available',
+    reload: 'Reload',
+  },
   addZone: {
     cardTitle: 'Add a time zone',
     label: 'Time zone',
