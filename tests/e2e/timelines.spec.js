@@ -1,34 +1,12 @@
 // E2E: the main page — app shell, add-zone card (input + button), timelines
 // card (empty state + timeline table), theme switching and the error state.
 
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-
-// 14:30 in London (BST) on a Monday: deterministic "now" for every test.
-const NOW = new Date('2026-06-15T13:30:00Z');
+import { NOW, addZone, chooseAppearance, expectNoA11yViolations, openSettings } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
 });
-
-/**
- * @param {import('@playwright/test').Page} page
- * @param {string} zone
- */
-async function addZone(page, zone) {
-  await page.getByLabel('Time zone', { exact: true }).fill(zone);
-  await page.getByLabel('Time zone', { exact: true }).press('Enter');
-}
-
-/** @param {import('@playwright/test').Page} page */
-async function expectNoA11yViolations(page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze();
-  expect(
-    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`),
-  ).toEqual([]);
-}
 
 test('first visit: shows your zone, an empty state, and loads nothing third-party', async ({
   page,
@@ -106,18 +84,18 @@ test('user flow: add zones, see the overlap, fix a mistake, remove a zone', asyn
   await expect(page.locator('[data-component="empty-state"]')).toBeVisible();
 });
 
-test('theme: follows the OS, toggles, and remembers the choice', async ({ page }) => {
+test('theme: follows the OS, switches in Settings, and remembers the choice', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
   const html = page.locator('html');
-  const toggle = page.getByRole('button', { name: 'Dark theme' });
   await expect(html).toHaveAttribute('data-theme', 'dark');
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const dialog = await openSettings(page);
+  await expect(dialog.getByRole('radio', { name: 'System default' })).toBeChecked();
 
   const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  await toggle.click();
+  await dialog.getByRole('radio', { name: 'Light', exact: true }).check();
   await expect(html).toHaveAttribute('data-theme', 'light');
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Escape');
   // Background transitions over --duration-base; poll until it settles.
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
@@ -149,7 +127,7 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(skip).toBeInViewport();
 
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Dark theme' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
   await page.keyboard.press('Tab');
   const input = page.getByLabel('Time zone', { exact: true });
   await expect(input).toBeFocused();
@@ -237,13 +215,13 @@ test('storage: a theme change in either tab keeps the timeline scroll and focus'
   const before = await scrollLeft();
   expect(before).toBeGreaterThan(0);
 
-  await other.getByRole('button', { name: 'Dark theme' }).click();
+  await chooseAppearance(other, 'Dark');
   await expect(other.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await scrollLeft()).toBe(before);
   await expect(region).toBeFocused();
 
-  await page.getByRole('button', { name: 'Dark theme' }).click();
+  await chooseAppearance(page, 'Light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await scrollLeft()).toBe(before);
   await expect(other.locator('html')).toHaveAttribute('data-theme', 'light');

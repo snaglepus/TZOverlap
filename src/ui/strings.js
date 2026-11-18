@@ -14,7 +14,29 @@ export const strings = /** @satisfies {Strings} */ ({
     tagline: 'Find the hours that work in every time zone.',
     footer: 'Runs entirely in your browser. Nothing you enter leaves this device.',
     skipLink: 'Skip to content',
-    themeToggle: 'Dark theme',
+    settings: 'Settings',
+    toolbar: 'Toolbar',
+  },
+  sheet: {
+    close: 'Close',
+  },
+  settings: {
+    title: 'Settings',
+    appearance: 'Appearance',
+    themes: {
+      system: 'System default',
+      light: 'Light',
+      dark: 'Dark',
+    },
+    resetHelp: 'Remove your time zones and settings from this device.',
+    reset: 'Reset all data',
+    resetConfirm: 'This removes your time zones and settings from this device. It can’t be undone.',
+    resetConfirmAction: 'Reset everything',
+    cancel: 'Cancel',
+  },
+  toasts: {
+    dataReset: 'Your saved data could not be read and was reset',
+    resetDone: 'All data was reset.',
   },
   addZone: {
     cardTitle: 'Add a time zone',

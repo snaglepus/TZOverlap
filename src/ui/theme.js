@@ -2,7 +2,10 @@
 // settings.theme ('light' | 'dark') > OS preference ('system') > light.
 // Keep resolve() in sync with theme-init.js.
 
-/** @typedef {'light' | 'dark'} Theme */
+/**
+ * @typedef {'light' | 'dark'} Theme
+ * @typedef {'system' | Theme} ThemeSetting
+ */
 
 /**
  * @param {{
@@ -42,12 +45,9 @@ export function createTheme({ root, store, media }) {
   return {
     /** @returns {Theme} */
     get: () => /** @type {Theme} */ (root.dataset.theme),
-    /** @param {Theme} theme */
+    /** @param {ThemeSetting} theme */
     set(theme) {
       store.updateSettings({ theme });
-    },
-    toggle() {
-      this.set(this.get() === 'dark' ? 'light' : 'dark');
     },
     /** @param {(theme: Theme) => void} listener */
     subscribe(listener) {

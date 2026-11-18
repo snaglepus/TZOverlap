@@ -7,6 +7,7 @@ import { formatOffset, zoneCity } from '../lib/timezones.js';
 import { ianaZoneFromInput } from '../lib/zones.js';
 import { appShell, button, card, emptyState, errorState, field } from './components.js';
 import { h } from './dom.js';
+import { settingsSheet } from './settings.js';
 import { strings } from './strings.js';
 
 /**
@@ -26,20 +27,6 @@ const ADD_ERRORS = {
 };
 
 /**
- * @param {ThemeController} theme
- */
-function themeToggle(theme) {
-  const btn = button({
-    label: strings.app.themeToggle,
-    variant: 'ghost',
-    pressed: theme.get() === 'dark',
-    onClick: () => theme.toggle(),
-  });
-  theme.subscribe((t) => btn.setAttribute('aria-pressed', String(t === 'dark')));
-  return btn;
-}
-
-/**
  * @param {HTMLElement} root
  * @param {{
  *   store: Store,
@@ -57,12 +44,20 @@ export function mountApp(
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
   });
+  const settingsButton = button({
+    label: strings.app.settings,
+    icon: 'gear',
+    iconOnly: true,
+    variant: 'ghost',
+    onClick: () => settings.open(settingsButton),
+  });
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [themeToggle(theme)],
+    actions: [settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
+  const settings = settingsSheet({ store, theme, toaster: shell.toaster });
 
   // --- Add-zone card ---------------------------------------------------------
   const zoneField = field({
@@ -146,7 +141,11 @@ export function mountApp(
   store.subscribe(render);
   render();
   shell.main.append(addCard.root, timelinesCard.root);
-  root.replaceChildren(shell.root);
+  root.replaceChildren(shell.root, settings.root);
+  // A later task than the region's mount, so screen readers announce it.
+  if (store.wasReset()) {
+    setTimeout(() => shell.toaster.show({ message: strings.toasts.dataReset }), 0);
+  }
 }
 
 function legend() {

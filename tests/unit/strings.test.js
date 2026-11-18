@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { strings } from '../../src/ui/strings.js';
 
 const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
-const callers = ['ui/app.js', 'main.js', 'ui/components.js'];
+const callers = ['ui/app.js', 'main.js', 'ui/components.js', 'ui/settings.js'];
 
 /** @typedef {Record<string, unknown>} Tree */
 
