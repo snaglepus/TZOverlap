@@ -39,8 +39,12 @@
   list-style: none;
 }
 
+/* Fixed trailing columns, so times and offsets line up down the list. */
 .add-city__result {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(var(--space-0), 1fr) auto var(--space-7) calc(
+      var(--space-8) + var(--space-3)
+    );
   align-items: center;
   gap: var(--space-3);
   width: 100%;
@@ -60,7 +64,7 @@
 
 .add-city__name {
   display: flex;
-  flex: 1;
+  grid-column: 1;
   flex-direction: column;
   min-width: var(--space-0);
 }
@@ -75,6 +79,7 @@
 }
 
 .add-city__added {
+  grid-column: 2;
   padding-inline: var(--space-2);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-pill);
@@ -84,9 +89,15 @@
 .add-city__time,
 .add-city__offset {
   font-size: var(--font-size-sm);
+  text-align: end;
+}
+
+.add-city__time {
+  grid-column: 3;
 }
 
 .add-city__offset {
+  grid-column: 4;
   color: var(--color-text-muted);
 }
 

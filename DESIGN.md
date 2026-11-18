@@ -351,7 +351,8 @@ search field (Input) sits on top; with an empty query the popular cities are
 listed under one `<h3>` per region (alphabetical), by population rank. Each
 result is a full-width plain `<button>` at least `--control-height` tall: name
 over a muted secondary line (country or full abbreviation name), then local
-time and offset in `--font-mono` tabular numerals. A zone already on the board
+time and offset in fixed-width, end-aligned columns of `--font-mono` tabular
+numerals, so they line up down the list. A zone already on the board
 (stored or home) shows a pill "Added" marker that is part of its accessible
 name; choosing it changes nothing and a polite note says so. On desktop
 (`(hover: hover) and (pointer: fine)`) the search field gets focus on open;

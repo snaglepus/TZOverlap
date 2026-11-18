@@ -73,6 +73,12 @@ test('popular list: region headings and Tokyo with its time and offset', async (
   await expect(tokyo).toContainText(/\d{2}:\d{2}/);
   await expect(tokyo).toContainText('22:30');
   await expect(tokyo).toContainText('UTC+9');
+
+  // Times line up down the list, whatever the offset's width.
+  const edges = await sheet(page)
+    .locator('.add-city__time')
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().right)));
+  expect(new Set(edges).size).toBe(1);
 });
 
 test('search: nyc finds New York, adds it, and it survives a reload', async ({ page }) => {
