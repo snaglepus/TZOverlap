@@ -73,6 +73,7 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-heat-1` / `--color-heat-ink-1` | Far shoulder (19–20)                            | `#EFA98A` / `#4A1606` | `#6E2E1C` / `#FFD9CB` |
 | `--color-heat-0` / `--color-heat-ink-0` | Unacceptable (21–06)                            | `#E4E2EA` / `#3A3842` | `#24232A` / `#B9B6C4` |
 | `--color-heat-hatch`                    | Diagonal hatch over unacceptable slots          | `#CBC8D3`             | `#34323C`             |
+| `--color-backdrop`                      | Translucent ink behind an open sheet            | `rgb(29 27 24 / 0.4)` | `rgb(0 0 0 / 0.6)`    |
 
 **Heat scale.** Scores come from `src/lib/hours.js` (4 = ideal … 0 =
 unacceptable). Legend bands: _ideal_ = 4, _acceptable_ = 1–3 (the shoulder heat
@@ -108,16 +109,16 @@ gutters use 4 on small screens and 6 above `--bp-md`.
 
 ### 3.4 Radius, borders, shadow
 
-| Token                                        | Value         | Use                          |
-| -------------------------------------------- | ------------- | ---------------------------- |
-| `--radius-sm`                                | `0.25rem`     | Timeline slots, badges       |
-| `--radius-md`                                | `0.5rem`      | Buttons, inputs              |
-| `--radius-lg`                                | `0.75rem`     | Cards, empty/error states    |
-| `--radius-pill`                              | `999px`       | Legend swatches              |
-| `--border-width`                             | `1px`         | All borders                  |
-| `--focus-ring-width` / `--focus-ring-offset` | `3px` / `2px` | Focus outline                |
-| `--shadow-sm`                                | themed        | Cards                        |
-| `--shadow-md`                                | themed        | Reserved for future popovers |
+| Token                                        | Value         | Use                       |
+| -------------------------------------------- | ------------- | ------------------------- |
+| `--radius-sm`                                | `0.25rem`     | Timeline slots, badges    |
+| `--radius-md`                                | `0.5rem`      | Buttons, inputs           |
+| `--radius-lg`                                | `0.75rem`     | Cards, empty/error states |
+| `--radius-pill`                              | `999px`       | Legend swatches           |
+| `--border-width`                             | `1px`         | All borders               |
+| `--focus-ring-width` / `--focus-ring-offset` | `3px` / `2px` | Focus outline             |
+| `--shadow-sm`                                | themed        | Cards                     |
+| `--shadow-md`                                | themed        | Sheets and toasts         |
 
 ### 3.5 Motion
 
@@ -131,7 +132,9 @@ durations become `0ms` (handled in `tokens.css`).
 `--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
 `--slot-width` 3rem · `--slot-height` 2.75rem · `--row-header-width` 12rem ·
 `--row-header-width-compact` 7.5rem · `--control-height-sm` 2rem ·
-`--icon-size` 1.25rem · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+`--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
+toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
+safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility).
 
 ### 3.7 Other
@@ -150,9 +153,10 @@ durations become `0ms` (handled in `tokens.css`).
   `<html data-theme="light|dark">` before first paint so there is no flash.
   `tokens.css` also applies dark tokens via `prefers-color-scheme` when no
   `data-theme` is set (no-JS fallback).
-- The theme toggle is a ghost button in the app shell header with
-  `aria-pressed` reflecting "dark theme on". Choosing a theme saves it; without a
-  saved choice the app follows OS changes live.
+- Users choose in Settings → Appearance (gear button in the toolbar): "System
+  default" follows the OS live, with no reload; "Light" and "Dark" are saved to
+  `settings.theme` and hold under any OS setting. Reset all data returns to
+  System default.
 - `color-scheme` is set per theme so native controls and scrollbars match.
 
 ## 5. Typography rules
@@ -173,10 +177,20 @@ ad hoc in `app.css`. Do not add a component without adding it here.
 
 Variants: `primary` (accent fill: the one main action in a view, e.g. "Add
 zone"), `secondary` (bordered surface: other actions such as "Try again"),
-`ghost` (no border: toolbar and in-row actions, e.g. theme toggle, remove zone).
+`ghost` (no border: toolbar and in-row actions, e.g. Settings, remove zone).
 Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
-(WCAG 2.5.8). Always a real `<button>` with a text label; icon-only buttons need
-`aria-label`. Disabled buttons use the `disabled` attribute, not just a class.
+(WCAG 2.5.8). Always a real `<button>` with a text label. `icon` adds an Icon
+(below) before the label; with `iconOnly: true` the label
+becomes the `aria-label`, no text shows, and `.btn--icon` makes the button at
+least `--control-height` (44px) square. Disabled buttons use the `disabled`
+attribute, not just a class.
+
+### Icon — `icon()` · `.icon`
+
+Inline SVG built with `createElementNS`, `fill="currentColor"`, sized by
+`--icon-size`. Always decorative (`aria-hidden="true"`, `focusable="false"`):
+the button that holds it carries the name. Only `gear` exists; add a name to
+the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -193,9 +207,46 @@ title and a body. Use to group one task or one view (e.g. "Add a time zone",
 
 ### App shell — `appShell()` · `.shell`
 
-Page frame: skip link, header (app name as `<h1>`, tagline, actions slot for the
-theme toggle), `<main id="main">` constrained to `--content-max-width`, footer.
-Every page renders inside exactly one shell.
+Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
+toolbar, `<main id="main">` constrained to `--content-max-width`, footer, and
+the page's one toast region (returned as `toaster`). The toolbar
+(`role="group"`, "Toolbar") holds the `actions`, comes right after the brand in
+DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
+bottom of the viewport on a surface with a top hairline, padded by the bottom,
+left and right safe-area insets, and the shell pads its bottom to match; from
+`--bp-md` it sits in the title bar at the end. The title bar pads its top by
+`env(safe-area-inset-top)` and all gutters add the left and right insets
+(`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
+renders inside exactly one shell.
+
+### Sheet — `sheet()` · `.sheet`
+
+A native modal `<dialog>` (`showModal()`) labelled by its `<h2>` title, with a
+ghost "Close" button in its header and a scrolling body. Below `--bp-md` it is a
+full-width bottom sheet with rounded top corners and a safe-area bottom pad;
+from `--bp-md` a centred modal up to `--sheet-max-width`. Height is capped at
+every width. Solid `--color-surface`, hairline border, `--shadow-md`;
+`::backdrop` is `--color-backdrop`, never blurred. `open(opener)` focuses the
+first control; Esc, a backdrop click, Close and `close()` all close it and
+return focus to `opener`. Tab and Shift+Tab wrap inside it. Use for settings and
+other short tasks that leave the page in place.
+
+### Toast — `createToaster()` · `.toast`
+
+One short message at a time, at most two lines and never truncated, with an
+optional ghost `sm` action. Shown in the shell's persistent
+`role="status"` polite region, fixed above the phone toolbar or near the bottom
+centre from `--bp-md`, so it never shifts layout. It dismisses itself after 6s
+(pausing while hovered or focused). Use to confirm something that happened
+outside the user's view, e.g. "All data was reset."
+
+### Radio group — `radioGroup()` · `.radio-group`
+
+A `<fieldset>` with a `<legend>` and one native radio per option, each inside
+its `<label>` row of at least `--control-height`, with `accent-color` from
+`--color-accent`. `onChange` fires on user change; `setValue()` updates it
+silently. Use for a choice of a few mutually exclusive settings, e.g.
+Appearance.
 
 ### Empty state — `emptyState()` · `.empty-state`
 
@@ -216,14 +267,16 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                 |
-| --------- | --------- | ----------------------------------------------------------------------- |
-| base      | 0         | Single column, `--space-4` gutters, compact row headers                 |
-| `--bp-md` | `40rem`   | `--space-6` gutters, full row headers, add-zone field and button inline |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred                     |
+| Name      | Min width | Changes                                                                                                                      |
+| --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--space-4` gutters, compact row headers, toolbar fixed to the bottom, sheets are full-width bottom sheets    |
+| `--bp-md` | `40rem`   | `--space-6` gutters, full row headers, add-zone field and button inline, toolbar in the title bar, sheets are centred modals |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred                                                                          |
 
 The timeline scrolls horizontally inside its own focusable region; the zone
 row headers stay sticky on the left. The page itself never scrolls sideways.
+Chrome is solid: no translucent materials and no `backdrop-filter` or blur
+anywhere, including behind sheets.
 
 ## 8. Accessibility rules (WCAG 2.2 AA)
 
@@ -242,7 +295,11 @@ row headers stay sticky on the left. The page itself never scrolls sideways.
   row headers; ARIA only where HTML has no equivalent.
 - **Not colour alone.** See the heat scale rules in §3.1.
 - **Announcements.** Field errors and zone additions/removals are announced
-  through polite live regions; error states use `role="alert"`.
+  through polite live regions; error states use `role="alert"`. Toasts are
+  announced through the shell's polite `role="status"` region, which is mounted
+  empty and filled in a later task.
+- **Dialogs.** A sheet traps Tab and Shift+Tab inside itself, Esc closes it,
+  and focus returns to the control that opened it.
 - **Motion.** Respect `prefers-reduced-motion` (tokens collapse durations).
 - **Automated check.** E2E tests run axe-core against the page in both themes
   and fail on any WCAG A/AA violation.

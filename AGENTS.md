@@ -103,9 +103,11 @@ src/                    the app (served as-is in dev; bundled for prod)
                         migration, debounced save via injected Storage, cross-tab sync
   ui/
     dom.js              h() element builder (textContent only, never innerHTML)
-    components.js       shared components: button, field, card, appShell, emptyState, errorState
+    components.js       shared components: button, icon, field, card, appShell, emptyState,
+                        errorState, sheet, createToaster (toast), radioGroup
     theme.js            light/dark controller
     app.js              the timelines page
+    settings.js         the Settings sheet: Appearance and Reset all data
     strings.js          all user-visible text (en-AU), short/long variants
   styles/
     tokens.css          ALL design tokens (the only place for raw values)
