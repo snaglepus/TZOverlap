@@ -447,6 +447,33 @@
   }
 }
 
+/* ---------- Banner ---------- */
+/* In the page flow at the top of <main>; takes no space while empty. */
+.banner:empty {
+  display: none;
+}
+
+.banner__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.banner__message {
+  flex: 1 1 auto;
+  min-width: var(--space-0);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Radio group ---------- */
 .radio-group {
   display: flex;
