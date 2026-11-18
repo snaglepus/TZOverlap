@@ -192,7 +192,11 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(row(page, 'Asia/Tokyo')).toBeVisible();
   await expect(add).toBeFocused();
 
-  // The row's header trigger sits between the grid and Add city.
+  // The row's header trigger and its drag handle sit between the grid and Add city.
+  await page.keyboard.press('Shift+Tab');
+  await expect(
+    row(page, 'Asia/Tokyo').getByRole('button', { name: 'Reorder Tokyo' }),
+  ).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(row(page, 'Asia/Tokyo').locator('.grid__trigger:visible')).toBeFocused();
 });
@@ -728,7 +732,7 @@ test.describe('row headers', () => {
     await expect(symbol).toHaveAccessibleName('Your location');
     await expect(first.getByRole('button', { name: /Remove|Edit|Delete/ })).toHaveCount(0);
     await expect(first.locator('[draggable="true"]')).toHaveCount(0);
-    await expect(row(page, 'Asia/Tokyo').getByRole('button', { name: /Tokyo/ })).toBeVisible();
+    await expect(row(page, 'Asia/Tokyo').getByRole('button', { name: /^Tokyo/ })).toBeVisible();
   });
 
   test('wide header: time, short date, offset line and day difference', async ({ page }) => {
@@ -792,7 +796,7 @@ test.describe('row headers', () => {
     for (const box of await zoneHeaders(page).evaluateAll((els) =>
       els.map((el) => el.getBoundingClientRect().width),
     )) {
-      expect(Math.abs(box - 112)).toBeLessThanOrEqual(2);
+      expect(Math.abs(box - 144)).toBeLessThanOrEqual(2);
     }
 
     // Two one-line rows of text in each button; date and offset stay in the popover.
@@ -868,7 +872,7 @@ test.describe('row headers', () => {
   });
 
   for (const [width, height, headerWidth, rowHeight] of /** @type {const} */ ([
-    [390, 844, 112, 56],
+    [390, 844, 144, 56],
     [820, 1180, 180, 64],
     [1440, 900, 220, 64],
   ])) {

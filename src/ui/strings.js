@@ -157,6 +157,8 @@ export const strings = /** @satisfies {Strings} */ ({
     },
     /** @param {string} city @param {number} n @param {number} count */
     moved: (city, n, count) => `${city} moved to position ${n} of ${count}`,
+    /** The drag handle's name; it opens the row's details. @param {string} name */
+    reorder: (name) => `Reorder ${name}`,
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
     /**

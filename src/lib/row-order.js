@@ -1,6 +1,6 @@
-// Move up / Move down for user rows. Rows show the stored zones minus a stored
-// copy of the home zone, so moves skip that hidden copy; store.move() takes
-// indices into the full stored list.
+// Move up / Move down and drag to reorder for user rows. Rows show the stored
+// zones minus a stored copy of the home zone, so moves skip that hidden copy;
+// store.move() takes indices into the full stored list.
 
 /**
  * @typedef {import('./store.js').StoredZone} StoredZone
@@ -54,4 +54,61 @@ export function moveTarget(zones, homeTz, id, direction) {
  */
 export function canMove(zones, homeTz, id, direction) {
   return moveTarget(zones, homeTz, id, direction) !== null;
+}
+
+/**
+ * Where a dragged row lands: its new 0-based position among the user rows.
+ * `rects` are the rows' boxes in display order, measured before the drag;
+ * `from` is the dragged row and `y` its current vertical centre, in the same
+ * coordinates. Counts the other rows whose midpoint is above `y`, so the
+ * result stays within 0 and `rects.length - 1`.
+ * @param {readonly { top: number, bottom: number }[]} rects
+ * @param {number} from
+ * @param {number} y
+ */
+export function dropIndex(rects, from, y) {
+  let index = 0;
+  rects.forEach(({ top, bottom }, i) => {
+    if (i !== from && (top + bottom) / 2 < y) index++;
+  });
+  return index;
+}
+
+/**
+ * How many dragged-row heights row `index` moves while the row dragged from
+ * `from` hovers at `to`: up (-1) or down (+1) to make room, else 0.
+ * @param {number} from
+ * @param {number} to
+ * @param {number} index
+ */
+export function rowShift(from, to, index) {
+  if (from < index && index <= to) return -1;
+  if (to <= index && index < from) return 1;
+  return 0;
+}
+
+/**
+ * Where zone `id` goes when dropped at 0-based `position` among the shown
+ * rows: the `toIndex` for store.move(), and its 1-based position among the
+ * `count` shown rows (as moveTarget). Null when `id` is not a shown row, or
+ * for a drop in place or outside the rows.
+ * @param {readonly StoredZone[]} zones
+ * @param {string} homeTz
+ * @param {string} id
+ * @param {number} position
+ * @returns {Move | null}
+ */
+export function dropTarget(zones, homeTz, id, position) {
+  const shown = shownIndices(zones, homeTz);
+  const at = shown.findIndex((i) => zones[i]?.id === id);
+  if (at < 0 || position === at || position < 0 || position >= shown.length) return null;
+  const from = /** @type {number} */ (shown[at]);
+  // Indices in the list without the dragged zone, which store.move() inserts into.
+  const rest = shown.filter((i) => i !== from).map((i) => (i > from ? i - 1 : i));
+  // Right after the shown row before it, or before the first shown row.
+  const toIndex =
+    position === 0
+      ? /** @type {number} */ (rest[0])
+      : /** @type {number} */ (rest[position - 1]) + 1;
+  return { toIndex, position: position + 1, count: shown.length };
 }

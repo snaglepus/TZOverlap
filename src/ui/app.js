@@ -22,7 +22,7 @@ import {
 } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
 import { rowName, shortDate } from '../lib/row-header.js';
-import { canMove, moveTarget } from '../lib/row-order.js';
+import { canMove, dropTarget, moveTarget } from '../lib/row-order.js';
 import { createSelectionState } from '../lib/selection.js';
 import { describeSelection, selectionSummary } from '../lib/selection-details.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
@@ -448,6 +448,7 @@ export function mountApp(
         change: (zone) => addCity.change(zone),
         move,
         remove,
+        reorder,
       },
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
@@ -633,6 +634,17 @@ export function mountApp(
     store.move(zone.id, target.toIndex);
     focusRow(zone.id);
     announcer.textContent = strings.timelines.moved(zone.label, target.position, target.count);
+  }
+
+  /**
+   * Drop a dragged row at 0-based `position` among the shown rows; nothing
+   * when that is where it was.
+   * @param {StoredZone} zone
+   * @param {number} position
+   */
+  function reorder(zone, position) {
+    const target = dropTarget(store.getState().zones, home.current(), zone.id, position);
+    if (target) store.move(zone.id, target.toIndex);
   }
 
   /** Delete a row at once; the toast's Undo puts it back. @param {StoredZone} zone */

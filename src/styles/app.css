@@ -319,6 +319,68 @@
   display: none;
 }
 
+/* User rows: the trigger grows beside the drag handle; when both don't fit on
+   one line (large text), the handle wraps to its own line at the inline start. */
+.grid__row[data-id] > .grid__header {
+  flex-wrap: wrap;
+}
+
+.grid__row[data-id] .grid__trigger {
+  flex: 1 1 var(--row-header-trigger-basis);
+}
+
+.grid__handle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: var(--space-0);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.grid__handle:hover,
+.grid__handle[aria-expanded='true'] {
+  background: var(--color-surface);
+}
+
+/* Drag to reorder (src/ui/reorder.js). JS sets --reorder-y (px) on the lifted
+   row and on the rows it pushes aside, and --lift-origin (px) on the lifted
+   row: the centre of the grid's visible area, so the row scales in place. */
+.grid[data-reordering] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.grid[data-reordering] .grid__row[data-id] {
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.grid__row--shifted {
+  transform: translateY(calc(var(--reorder-y, 0) * var(--hairline)));
+}
+
+/* Above the other rows and their sticky headers. */
+.grid[data-reordering] .grid__row--lifted {
+  position: relative;
+  z-index: 3;
+  background: var(--color-surface-sunken);
+  box-shadow: var(--shadow-md);
+  transform: translateY(calc(var(--reorder-y, 0) * var(--hairline))) scale(var(--lift-scale));
+  transform-origin: calc(var(--lift-origin, 0) * var(--hairline)) center;
+  transition: none;
+}
+
+.grid__row--lifted .grid__handle {
+  cursor: grabbing;
+}
+
 /* From --bp-md: every detail inline; static on the home row. */
 .grid__details {
   display: none;

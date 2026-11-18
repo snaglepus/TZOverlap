@@ -1,6 +1,7 @@
 // Timeline scroll maths: where the now line sits, where to scroll to bring it
-// back, and how wheel and arrow-key input map to horizontal scrolling. Pure: the
-// caller measures the DOM and passes pixel sizes in.
+// back, how wheel and arrow-key input map to horizontal scrolling, and the
+// page auto-scroll while a row is dragged. Pure: the caller measures the DOM
+// and passes pixel sizes in.
 
 const HOUR = 3600000;
 
@@ -14,6 +15,21 @@ const SHIFT_STEP = 6;
 
 /** A mouse press that moves further than this many CSS px sideways is a drag, not a click. */
 export const CLICK_SLOP_PX = 4;
+
+/** A touch held this long on a row header picks the row up. */
+export const LONG_PRESS_MS = 400;
+
+/** A touch that moves further than this many CSS px first is not a long press. */
+export const LONG_PRESS_SLOP_PX = 8;
+
+/** The navigator.vibrate() duration when a touch picks a row up. */
+export const HAPTIC_MS = 10;
+
+/** While dragging a row, a pointer this close to the top or bottom edge scrolls the page. */
+export const EDGE_SCROLL_ZONE_PX = 48;
+
+/** The most the page scrolls in one animation frame while dragging a row. */
+export const EDGE_SCROLL_MAX_STEP_PX = 16;
 
 /**
  * Hours from `windowStart` to `instant`, fractional.
@@ -73,4 +89,25 @@ export function keyStep({ key, shiftKey }) {
   if (key === 'ArrowLeft') return -step;
   if (key === 'ArrowRight') return step;
   return null;
+}
+
+/**
+ * Vertical page-scroll step in px for one frame while a row is dragged with the
+ * pointer at `y`: negative inside EDGE_SCROLL_ZONE_PX of `top`, positive inside
+ * it of `bottom`, else 0. Grows with depth into the zone, up to
+ * EDGE_SCROLL_MAX_STEP_PX (also past the edge).
+ * @param {number} y
+ * @param {number} top
+ * @param {number} bottom
+ */
+export function edgeScrollStep(y, top, bottom) {
+  /** @param {number} depth px into the zone */
+  const step = (depth) =>
+    Math.min(
+      EDGE_SCROLL_MAX_STEP_PX,
+      Math.ceil((depth / EDGE_SCROLL_ZONE_PX) * EDGE_SCROLL_MAX_STEP_PX),
+    );
+  if (y < top + EDGE_SCROLL_ZONE_PX) return -step(top + EDGE_SCROLL_ZONE_PX - y);
+  if (y > bottom - EDGE_SCROLL_ZONE_PX) return step(y - (bottom - EDGE_SCROLL_ZONE_PX));
+  return 0;
 }
