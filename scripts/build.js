@@ -1,9 +1,9 @@
 // Production build: bundles and minifies JS/CSS from src/ into BUILD_OUT_DIR (default dist/).
-// Output paths mirror src/, so index.html is copied unchanged.
+// Output paths mirror src/; index.html, the manifest and icons are copied unchanged.
 // Usage: node scripts/build.js [--out dist]
 
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
@@ -13,6 +13,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Entry points relative to src/. Missing ones are skipped. */
 export const ENTRY_POINTS = ['main.js', 'theme-init.js', 'styles/main.css'];
+
+/** Files copied unchanged, relative to src/. Every file in src/icons/ is copied too. */
+export const STATIC_FILES = ['index.html', 'manifest.webmanifest'];
 
 /**
  * @param {{ srcDir?: string, outDir: string }} options
@@ -36,11 +39,14 @@ export async function build({ srcDir = path.join(ROOT, 'src'), outDir }) {
     logLevel: 'silent',
   });
 
-  await copyFile(path.join(srcDir, 'index.html'), path.join(outDir, 'index.html'));
+  const icons = (await readdir(path.join(srcDir, 'icons'))).map((f) => `icons/${f}`);
+  const copied = [...STATIC_FILES, ...icons];
+  await mkdir(path.join(outDir, 'icons'), { recursive: true });
+  for (const file of copied) await copyFile(path.join(srcDir, file), path.join(outDir, file));
   const written = Object.keys(result.metafile.outputs).map((p) =>
     path.relative(outDir, path.resolve(p)),
   );
-  return ['index.html', ...written].sort();
+  return [...copied, ...written].sort();
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
