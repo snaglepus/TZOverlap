@@ -1,0 +1,13 @@
+{
+  "$comment": "Performance budget. tests/perf/ fails if any limit is exceeded. Raise a limit only with a reason in the PR.",
+  "gzipBytes": {
+    "html": 2048,
+    "js": 16384,
+    "css": 8192,
+    "total": 24576
+  },
+  "webVitals": {
+    "lcpMs": 1500,
+    "cls": 0.05
+  }
+}

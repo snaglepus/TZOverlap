@@ -9,6 +9,17 @@
   },
   "scripts": {
     "dev": "node scripts/serve.js",
-    "start": "node scripts/serve.js"
+    "start": "node scripts/serve.js",
+    "test:unit": "node --test --test-reporter=spec \"tests/unit/**/*.test.js\"",
+    "test:integration": "node --test --test-reporter=spec \"tests/integration/**/*.test.js\"",
+    "test:e2e": "playwright test",
+    "test:perf": "node --test --test-reporter=spec \"tests/perf/**/*.test.js\" && playwright test -c playwright.perf.config.js",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:perf",
+    "setup:browsers": "playwright install --only-shell chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "esbuild": "0.28.2"
   }
 }
