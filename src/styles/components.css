@@ -7,9 +7,14 @@
   min-height: var(--min-viewport-height);
 }
 
-/* Room for the fixed bottom toolbar on phones, so the footer is never hidden. */
+/* Room for the fixed bottom toolbar on phones, so the footer is never hidden:
+   its measured height (--toolbar-room, px, set by appShell()) when large text
+   wraps it taller than --toolbar-height. */
 .shell--toolbar {
-  padding-block-end: calc(var(--toolbar-height) + env(safe-area-inset-bottom));
+  padding-block-end: max(
+    calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
+    calc(var(--toolbar-room, 0) * var(--hairline))
+  );
 }
 
 .shell__skip {

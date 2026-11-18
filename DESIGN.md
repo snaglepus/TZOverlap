@@ -380,7 +380,10 @@ insets, and the shell pads its bottom to match; from `--bp-md` it sits in the
 title bar at the end, with the filter on its own line under the other
 controls, right-aligned. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
-(`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
+(`viewport-fit=cover`). Below `--bp-md` the shell's bottom padding is the
+larger of `--toolbar-height` and the toolbar's measured height
+(`--toolbar-room`, set by `appShell()`), so at large text the end of the
+footer still scrolls clear of it. Toolbar controls are at least 44×44px. Every page
 renders inside exactly one shell.
 
 ### Sheet — `sheet()` · `.sheet`
@@ -408,7 +411,10 @@ there is no room) and keeps it inside the viewport and above the phone's fixed
 bottom toolbar, following page scroll and resize; it is never taller than the
 room above that toolbar (the viewport without one), and scrolls when its
 content is; positions go in as `--popover-left` / `--popover-top`, the room as
-`--popover-room`. Esc closes it and
+`--popover-room`. At 320×568 with 200% text the four-row phone toolbar leaves
+about 110px above it, so the popover shows one action and scrolls to the rest:
+a deliberate trade-off that keeps the toolbar uncovered, until the toolbar's
+large-text layout is reworked (TZO-26). Esc closes it and
 returns focus to the anchor; a click outside closes it. The anchor gets
 `aria-expanded`; give it `aria-controls` with the popover's id, and in its click
 handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One

@@ -679,6 +679,13 @@ export function appShell({ title, tagline, actions = [], footer = [] }) {
   ]);
   const toaster = createToaster();
   const hasToolbar = actions.length > 0;
+  const toolbar = hasToolbar
+    ? h(
+        'div',
+        { class: 'toolbar', attrs: { role: 'group', 'aria-label': strings.app.toolbar } },
+        actions,
+      )
+    : null;
   const root = h('div', { class: `shell${hasToolbar ? ' shell--toolbar' : ''}` }, [
     h('a', { class: 'shell__skip', text: strings.app.skipLink, attrs: { href: '#main' } }),
     h('header', { class: 'shell__header' }, [
@@ -686,17 +693,18 @@ export function appShell({ title, tagline, actions = [], footer = [] }) {
         h('h1', { class: 'shell__title', text: title }),
         tagline ? h('p', { class: 'shell__tagline', text: tagline }) : null,
       ]),
-      hasToolbar
-        ? h(
-            'div',
-            { class: 'toolbar', attrs: { role: 'group', 'aria-label': strings.app.toolbar } },
-            actions,
-          )
-        : null,
+      toolbar,
     ]),
     main,
     h('footer', { class: 'shell__footer' }, footer),
     toaster.root,
   ]);
+  // Large text can wrap the phone toolbar taller than --toolbar-height: the
+  // shell reserves its measured height, so the footer's end is never under it.
+  if (toolbar)
+    new ResizeObserver(() => {
+      const height = toolbar.getBoundingClientRect().height;
+      root.style.setProperty('--toolbar-room', String(Math.ceil(height)));
+    }).observe(toolbar);
   return { root, main, toaster, banner };
 }

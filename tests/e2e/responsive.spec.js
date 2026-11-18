@@ -110,6 +110,22 @@ const outside = (scope) =>
       .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
   });
 
+/**
+ * Scrolled to the end, how far the footer's bottom passes the fixed toolbar's
+ * top (px); the scroll position is restored.
+ * @param {Page} page
+ */
+const footerUnderToolbar = (page) =>
+  page.evaluate(() => {
+    const y = window.scrollY;
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const footer = /** @type {Element} */ (document.querySelector('.shell__footer'));
+    const toolbar = /** @type {Element} */ (document.querySelector('.toolbar'));
+    const over = footer.getBoundingClientRect().bottom - toolbar.getBoundingClientRect().top;
+    window.scrollTo(0, y);
+    return over;
+  });
+
 /** @param {Page} page */
 const pageOverflow = (page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -348,8 +364,10 @@ for (const viewport of VIEWPORTS) {
               );
             }
             expect(await headerOverlaps(page)).toEqual([]);
-            // The fixed phone toolbar: every part inside the viewport.
+            // The fixed phone toolbar: every part inside the viewport, and
+            // scrolled to the end the footer ends above it.
             expect(await outside(page.getByRole('group', { name: 'Toolbar' }))).toEqual([]);
+            expect(await footerUnderToolbar(page)).toBeLessThanOrEqual(1);
             await expectTwoLinesAtMost(page.locator('main > .banner .banner__message'));
             await expectTwoLinesAtMost(page.locator('.toast__message'));
           }
