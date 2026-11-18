@@ -1,0 +1,140 @@
+# AGENTS.md
+
+Guide for humans and coding agents working on TZ Overlap. Features land one PR
+at a time through an automated pipeline, so every PR must leave
+`npm run check` green.
+
+## What this is and who it's for
+
+TZ Overlap is a lightweight, client-side-only web app for people who schedule
+across time zones: distributed teams, people with friends and family abroad,
+and anyone booking a call with several regions. It shows the user's own time
+zone plus up to seven others as horizontal, scrollable timelines aligned on the
+same moment. A heat scale shows which hours are ideal, acceptable (the shoulder
+hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
+
+Planned next: select a slot to see the exact local time in every zone, share a
+proposal link, and export to a calendar.
+
+**Hard constraints**
+
+- Static files only. No back end, no API calls, no third-party requests at
+  runtime: no web fonts, CDNs, analytics or beacons. The CSP in
+  `src/index.html` and `scripts/serve.js` enforces `default-src 'self'`.
+  ESLint forbids `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and
+  `navigator.sendBeacon` in `src/`. E2E fails on any non-first-party request.
+- Vanilla HTML, CSS and JavaScript (ES modules). No runtime dependencies. npm
+  packages are dev tooling only.
+- Types come from JSDoc and are checked by `tsc`. There is no TypeScript source
+  and nothing is emitted.
+
+## Setup from a fresh checkout
+
+Requires Node.js 22 or newer (`.nvmrc` pins 22) and npm.
+
+```sh
+git clone https://github.com/snaglepus/TZOverlap.git
+cd TZOverlap
+nvm use              # optional, picks Node 22 from .nvmrc
+npm ci               # dev tooling only
+npm run setup:browsers   # headless Chromium for Playwright (one-off, ~100 MB)
+cp .env.example .env     # optional; defaults work without it
+npm run check            # everything should pass
+```
+
+On Linux CI images, use `npx playwright install --with-deps --only-shell chromium`
+to also get system libraries.
+
+## Running the app
+
+```sh
+npm run dev                    # serves src/ on PORT (default 5173)
+PORT=8080 npm run dev          # port from the environment
+npm run dev -- --port 8080     # port from a flag (wins over env and .env)
+npm run preview                # production build, served from dist/
+```
+
+Config is read by `config/env.js`. Precedence: CLI flag > environment variable
+
+> `.env` > default. Variables are documented in `.env.example`: `PORT`, `HOST`,
+> `SERVE_DIR`, `BUILD_OUT_DIR`. `PORT=0` picks a free port.
+
+## Checks
+
+Each command is headless and non-interactive, exits non-zero on failure, and
+never rewrites files.
+
+| Check                    | Command                    | What it does                                                                                    |
+| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------- |
+| Lint                     | `npm run lint`             | ESLint, then `scripts/lint-tokens.js` (no raw colours, sizes or durations outside `tokens.css`) |
+| Format                   | `npm run format:check`     | Prettier `--check`                                                                              |
+| Typecheck                | `npm run typecheck`        | `tsc` strict, JSDoc-checked JS, `--noEmit`                                                      |
+| Unit tests               | `npm run test:unit`        | `node --test tests/unit`                                                                        |
+| Integration tests        | `npm run test:integration` | `node --test tests/integration`: real module wiring, Storage double, local HTTP server          |
+| Production build         | `npm run build`            | esbuild bundle and minify into `dist/`                                                          |
+| End-to-end tests         | `npm run test:e2e`         | Playwright, headless Chromium, dev server on `E2E_PORT` (default 4173), axe-core WCAG AA        |
+| Performance              | `npm run test:perf`        | gzip size budget plus LCP/CLS budget on a production build served on `PERF_PORT` (default 4174) |
+| **Everything, in order** | **`npm run check`**        | lint → format → typecheck → unit → integration → build → e2e → perf                             |
+
+To fix formatting, run `npm run format`. This is the only script that writes
+files. `npm test` runs just the four test layers.
+
+Budgets live in `perf-budget.json`. If a PR has to raise one, say why in the PR.
+
+## Where things live
+
+```
+src/                    the app (served as-is in dev; bundled for prod)
+  index.html            entry page, CSP meta
+  main.js               boot: wires store, theme and UI; top-level error boundary
+  theme-init.js         sets data-theme before first paint (classic script)
+  lib/                  pure logic, no DOM: unit-test it
+    timezones.js        Intl-based tz primitives (validation, offsets, formatting)
+    hours.js            hour → score (0–4) → band; combining scores across zones
+    timeline.js         aligned timelines, local-day start, overlap row
+    store.js            zone list state + persistence via injected Storage
+  ui/
+    dom.js              h() element builder (textContent only, never innerHTML)
+    components.js       shared components: button, field, card, appShell, emptyState, errorState
+    theme.js            light/dark controller
+    app.js              the timelines page
+  styles/
+    tokens.css          ALL design tokens (the only place for raw values)
+    base.css, components.css, app.css, main.css
+config/env.js           env/flag/.env config loader
+scripts/
+  serve.js              zero-dependency static server (dev + preview)
+  build.js              production build
+  lint-tokens.js        design-token enforcement
+tests/
+  unit/                 node:test, pure modules + contrast + token linter
+  integration/          node:test, store↔storage↔timeline, config↔server over HTTP
+  e2e/                  Playwright specs (*.spec.js)
+  perf/                 budget.test.js (size) + vitals.spec.js (LCP/CLS)
+DESIGN.md               design system: the source of truth for UI
+perf-budget.json        performance budgets
+playwright.config.js    e2e config;  playwright.perf.config.js: perf config
+.github/workflows/ci.yml  runs npm run check on every push and PR
+```
+
+## Design and UI rules
+
+**Read DESIGN.md before any UI change. Use the tokens and shared components;
+don't add new ones without updating DESIGN.md.**
+
+- Tokens live in `src/styles/tokens.css`. `npm run lint` fails on hard-coded
+  colours, lengths or durations anywhere else in `src/`, on inline styles, and
+  on `@media` widths that aren't documented breakpoints.
+- New colour token pairs go into `tests/unit/contrast.test.js`.
+- Every UI change needs E2E coverage. The axe check must stay clean in both
+  themes.
+
+## Working conventions
+
+- Put logic in `src/lib/` (pure, unit-tested) and keep `src/ui/` thin.
+- Add tests at the right layer: unit for logic, integration for wiring between
+  modules, E2E for user-visible behaviour. No placeholder tests.
+- Make tests deterministic. E2E fixes the clock (`page.clock.setFixedTime`),
+  the time zone and the locale. Don't depend on the machine's time zone.
+- Never use `innerHTML` with user input. Build DOM with `h()`.
+- Keep a PR to one feature. Run `npm run check` before pushing.
