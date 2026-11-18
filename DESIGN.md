@@ -25,6 +25,8 @@ calm, precise, legible at a glance, and trustworthy with numbers.
   exception is the app/home-screen icons in `src/icons/`: PNGs generated from
   `--color-accent` and `--color-on-accent` by `scripts/make-icons.js`.
   Regenerate them (`node scripts/make-icons.js`) whenever those tokens change.
+  The one illustration allowed is the Share icon in the iOS install sheet:
+  `icon('share')`, an inline `currentColor` SVG sized to `--control-height`.
 
 ## 2. Where tokens live
 
@@ -211,6 +213,10 @@ in px, multiplied by `--hairline` in CSS.
 - Settings also holds the "Treat weekends as unavailable" switch
   (`settings.weekendsUnavailable`, on by default). Off, weekend cells keep
   their band but are rated by hour only. Reset all data turns it back on.
+- Settings → Install (after the weekends switch, before Reset all data) lists
+  the install steps for iPhone or iPad, Android and desktop, plus an "Install
+  app" button while the browser offers one. It is absent when the app runs
+  installed.
 - `color-scheme` is set per theme so native controls and scrollbars match.
 
 ## 5. Typography rules
@@ -243,11 +249,12 @@ attribute, not just a class.
 
 Inline SVG built with `createElementNS`, `fill="currentColor"`, sized by
 `--icon-size`. Always decorative (`aria-hidden="true"`, `focusable="false"`):
-the button that holds it carries the name, or, where an icon stands alone, a
-wrapper with `role="img"` and an `aria-label` from strings. Icons: `gear`
-(Settings) and `location` (a pin: the home row's symbol, wrapped as
-`role="img"` "Your location" and sized `--space-4` in the row header). Add a
-name to the `IconName` union and its path data together.
+the button that holds it carries the name, the adjacent text does, or, where an
+icon stands alone, a wrapper with `role="img"` and an `aria-label` from strings.
+Icons: `gear` (Settings), `location` (a pin: the home row's symbol, wrapped as
+`role="img"` "Your location" and sized `--space-4` in the row header) and
+`share` (the iOS Share button: a tray with an up arrow, in the iOS install
+sheet). Add a name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -260,7 +267,9 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 Surface with `--radius-lg`, hairline border and `--shadow-sm`. Has an `<h2>`
 title and a body. Use to group one task or one view (e.g. "Add a time zone",
-"Timelines"). Do not nest cards.
+"Timelines"). The one-time install hint ("Install TZ Overlap", with "Install
+app" and "Not now") is a card placed first in `<main>`: non-modal, no timeout.
+Do not nest cards.
 
 ### App shell — `appShell()` · `.shell`
 
@@ -288,7 +297,8 @@ every width. Solid `--color-surface`, hairline border, `--shadow-md`;
 `::backdrop` is `--color-backdrop`, never blurred. `open(opener)` focuses the
 first control; Esc, a backdrop click, Close and `close()` all close it and
 return focus to `opener`. Tab and Shift+Tab wrap inside it. Use for settings and
-other short tasks that leave the page in place.
+other short tasks that leave the page in place, e.g. Settings and the one-time
+iOS install sheet ("Install TZ Overlap": the Share steps and icon).
 
 ### Popover — `popover()` · `.popover`
 
