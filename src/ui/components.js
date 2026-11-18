@@ -6,10 +6,12 @@ import { strings } from './strings.js';
 
 /** @typedef {import('./dom.js').Child} Child */
 
-/** @typedef {'gear' | 'location' | 'share'} IconName */
+/** @typedef {'alert' | 'gear' | 'location' | 'share'} IconName */
 
 /** SVG path data per icon, on a 24×24 grid. */
 const ICONS = /** @type {Record<IconName, string>} */ ({
+  // A warning triangle with an exclamation mark.
+  alert: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
   gear: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.47.47 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z',
   location:
     'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z',
@@ -466,30 +468,78 @@ export function createToaster() {
 /**
  * Banner: a persistent message with one action, in the page flow at the top of
  * <main>. Stays until used; toasts never replace it. Mount `root` once (the
- * app shell does).
+ * app shell does). `message` is a string, or `{ long, short, compact? }`: the
+ * short text shows below --bp-md and the long from it. Below --bp-md, a short
+ * text taller than two lines as rendered is swapped for `compact`, on show()
+ * and on resize. A show() with the label of the button on screen keeps that
+ * button (and focus on it) and replaces only the message.
  */
 export function createBanner() {
   const root = h('div', {
     class: 'banner',
     attrs: { role: 'status', 'aria-live': 'polite' },
   });
+  /** @type {HTMLElement | null} */
+  let messageEl = null;
+  /** @type {HTMLElement | null} */
+  let actionButton = null;
+  /** @type {() => void} */
+  let onAction = () => {};
+  /** @type {{ el: HTMLElement, short: string, compact: string } | null} */
+  let fitting = null;
+
+  /** Restore the short text, then swap in the compact one when it takes over two lines. */
+  function fit() {
+    if (!fitting) return;
+    const { el, short, compact } = fitting;
+    el.textContent = short;
+    if (el.getClientRects().length === 0) return;
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+    if (el.getBoundingClientRect().height > 2 * lineHeight + 1) el.textContent = compact;
+  }
+
+  window.addEventListener('resize', fit);
+
   return {
     root,
-    /** @param {{ message: string, action: { label: string, onClick: () => void } }} options */
+    /**
+     * @param {{
+     *   message: string | { long: string, short: string, compact?: string },
+     *   action: { label: string, onClick: () => void },
+     * }} options
+     */
     show({ message, action }) {
-      root.replaceChildren(
-        h('div', { class: 'banner__inner' }, [
-          h('p', { class: 'banner__message', text: message }),
-          button({
-            label: action.label,
-            variant: 'secondary',
-            size: 'sm',
-            onClick: action.onClick,
-          }),
-        ]),
-      );
+      fitting = null;
+      /** @type {(string | Node)[]} */
+      let content;
+      if (typeof message === 'string') {
+        content = [message];
+      } else {
+        const short = h('span', { class: 'banner__short', text: message.short });
+        content = [short, h('span', { class: 'banner__long', text: message.long })];
+        if (message.compact !== undefined) {
+          fitting = { el: short, short: message.short, compact: message.compact };
+        }
+      }
+      onAction = action.onClick;
+      if (messageEl && actionButton?.textContent === action.label && root.contains(actionButton)) {
+        messageEl.replaceChildren(...content);
+      } else {
+        messageEl = h('p', { class: 'banner__message' }, content);
+        actionButton = button({
+          label: action.label,
+          variant: 'secondary',
+          size: 'sm',
+          onClick: () => onAction(),
+        });
+        root.replaceChildren(h('div', { class: 'banner__inner' }, [messageEl, actionButton]));
+      }
+      fit();
     },
     hide() {
+      fitting = null;
+      messageEl = null;
+      actionButton = null;
       root.replaceChildren();
     },
   };
