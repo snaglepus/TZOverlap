@@ -303,32 +303,56 @@ test('re-render keeps the view: adding a zone keeps the days and the scroll', as
   expect(after.scrollLeft).toBe(before.scrollLeft);
 });
 
-test('layout at 320px with the Today button: no sideways scroll, 44px controls', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 740 });
-  await page.goto('/');
-  await pickDate(page, '2026-07-15');
-  await expect(todayButton(page)).toBeVisible();
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBe(0);
-  for (const control of [
-    dateInput(page),
-    todayButton(page),
-    page.getByRole('button', { name: 'Settings' }),
-  ]) {
-    const box = /** @type {{ x: number, width: number, height: number }} */ (
-      await control.boundingBox()
-    );
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(320);
-  }
-  // The native control shows the whole date, not a clipped one.
-  expect(await dateInput(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-});
+for (const width of [320, 375]) {
+  test(`layout at ${width}px: toolbar controls fit without overlap, on today and another date`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 740 });
+    await page.goto('/');
+    const controls = () => [
+      dateInput(page),
+      todayButton(page),
+      page.getByRole('button', { name: 'Go to now' }),
+      page.getByRole('button', { name: 'Settings' }),
+    ];
+    for (const date of [null, '2026-07-15']) {
+      if (date) {
+        await pickDate(page, date);
+        await expect(todayButton(page)).toBeVisible();
+      }
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBe(0);
+      /** @type {{ x: number, y: number, width: number, height: number }[]} */
+      const boxes = [];
+      for (const control of controls()) {
+        if (!(await control.isVisible())) continue;
+        const box = /** @type {{ x: number, y: number, width: number, height: number }} */ (
+          await control.boundingBox()
+        );
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        expect(box.y + box.height).toBeLessThanOrEqual(740);
+        boxes.push(box);
+      }
+      expect(boxes.length).toBe(date ? 4 : 3);
+      for (const [i, a] of boxes.entries()) {
+        for (const b of boxes.slice(i + 1)) {
+          const apart =
+            a.x + a.width <= b.x ||
+            b.x + b.width <= a.x ||
+            a.y + a.height <= b.y ||
+            b.y + b.height <= a.y;
+          expect(apart).toBe(true);
+        }
+      }
+      // The native control shows the whole date, not a clipped one.
+      expect(await dateInput(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+  });
+}
 
 for (const scheme of /** @type {const} */ (['light', 'dark'])) {
   test(`accessibility: axe passes on today and on another date in ${scheme} theme`, async ({
