@@ -333,8 +333,7 @@ export function timelineGrid({
   let duration = initialDuration;
   /** @type {Selection | null} */
   let selected = null;
-  /** Each row's full name, home first. */
-  /** @type {string[]} */
+  /** @type {string[]} Each row's full name, home first. */
   const names = [];
 
   const zoneRows = grid.rows.map((gridRow, i) => {

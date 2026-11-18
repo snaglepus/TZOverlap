@@ -406,8 +406,9 @@ support). For a single bad input value, use the Input error message instead.
 city row, limit note or empty state; hidden while nothing is selected. A
 `role="group"` labelled "Selected time" on `--color-surface` with a
 `--color-border-strong` hairline and `--radius-md`: the date and home time
-range in `--font-mono` tabular numerals (`.selection-bar__when`, "Wed 18 Nov,
-09:00–10:00 Sydney", en dash), a " · " separator (`aria-hidden`), the rating
+range in `--font-weight-medium` with tabular numerals (`.selection-bar__when`,
+"Wed 18 Nov, 09:00–10:00 Sydney", en dash; not mono, so the city name reads as
+text), a " · " separator (`aria-hidden`), the rating
 in words (`.selection-bar__rating`: "Best for all", "Good for all" or
 "Unsuitable for some") and a ghost `sm` "×" button named "Clear selection".
 From `--bp-md` it is one line where it fits; below it, two lines (the time
