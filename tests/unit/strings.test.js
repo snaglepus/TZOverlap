@@ -5,7 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { strings } from '../../src/ui/strings.js';
 
 const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
-const callers = ['ui/app.js', 'ui/grid.js', 'main.js', 'ui/components.js', 'ui/settings.js'];
+const callers = [
+  'ui/app.js',
+  'ui/grid.js',
+  'main.js',
+  'ui/components.js',
+  'ui/settings.js',
+  'ui/add-city.js',
+];
 
 /** @typedef {Record<string, unknown>} Tree */
 
@@ -79,15 +86,8 @@ describe('strings', () => {
   });
 
   it('keeps the existing wording', () => {
-    assert.equal(
-      strings.errors.invalid('Mars/Base'),
-      '“Mars/Base” isn’t a time zone this browser recognises. Use a name like America/New_York.',
-    );
-    assert.equal(
-      strings.errors.limit(8),
-      'You can compare up to 8 zones. Remove one to add another.',
-    );
-    assert.equal(strings.addZone.help(7), 'Use an IANA name. You can add 7 more.');
+    assert.equal(strings.addCity.added('New York'), 'Added New York.');
+    assert.equal(strings.addCity.removed('Tokyo'), 'Removed Tokyo.');
     assert.equal(strings.timelines.everyone, 'Everyone');
     assert.equal(strings.timelines.noDst, 'No DST');
     assert.equal(strings.timelines.repeatTitle, 'Clocks go back — this hour repeats');
@@ -99,6 +99,20 @@ describe('strings', () => {
       '01:00 (repeated), Unsuitable',
     );
     assert.deepEqual(strings.time, { am: 'am', pm: 'pm', amShort: 'a', pmShort: 'p' });
+    assert.equal(
+      strings.timelines.cell('00:00', 'Unsuitable', false, true, 'Sat 13'),
+      '00:00, Sat 13, Unsuitable, weekend',
+    );
+    assert.equal(strings.timelines.cell('10:00', 'Best', false, true), '10:00, Best, weekend');
+    assert.equal(
+      strings.timelines.cell('12:00 am', 'Best', false, false, 'Mon 15'),
+      '12:00 am, Mon 15, Best',
+    );
+    assert.equal(
+      strings.timelines.cell('01:00', 'Good', true, true),
+      '01:00 (repeated), Good, weekend',
+    );
+    assert.equal(strings.settings.weekends, 'Treat weekends as unavailable');
     assert.equal(
       strings.timelines.segment('14:30', '17:00', 'Best'),
       '14:30 to 17:00 your time, Best for everyone',

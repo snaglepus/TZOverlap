@@ -1,7 +1,7 @@
-// The Settings sheet: Appearance, Time format and Reset all data. Built from the shared
+// The Settings sheet: Appearance, Time format, Treat weekends as unavailable and Reset all data. Built from the shared
 // components in ./components.js; page styles in src/styles/app.css.
 
-import { button, radioGroup, sheet } from './components.js';
+import { button, radioGroup, sheet, switchControl } from './components.js';
 import { h, uid } from './dom.js';
 import { strings } from './strings.js';
 
@@ -36,10 +36,16 @@ export function settingsSheet({ store, theme, toaster }) {
     value: store.getState().settings.hourCycle,
     onChange: (hourCycle) => store.updateSettings({ hourCycle }),
   });
+  const weekends = switchControl({
+    label: strings.settings.weekends,
+    checked: store.getState().settings.weekendsUnavailable,
+    onChange: (weekendsUnavailable) => store.updateSettings({ weekendsUnavailable }),
+  });
   // Follows a reset, the title bar toggle, the T key or another tab's choice.
   store.subscribe((state) => {
     appearance.setValue(state.settings.theme);
     timeFormat.setValue(state.settings.hourCycle);
+    weekends.setChecked(state.settings.weekendsUnavailable);
   });
 
   const resetButton = button({
@@ -97,6 +103,7 @@ export function settingsSheet({ store, theme, toaster }) {
       h('div', { class: 'settings' }, [
         appearance.root,
         timeFormat.root,
+        h('div', { class: 'settings__section' }, [weekends.root]),
         h('div', { class: 'settings__section' }, [
           h('p', { class: 'settings__help', text: strings.settings.resetHelp }),
           resetButton,

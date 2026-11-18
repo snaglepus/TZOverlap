@@ -1,4 +1,4 @@
-// The main page: app shell, add-zone card, timelines card. Built only from the
+// The main page: app shell, timelines card with the Add city button. Built only from the
 // shared components in ./components.js and the tokens in src/styles/.
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
@@ -7,8 +7,8 @@ import { createHomeTracker } from '../lib/home.js';
 import { MAX_EXTRA_ZONES } from '../lib/store.js';
 import { localeHourCycle as readLocaleHourCycle, resolveHourCycle } from '../lib/time-format.js';
 import { getLocalTimeZone, zoneCity } from '../lib/timezones.js';
-import { ianaZoneFromInput } from '../lib/zones.js';
-import { appShell, button, card, emptyState, errorState, field } from './components.js';
+import { addCitySheet } from './add-city.js';
+import { appShell, button, card, emptyState, errorState } from './components.js';
 import { h } from './dom.js';
 import { timelineGrid } from './grid.js';
 import { settingsSheet } from './settings.js';
@@ -19,17 +19,10 @@ import { strings } from './strings.js';
  * @typedef {ReturnType<typeof import('./theme.js').createTheme>} ThemeController
  * @typedef {import('../lib/store.js').StoredZone} StoredZone
  * @typedef {import('../lib/suitability.js').Rating} Rating
+ * @typedef {import('./grid.js').GridView} GridView
  */
 
 const MINUTE_MS = 60000;
-
-/** @type {Record<'empty' | 'invalid' | 'duplicate' | 'limit', (input: string) => string>} */
-const ADD_ERRORS = {
-  empty: () => strings.errors.empty,
-  invalid: (input) => strings.errors.invalid(input.trim()),
-  duplicate: () => strings.errors.duplicate,
-  limit: () => strings.errors.limit(MAX_EXTRA_ZONES + 1),
-};
 
 /**
  * @param {HTMLElement} root
@@ -38,7 +31,6 @@ const ADD_ERRORS = {
  *   theme: ThemeController,
  *   deviceZone?: () => string,
  *   now?: () => Date,
- *   suggestions?: readonly string[],
  *   localeHourCycle?: string,
  * }} deps
  */
@@ -49,7 +41,6 @@ export function mountApp(
     theme,
     deviceZone = getLocalTimeZone,
     now = () => new Date(),
-    suggestions = [],
     localeHourCycle = readLocaleHourCycle(),
   },
 ) {
@@ -62,6 +53,18 @@ export function mountApp(
   const announcer = h('p', {
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
+  });
+  const nowButton = button({
+    label: strings.app.now,
+    ariaLabel: strings.app.nowLabel,
+    variant: 'ghost',
+    disabled: true,
+    onClick: () => {
+      const hadFocus = document.activeElement === nowButton;
+      view?.scrollToNow({ animate: true });
+      // The button disables itself once the line is back; keep keyboard focus.
+      if (hadFocus) view?.root.focus({ preventScroll: true });
+    },
   });
   const settingsButton = button({
     label: strings.app.settings,
@@ -82,47 +85,32 @@ export function mountApp(
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
-    actions: [hourToggle, settingsButton],
+    actions: [hourToggle, nowButton, settingsButton],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
   const settings = settingsSheet({ store, theme, toaster: shell.toaster });
 
-  // --- Add-zone card ---------------------------------------------------------
-  const zoneField = field({
-    label: strings.addZone.label,
-    name: 'zone',
-    placeholder: strings.addZone.placeholder,
-    suggestions,
+  const addCity = addCitySheet({
+    store,
+    homeZone: home.current,
+    now,
+    announcer,
+    focusTarget: () =>
+      timelinesCard.body.querySelector('.add-city-button') ??
+      timelinesCard.body.querySelector('[role="grid"]'),
   });
-  const form = h('form', { class: 'add-zone', attrs: { novalidate: true } }, [
-    zoneField.root,
-    h('div', { class: 'add-zone__submit' }, [
-      button({ label: strings.addZone.submit, variant: 'primary', type: 'submit' }),
-    ]),
-  ]);
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const value = zoneField.input.value;
-    const parsed = ianaZoneFromInput(value, home.current());
-    const result = parsed.ok ? store.add(parsed.zone) : parsed;
-    if (!result.ok) {
-      zoneField.setError(ADD_ERRORS[result.error](value));
-      zoneField.input.focus();
-      return;
-    }
-    zoneField.setError(null);
-    zoneField.input.value = '';
-    announcer.textContent = strings.addZone.added(result.zone.label);
-  });
-  const addCard = card({ title: strings.addZone.cardTitle, children: [form] });
 
   // --- Timelines card --------------------------------------------------------
   const timelinesCard = card({ title: strings.timelines.cardTitle, actions: [legend()] });
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
-  /** @type {ReturnType<typeof timelineGrid> | null} */
+  /** @type {GridView | null} */
   let view = null;
+  /** Every render builds the same window, so a saved scroll instant stays inside it. */
+  const anchor = now();
+  /** @type {HTMLButtonElement | null} */
+  let addButton = null;
 
   function render() {
     const { zones, settings } = store.getState();
@@ -134,44 +122,56 @@ export function mountApp(
     ]);
     if (key === renderedKey) return;
     renderedKey = key;
-    const remaining = MAX_EXTRA_ZONES - zones.length;
-    zoneField.setHelp(remaining > 0 ? strings.addZone.help(remaining) : strings.addZone.full);
 
     // A stored copy of the home zone stays hidden; its label names the home row.
     const isHome = (/** @type {StoredZone} */ z) => z.kind === 'iana' && z.tz === homeZone;
     const shown = zones.filter((z) => !isHome(z));
-    const current = now();
-    view?.destroy();
     const grid = buildGrid({
       homeZone: { kind: 'iana', tz: homeZone },
       zones: shown,
-      now: current,
+      now: anchor,
       weekendsUnavailable: settings.weekendsUnavailable,
     });
+    // Keep the instant at the left of the visible track across the rebuild.
+    const left = view?.root.isConnected ? view.leftInstant() : null;
+    view?.destroy();
     view = timelineGrid({
       grid,
       zones: shown,
-      now: current,
+      now: now(),
       hourCycle: shownCycle,
       onRemove: (zone) => remove(zone),
       homeLabel: zones.find(isHome)?.label,
       cities: cityDataIfLoaded()?.cities,
+      onNowVisible: (visible) => {
+        nowButton.disabled = visible;
+      },
     });
     const body = [view.root, view.popover];
-    if (zones.length === 0) {
-      body.push(
-        emptyState({
-          title: strings.empty.title,
-          body: strings.empty.body(MAX_EXTRA_ZONES),
-          action: button({
-            label: strings.empty.action,
-            variant: 'secondary',
-            onClick: () => zoneField.input.focus(),
+    addButton = null;
+    if (zones.length >= MAX_EXTRA_ZONES) {
+      body.push(h('p', { class: 'add-city-limit', text: strings.addCity.limit(MAX_EXTRA_ZONES) }));
+    } else {
+      addButton = button({
+        label: strings.addCity.button,
+        variant: shown.length === 0 ? 'primary' : 'secondary',
+        onClick: () => addCity.open(),
+      });
+      addButton.classList.add('add-city-button');
+      if (shown.length === 0) {
+        body.push(
+          emptyState({
+            title: strings.addCity.promptTitle,
+            body: strings.addCity.promptBody(MAX_EXTRA_ZONES),
+            action: addButton,
           }),
-        }),
-      );
+        );
+      } else {
+        body.push(h('div', { class: 'add-city-row' }, [addButton]));
+      }
     }
     timelinesCard.body.replaceChildren(...body);
+    if (left) view.showInstant(left);
   }
 
   /** The cycle the grid and toggle show; a change rewrites them in place. */
@@ -187,7 +187,7 @@ export function mountApp(
 
   // T toggles the cycle, only while focus is in the timeline grid (WCAG 2.1.4).
   /** @param {KeyboardEvent} event */
-  function onKeydown(event) {
+  function onHourCycleKey(event) {
     if (event.key !== 't' && event.key !== 'T') return;
     if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
     if (event.repeat || event.isComposing) return;
@@ -207,7 +207,7 @@ export function mountApp(
     shell.toaster.show({ message: strings.toasts.travelled(zoneCity(home.current())) });
   }
 
-  // Header clocks: tick on each minute boundary, re-aligned every time.
+  // Header clocks and the now line: tick on each minute boundary, re-aligned every time.
   function scheduleTick() {
     setTimeout(
       () => {
@@ -222,8 +222,24 @@ export function mountApp(
   /** @param {StoredZone} zone */
   function remove(zone) {
     store.remove(zone.id);
-    announcer.textContent = strings.addZone.removed(zone.label);
-    zoneField.input.focus();
+    announcer.textContent = strings.addCity.removed(zone.label);
+    addButton?.focus();
+  }
+
+  /** The A key opens Add city, outside text fields and other dialogs. @param {KeyboardEvent} event */
+  function onKeydown(event) {
+    if (event.key !== 'a' && event.key !== 'A') return;
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+    ) {
+      return;
+    }
+    if (document.querySelector('dialog[open]') || !addButton?.isConnected) return;
+    event.preventDefault();
+    addCity.open();
   }
 
   const launch = home.check();
@@ -231,14 +247,18 @@ export function mountApp(
   store.subscribe(syncHourCycle);
   render();
   scheduleTick();
-  shell.main.append(addCard.root, timelinesCard.root);
-  root.replaceChildren(shell.root, settings.root);
+  document.addEventListener('keydown', onKeydown);
+  shell.main.append(timelinesCard.root);
+  root.replaceChildren(shell.root, settings.root, addCity.root);
+  // TS narrows `view` to null here; render() above has set it.
+  /** @type {GridView | null} */ (view)?.scrollToNow();
+  window.addEventListener('resize', () => view?.refresh());
   // A later task than the region's mount, so screen readers announce it.
   if (store.wasReset()) {
     setTimeout(() => shell.toaster.show({ message: strings.toasts.dataReset }), 0);
   }
   if (launch.travelled) setTimeout(showTravelled, 0);
-  document.addEventListener('keydown', onKeydown);
+  document.addEventListener('keydown', onHourCycleKey);
   window.addEventListener('focus', checkHome);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') checkHome();

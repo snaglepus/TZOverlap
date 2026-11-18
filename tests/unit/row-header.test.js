@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   dayDifference,
   dayDifferenceLabel,
+  dayLabel,
   fullDate,
   headerOffsetLabel,
   offsetLine,
@@ -86,6 +87,13 @@ describe('dates', () => {
     assert.equal(fullDate(SYDNEY, NOV), 'Tuesday 17 November 2026');
     assert.equal(shortDate(iana('Pacific/Pago_Pago'), NOV), 'Mon 16 Nov');
     assert.equal(fullDate(iana('Pacific/Kiritimati'), NOV), 'Wednesday 18 November 2026');
+  });
+
+  it('gives the zone-local weekday and day for midnight dividers', () => {
+    assert.equal(dayLabel(SYDNEY, NOV), 'Tue 17');
+    assert.equal(dayLabel(iana('Pacific/Pago_Pago'), NOV), 'Mon 16');
+    assert.equal(dayLabel(fixed(14 * 60), NOV), 'Wed 18');
+    assert.equal(dayLabel(fixed(-11 * 60), NOV), 'Mon 16');
   });
 
   it('works for fixed zones', () => {

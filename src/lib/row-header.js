@@ -21,6 +21,11 @@ const shortDateFormat = new Intl.DateTimeFormat('en-AU', {
   day: 'numeric',
   month: 'short',
 });
+const dayLabelFormat = new Intl.DateTimeFormat('en-AU', {
+  timeZone: 'UTC',
+  weekday: 'short',
+  day: 'numeric',
+});
 const fullDateFormat = new Intl.DateTimeFormat('en-AU', {
   timeZone: 'UTC',
   weekday: 'long',
@@ -83,6 +88,15 @@ function joinParts(format, day, order) {
  */
 export function shortDate(zone, date) {
   return joinParts(shortDateFormat, localDay(zone, date), ['weekday', 'day', 'month']);
+}
+
+/**
+ * "Wed 18": the zone's local weekday and day at `date`, for midnight dividers.
+ * @param {Zone} zone
+ * @param {Date} date
+ */
+export function dayLabel(zone, date) {
+  return joinParts(dayLabelFormat, localDay(zone, date), ['weekday', 'day']);
 }
 
 /**

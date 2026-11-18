@@ -188,12 +188,16 @@ test.describe('desktop toggle', () => {
     await page.goto('/');
     await expect(inlineTime(page)).toHaveText('09:30');
 
-    const input = page.getByLabel('Time zone', { exact: true });
+    // Typing in the Add city search field.
+    await page.getByRole('button', { name: 'Add city', exact: true }).click();
+    const addCity = page.getByRole('dialog', { name: 'Add city' });
+    const input = addCity.getByLabel('Search cities, countries or offsets');
     await input.focus();
     await page.keyboard.type('Asia/Tokyo t');
     await expect(input).toHaveValue('Asia/Tokyo t');
-    await input.fill('Asia/Tokyo');
-    await input.press('Enter');
+    await addCity.getByRole('button', { name: 'Close' }).click();
+    await expect(inlineTime(page)).toHaveText('09:30');
+    await addZone(page, 'Tokyo');
     await expect(row(page, 'Asia/Tokyo')).toBeVisible();
     await expect(inlineTime(page)).toHaveText('09:30');
 

@@ -1,25 +1,104 @@
-/* Page-specific layout: add-zone form, legend, timeline grid. Tokens only. */
+/* Page-specific layout: Add city, Settings, legend, timeline grid. Tokens only. */
 
-.add-zone {
+/* ---------- Add city ---------- */
+.add-city-row {
+  margin-block-start: var(--space-4);
+}
+
+.add-city-limit {
+  margin-block-start: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.add-city {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
 
-.add-zone .field {
-  flex: 1;
+.add-city__note:empty {
+  display: none;
 }
 
-@media (min-width: 40rem) {
-  .add-zone {
-    flex-direction: row;
-    align-items: flex-start;
-  }
+.add-city__loading,
+.add-city__empty {
+  color: var(--color-text-muted);
+}
 
-  /* Align the button with the input, below the label. */
-  .add-zone__submit {
-    margin-block-start: calc(var(--font-size-md) * var(--line-height-base) + var(--space-1));
-  }
+.add-city__region {
+  margin-block: var(--space-3) var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.add-city__list {
+  margin: var(--space-0);
+  padding: var(--space-0);
+  list-style: none;
+}
+
+/* Fixed trailing columns, so times and offsets line up down the list. */
+.add-city__result {
+  display: grid;
+  grid-template-columns: minmax(var(--space-0), 1fr) auto var(--space-7) calc(
+      var(--space-8) + var(--space-3)
+    );
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.add-city__result:hover {
+  background: var(--color-surface-sunken);
+}
+
+.add-city__name {
+  display: flex;
+  grid-column: 1;
+  flex-direction: column;
+  min-width: var(--space-0);
+}
+
+.add-city__primary {
+  font-weight: var(--font-weight-medium);
+}
+
+.add-city__secondary {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.add-city__added {
+  grid-column: 2;
+  padding-inline: var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+}
+
+.add-city__time,
+.add-city__offset {
+  font-size: var(--font-size-sm);
+  text-align: end;
+}
+
+.add-city__time {
+  grid-column: 3;
+}
+
+.add-city__offset {
+  grid-column: 4;
+  color: var(--color-text-muted);
 }
 
 /* ---------- Title bar 12/24-hour toggle: desktop only ---------- */
@@ -87,9 +166,13 @@
 
 /* ---------- Timeline grid ---------- */
 /* Positions come from JS as unitless custom properties in home columns:
-   --grid-hours on .grid, --cell-left / --cell-width on each cell. */
+   --grid-hours and --now-left on .grid, --cell-left / --cell-width on each cell.
+   The grid scrolls natively; JS adds wheel, mouse-drag and arrow-key input. */
 .grid {
+  position: relative;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
@@ -115,7 +198,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
-  width: var(--row-header-width-compact);
+  width: var(--grid-header-width);
   padding: var(--space-1);
   background: var(--color-surface-sunken);
   line-height: var(--line-height-tight);
@@ -212,6 +295,7 @@
   flex: none;
   width: calc(var(--grid-hours) * var(--slot-width));
   overflow: hidden;
+  user-select: none;
 }
 
 .grid__cell {
@@ -234,6 +318,28 @@
   padding-inline: var(--space-1);
 }
 
+/* Midnight: a full-height line with the day label chip at its top-right.
+   No z-index, so the sticky row header (z-index 1) stays on top. */
+.grid__divider {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--cell-left) * var(--slot-width));
+  border-inline-start: var(--day-divider-width) solid var(--color-text);
+  pointer-events: none;
+}
+
+.grid__day-label {
+  display: block;
+  padding-inline: var(--space-1);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
 .grid__repeat {
   font-size: var(--font-size-xs);
 }
@@ -241,6 +347,17 @@
 /* Labels too wide for one column: show every second one, never smaller. */
 .grid[data-labels='alternate'] .grid__cell[data-odd] > * {
   visibility: hidden;
+}
+
+/* Above the cells (later in the tree), below the sticky headers (z-index 1). */
+.grid__now {
+  position: absolute;
+  top: var(--space-0);
+  bottom: var(--space-0);
+  left: calc(var(--grid-header-width) + var(--now-left) * var(--slot-width));
+  width: var(--now-line-width);
+  background: var(--color-accent);
+  pointer-events: none;
 }
 
 /* ---------- Heat: Best, Good (three steps, hatched), Unsuitable ---------- */
@@ -291,6 +408,16 @@
   color: var(--color-unsuitable-ink);
 }
 
+/* Weekend hour cells: a solid top band (the non-colour cue) and a distinct
+   grey when Unsuitable. The Everyone row gets neither. */
+.heat[data-weekend='true'] {
+  box-shadow: inset 0 var(--weekend-band-width) 0 var(--color-weekend-band);
+}
+
+.heat[data-weekend='true'][data-rating='unsuitable'] {
+  background-color: var(--color-weekend);
+}
+
 /* Everyone segments have no text, so Best also gets a solid inner edge:
    Best (edge), Good (hatch) and Unsuitable (plain) differ without colour. */
 .grid__row--everyone .heat[data-rating='best'] {
@@ -303,7 +430,6 @@
   }
 
   .grid__header {
-    width: var(--row-header-width);
     padding-inline: var(--space-2);
   }
 
@@ -313,11 +439,5 @@
 
   .grid__details {
     display: block;
-  }
-}
-
-@media (min-width: 64rem) {
-  .grid__header {
-    width: var(--row-header-width-wide);
   }
 }

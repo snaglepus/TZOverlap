@@ -1,13 +1,7 @@
 // Zone model: IANA zones and fixed UTC offsets. Fixed offsets are plain
 // arithmetic and never become Etc/ IDs, so they have no daylight saving.
 
-import {
-  canonicalTimeZone,
-  formatOffset,
-  isValidTimeZone,
-  localParts,
-  offsetMinutes,
-} from './timezones.js';
+import { formatOffset, localParts, offsetMinutes } from './timezones.js';
 
 /**
  * @typedef {{ kind: 'iana', tz: string } | { kind: 'fixed', minutes: number }} Zone
@@ -118,17 +112,11 @@ export function parseFixedOffset(text) {
 }
 
 /**
- * The add form's rules for typed input: trimmed, a valid IANA ID, and not the
- * home zone (which is never stored).
- * @param {string} input
+ * Whether `zone` is already on the board: in the stored list or the home zone.
+ * @param {Zone} zone
+ * @param {readonly Zone[]} stored
  * @param {string} homeTz
- * @returns {{ ok: true, zone: { kind: 'iana', tz: string } } | { ok: false, error: 'empty' | 'invalid' | 'duplicate' }}
  */
-export function ianaZoneFromInput(input, homeTz) {
-  const raw = input.trim();
-  if (!raw) return { ok: false, error: 'empty' };
-  if (!isValidTimeZone(raw)) return { ok: false, error: 'invalid' };
-  const tz = canonicalTimeZone(raw);
-  if (tz === homeTz) return { ok: false, error: 'duplicate' };
-  return { ok: true, zone: { kind: 'iana', tz } };
+export function isZoneAdded(zone, stored, homeTz) {
+  return zonesEqual(zone, { kind: 'iana', tz: homeTz }) || stored.some((z) => zonesEqual(zone, z));
 }

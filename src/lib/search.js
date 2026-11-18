@@ -100,3 +100,23 @@ export function searchZones(query, data) {
   }
   return results;
 }
+
+/**
+ * The popular cities grouped by region: regions in alphabetical order, cities
+ * by population rank within each.
+ * @param {readonly City[]} cities
+ * @returns {{ region: City['region'], cities: City[] }[]}
+ */
+export function popularByRegion(cities) {
+  /** @type {Map<City['region'], City[]>} */
+  const groups = new Map();
+  for (const city of cities) {
+    if (!city.popular) continue;
+    const group = groups.get(city.region);
+    if (group) group.push(city);
+    else groups.set(city.region, [city]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, 'en'))
+    .map(([region, list]) => ({ region, cities: list.sort((a, b) => a.rank - b.rank) }));
+}

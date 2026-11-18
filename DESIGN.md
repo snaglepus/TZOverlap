@@ -60,7 +60,7 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-border-strong`                         | Input borders (≥3:1 against surface)            | `#7D776C`             | `#7C808C`             |
 | `--color-text`                                  | Body text                                       | `#1D1B18`             | `#ECEAE6`             |
 | `--color-text-muted`                            | Secondary text, help text, offsets              | `#5F5A52`             | `#A8A49C`             |
-| `--color-accent`                                | Primary button fill, links                      | `#2F45B5`             | `#9DB0FF`             |
+| `--color-accent`                                | Primary button fill, links, timeline now line   | `#2F45B5`             | `#9DB0FF`             |
 | `--color-accent-hover`                          | Primary button hover                            | `#23369A`             | `#B9C7FF`             |
 | `--color-on-accent`                             | Text on accent fill                             | `#FFFFFF`             | `#0E1440`             |
 | `--color-focus`                                 | Focus ring                                      | `#2F45B5`             | `#9DB0FF`             |
@@ -74,6 +74,8 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-heat-ink`                              | Text on every Good step                         | `#3D2600`             | `#FFF1D8`             |
 | `--color-heat-hatch`                            | Diagonal hatch over Good cells and segments     | `#C4AE7C`             | `#75653F`             |
 | `--color-unsuitable` / `--color-unsuitable-ink` | Unsuitable hours (20–06, weekends): dimmed grey | `#E4E2EA` / `#57555F` | `#24232A` / `#9F9CAA` |
+| `--color-weekend`                               | Weekend Unsuitable hour cells: a deeper grey    | `#D2CFDB`             | `#34313F`             |
+| `--color-weekend-band`                          | Solid top band on weekend hour cells (≥ 3:1)    | `#4A4656`             | `#D4D1DE`             |
 | `--color-backdrop`                              | Translucent ink behind an open sheet            | `rgb(29 27 24 / 0.4)` | `rgb(0 0 0 / 0.6)`    |
 
 **Heat scale.** Ratings come from `src/lib/suitability.js` (Best, Good,
@@ -92,7 +94,13 @@ Best cells are bold, Everyone Best segments (which have no text) carry a solid
 inner edge in `--color-best-ink` (`--best-edge-width`), Unsuitable cells are
 dimmed with muted text and have neither, legend swatches have a
 `--color-border-strong` outline (≥ 3:1 against the card), and every
-cell and segment has an `aria-label` naming its rating.
+cell and segment has an `aria-label` naming its rating. Weekend hour cells
+(`data-weekend="true"`, per zone from `src/lib/weekends.js`) carry a solid top
+band in `--color-weekend-band` (`--weekend-band-width`, ≥ 3:1 against every cell
+background), Unsuitable ones use `--color-weekend` instead of
+`--color-unsuitable`, and their `aria-label` ends with ", weekend". The
+Everyone row gets no weekend styling; it shows weekends only through its
+ratings.
 
 ### 3.2 Typography
 
@@ -153,11 +161,15 @@ durations become `0ms` (handled in `tokens.css`).
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
 `--row-header-width-compact` 7rem (112px, phone) · `--row-header-width`
 11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
-from `--bp-lg`) · `--control-height-sm` 2rem ·
+from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
+`--control-height-sm` 2rem ·
 `--icon-size` 1.25rem · `--sheet-max-width` 32rem (sheets from `--bp-md`,
 toasts) · `--toolbar-height` 3.75rem (phone bottom toolbar, before the
 safe-area inset) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
+`--weekend-band-width` 4px (top band on weekend hour cells) ·
+`--day-divider-width` 2px (midnight divider line) ·
+`--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
@@ -166,16 +178,18 @@ fixed 48px, not rem, on purpose: columns don't widen with the text size, so
 more hours stay in view at large text, and labels that no longer fit trigger
 the alternate-label rule (§7).
 `--slot-height` is the minimum height of a grid row below `--bp-md` and
-`--slot-height-wide` from it. Row headers are `--row-header-width-compact`
-wide, `--row-header-width` from `--bp-md` and `--row-header-width-wide` from
-`--bp-lg`. The
-grid sets three unitless runtime properties through
-`style.setProperty()` (CSSOM, allowed by the CSP): `--grid-hours` on the grid
-(track width = hours × `--slot-width`), and `--cell-left` / `--cell-width` on
-each cell and segment (in columns, multiplied by `--slot-width` in CSS). They
-are not tokens and are never declared in a stylesheet. The Popover sets
-`--popover-left` / `--popover-top` the same way, in px, multiplied by
-`--hairline` in CSS.
+`--slot-height-wide` from it. Row headers are `--grid-header-width` wide:
+`--row-header-width-compact`, `--row-header-width` from `--bp-md` and
+`--row-header-width-wide` from `--bp-lg` (switched in `tokens.css`, so the
+headers and the now line read the same value). The grid sets four unitless
+runtime properties through `style.setProperty()` (CSSOM, allowed by the CSP):
+`--grid-hours` on the grid (track width = hours × `--slot-width`), `--now-left`
+on the grid (hours from the window start to now; the now line sits at
+`--grid-header-width` + `--now-left` × `--slot-width`), and `--cell-left` /
+`--cell-width` on each cell and segment (in columns, multiplied by
+`--slot-width` in CSS). They are not tokens and are never declared in a
+stylesheet. The Popover sets `--popover-left` / `--popover-top` the same way,
+in px, multiplied by `--hairline` in CSS.
 
 ### 3.7 Other
 
@@ -201,6 +215,9 @@ are not tokens and are never declared in a stylesheet. The Popover sets
   "Automatic" (follows the locale's hour cycle), "12-hour" and "24-hour",
   saved to `settings.hourCycle`. It follows the title bar toggle, the T key,
   Reset all data (back to Automatic) and other tabs.
+- Settings also holds the "Treat weekends as unavailable" switch
+  (`settings.weekendsUnavailable`, on by default). Off, weekend cells keep
+  their band but are rated by hour only. Reset all data turns it back on.
 - `color-scheme` is set per theme so native controls and scrollbars match.
 
 ## 5. Typography rules
@@ -226,7 +243,7 @@ ad hoc in `app.css`. Do not add a component without adding it here.
 ### Button — `button()` · `.btn`
 
 Variants: `primary` (accent fill: the one main action in a view, e.g. "Add
-zone"), `secondary` (bordered surface: other actions such as "Try again"),
+city"), `secondary` (bordered surface: other actions such as "Try again"),
 `ghost` (no border: toolbar and in-row actions, e.g. Settings, remove zone).
 Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
 (WCAG 2.5.8). Always a real `<button>` with a text label. `icon` adds an Icon
@@ -267,7 +284,8 @@ Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
 toolbar, `<main id="main">` constrained to `--content-max-width` and opening
 with the page's one banner region (returned as `banner`), footer, and the
 page's one toast region (returned as `toaster`). The toolbar
-(`role="group"`, "Toolbar") holds the `actions`, comes right after the brand in
+(`role="group"`, "Toolbar") holds the `actions` (on the timelines page: a ghost
+**Now** button, named "Go to now", then Settings), comes right after the brand in
 DOM order, and is omitted when there are none. Below `--bp-md` it is fixed to the
 bottom of the viewport on a surface with a top hairline, padded by the bottom,
 left and right safe-area insets, and the shell pads its bottom to match; from
@@ -335,6 +353,14 @@ its `<label>` row of at least `--control-height`, with `accent-color` from
 silently. Use for a choice of a few mutually exclusive settings, e.g.
 Appearance and Time format.
 
+### Switch — `switchControl()` · `.switch`
+
+A native `<input type="checkbox" role="switch">` inside its `<label>` row of at
+least `--control-height`, with `accent-color` from `--color-accent` and the
+standard focus ring. `onChange(checked)` fires on user change; `setChecked()`
+updates it silently. Use for a single on/off setting, e.g. "Treat weekends as
+unavailable".
+
 ### Empty state — `emptyState()` · `.empty-state`
 
 Sunken, dashed-border panel with a title, one sentence of guidance and an
@@ -348,6 +374,31 @@ sentence on what the user can do, and an optional "Try again" secondary button.
 Use when a view or the whole app cannot render (e.g. the browser lacks time zone
 support). For a single bad input value, use the Input error message instead.
 
+### Add city — `addCitySheet()` (`src/ui/add-city.js`) · `.add-city*`
+
+Page pattern, not a shared component. The Timelines card ends with an "Add
+city" row directly after the grid (outside `role="grid"`): a `secondary`
+button. With no user zones the row is the first-run Empty state ("Add the
+cities you work with", one sentence on the 7-zone limit) with the button as its
+`primary` action. At 7 stored zones the button gives way to a muted
+`--font-size-sm` limit note ("Maximum of 7 time zones. Remove one to add
+another."). The button and the **A** key (outside text fields and open
+dialogs) open the Add city Sheet.
+
+The sheet loads the city data on its first open only, showing "Loading
+cities…" meanwhile and an Error state with no action if the load fails. A
+search field (Input) sits on top; with an empty query the popular cities are
+listed under one `<h3>` per region (alphabetical), by population rank. Each
+result is a full-width plain `<button>` at least `--control-height` tall: name
+over a muted secondary line (country or full abbreviation name), then local
+time and offset in fixed-width, end-aligned columns of `--font-mono` tabular
+numerals, so they line up down the list. A zone already on the board
+(stored or home) shows a pill "Added" marker that is part of its accessible
+name; choosing it changes nothing and a polite note says so. On desktop
+(`(hover: hover) and (pointer: fine)`) the search field gets focus on open;
+elsewhere focus stays on Close so no on-screen keyboard pops up. On close,
+focus goes to the Add city button if rendered, else the grid.
+
 ## 7. Layout and breakpoints
 
 Mobile first. Breakpoints are fixed values because `@media` cannot read custom
@@ -357,7 +408,7 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 | Name      | Min width | Changes                                                                                                                                                                                              |
 | --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | base      | 0         | Single column, `--space-4` gutters, compact row headers (a button: name, then time and day badge; details in a popover), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline and no button, 64px rows, add-zone field and button inline, toolbar in the title bar, sheets are centred modals                      |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline and no button, 64px rows, toolbar in the title bar, sheets are centred modals                                                        |
 | `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                               |
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
@@ -377,8 +428,35 @@ offset line, day difference and "No DST". From `--bp-md` every detail is
 inline and there is no button. Each row's track is window hours × `--slot-width` wide and clips
 cells that overhang the window. Hour cells are positioned by absolute time, so
 a UTC+5:30 zone's cells sit half a column off the home columns. A repeated hour
-(clocks going back) gets a second cell with a small "2" and a tooltip. The page
-itself never scrolls sideways.
+(clocks going back) gets a second cell with a small "2" and a tooltip. Each zone
+row (not Everyone) draws a divider at every local midnight in the window: a
+full-height `--day-divider-width` line in `--color-text`, placed by absolute
+time like cells, with a "Wed 18" chip (`--font-size-xs`, `--color-text` on
+`--color-surface`) at its top-right. Dividers are `aria-hidden` and paint over
+cells but under the sticky row header; the day's first cell names the date
+instead ("00:00, Wed 18, Unsuitable"). Weekend cells are shaded as in §3.1. The
+page itself never scrolls sideways.
+
+Scrolling: touch and trackpad scrolling are native; the grid sets
+`overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never
+takes over page scroll or swipe-back. A vertical mouse wheel over the grid
+scrolls it sideways (at either end the wheel falls through to the page; a
+horizontal or ctrl/pinch wheel is left to the browser). A mouse drag that
+starts on the hour cells or Everyone segments scrolls it; tracks are
+`user-select: none`, while header text stays selectable (and selecting it never
+scrolls the timeline) and the Remove buttons work as before. With focus in the
+grid, ←/→ scroll one column and Shift+←/→ six. The maths lives in
+`src/lib/scroll.js`.
+
+Now line: an `aria-hidden` `--now-line-width` line in `--color-accent`, the last
+child of the grid, crossing every row. It is painted above the cells and below
+the sticky headers, so it passes under the header column. The minute tick moves
+it by updating `--now-left` only; cells are never rebuilt. On load the grid
+scrolls so the line sits one third of the way across the visible track (the
+part right of the headers). The toolbar's Now button, and N with focus in the
+grid, bring it back; Now is disabled while the line is on screen. A rebuild
+(zone added or removed, weekend setting, another tab) keeps the window and the
+instant at the left of the visible track.
 
 Hour cells show the compact time in a `.grid__label` element. After each build,
 12/24-hour switch and size change of the grid (a `ResizeObserver`, which also
@@ -402,12 +480,13 @@ anywhere, including behind sheets.
   Never remove outlines without this replacement.
 - **Keyboard.** Everything is reachable and operable by keyboard in a logical
   order. The skip link is the first focusable element. Scrollable regions are
-  focusable (`tabindex="0"`) and labelled. Forms submit with Enter.
-  Shortcut: T switches between 12-hour and 24-hour times, at every width, but
-  only while focus is in the timeline grid (the grid, a header button or a
-  remove button) and with no Ctrl, Alt, Meta or Shift. Scoping it to the
-  focused component meets SC 2.1.4 (Character Key Shortcuts) without a
-  setting to turn it off.
+  focusable (`tabindex="0"`) and labelled. Forms submit with Enter. In the
+  timeline grid, ←/→ scroll one hour, Shift+←/→ six hours, N goes to now and T
+  switches between 12-hour and 24-hour times (at every width); these keys work
+  only while focus is inside the grid (WCAG 2.1.4: scoping them to the focused
+  component needs no setting to turn them off), and are ignored with Alt, Ctrl
+  or Meta held (N and T also with Shift), so Alt+← stays browser Back. When the
+  focused Now button disables itself, focus moves to the grid.
 - **Semantic HTML.** Landmarks (`header`, `main`, `footer`), one `h1`, real
   `button`/`label`/`input` elements; ARIA only where HTML has no equivalent.
   The timeline is a labelled `role="grid"` with `role="row"`, `role="rowheader"`
@@ -424,5 +503,7 @@ anywhere, including behind sheets.
 - **Dialogs.** A sheet traps Tab and Shift+Tab inside itself, Esc closes it,
   and focus returns to the control that opened it.
 - **Motion.** Respect `prefers-reduced-motion` (tokens collapse durations).
+  Now, N and the arrow keys scroll smoothly only without reduced motion;
+  wheel, drag, the first position and restores after a rebuild are instant.
 - **Automated check.** E2E tests run axe-core against the page in both themes
   and fail on any WCAG A/AA violation.

@@ -509,3 +509,20 @@
   margin: var(--space-0);
   accent-color: var(--color-accent);
 }
+
+/* ---------- Switch: a native checkbox with role="switch" ---------- */
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  cursor: pointer;
+}
+
+.switch__input {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  margin: var(--space-0);
+  accent-color: var(--color-accent);
+}

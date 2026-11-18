@@ -1,8 +1,15 @@
-// E2E: the main page — app shell, add-zone card (input + button), timelines
-// card (empty state + timeline grid), theme switching and the error state.
+// E2E: the main page — app shell, timelines card (first-run prompt, timeline
+// grid, Add city button), theme switching and the error state.
 
 import { expect, test } from '@playwright/test';
-import { NOW, addZone, chooseAppearance, expectNoA11yViolations, openSettings } from './helpers.js';
+import {
+  NOW,
+  addZone,
+  chooseAppearance,
+  expectNoA11yViolations,
+  openSettings,
+  seedZones,
+} from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
@@ -46,25 +53,16 @@ test('first visit: shows your zone, an empty state, and loads nothing third-part
   await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('UTC+1');
   await expect(row(page, 'everyone').getByRole('rowheader')).toHaveText('Everyone');
   const empty = page.locator('[data-component="empty-state"]');
-  await expect(empty).toContainText('Only your time zone so far');
-  await expect(page.getByText('You can add 7 more.')).toBeVisible();
+  await expect(empty).toContainText('Add the cities you work with');
+  await expect(empty).toContainText('Add up to 7 to see which hours work for everyone.');
   expect(foreign).toEqual([]);
 });
 
-test('user flow: add zones, see the overlap, fix a mistake, remove a zone', async ({ page }) => {
+test('user flow: add zones, see the overlap, remove a zone', async ({ page }) => {
   await page.goto('/');
 
-  // Invalid input -> inline error on the field, nothing added.
-  await addZone(page, 'Mars/Olympus');
-  const input = page.getByLabel('Time zone', { exact: true });
-  await expect(input).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByText(/isn’t a time zone this browser recognises/)).toBeVisible();
-  await expect(input).toBeFocused();
-
-  // Valid input (any casing) -> row added, error cleared, empty state gone.
-  await addZone(page, 'america/new_york');
-  await expect(input).not.toHaveAttribute('aria-invalid', 'true');
-  await expect(input).toHaveValue('');
+  // Row added, prompt gone.
+  await addZone(page, 'New York');
   await expect(page.getByTestId('announcer')).toHaveText('Added New York.');
   await expect(page.locator('[data-component="empty-state"]')).toHaveCount(0);
 
@@ -88,12 +86,8 @@ test('user flow: add zones, see the overlap, fix a mistake, remove a zone', asyn
     '14:00 to 17:00 your time, Best for everyone',
   );
 
-  // Duplicate -> error.
-  await addZone(page, 'America/New_York');
-  await expect(page.getByText('That time zone is already on the board.')).toBeVisible();
-
   // Zones persist across a reload.
-  await addZone(page, 'Asia/Tokyo');
+  await addZone(page, 'Tokyo');
   await page.reload();
   await expect(grid(page).getByRole('row')).toHaveCount(4); // you + everyone + 2
   expect(await rowZones(page)).toEqual([
@@ -103,10 +97,10 @@ test('user flow: add zones, see the overlap, fix a mistake, remove a zone', asyn
     'Asia/Tokyo',
   ]);
 
-  // Remove -> focus returns to the input, announcement made.
+  // Remove -> focus moves to Add city, announcement made.
   await page.getByRole('button', { name: 'Remove New York' }).click();
   await expect(page.getByTestId('announcer')).toHaveText('Removed New York.');
-  await expect(input).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Add city', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Remove Tokyo' }).click();
   await expect(page.locator('[data-component="empty-state"]')).toBeVisible();
 });
@@ -138,11 +132,16 @@ for (const scheme of /** @type {const} */ (['light', 'dark'])) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.goto('/');
     await expectNoA11yViolations(page); // empty state
-    await addZone(page, 'Asia/Kolkata');
+    await addZone(page, 'Kolkata');
     // Keeps the modern name, not Chromium's legacy "Asia/Calcutta" alias.
     await expect(page.getByRole('rowheader', { name: /Kolkata/ })).toContainText('UTC+5:30');
     await expect(row(page, 'Asia/Kolkata').locator('[data-rating="good"]').first()).toBeVisible();
-    await addZone(page, 'Nope/Nope'); // field error visible
+    await expectNoA11yViolations(page);
+    // Scrolled away from now: the Now button is enabled.
+    await grid(page).evaluate((el) => {
+      el.scrollLeft = 0;
+    });
+    await expect(page.getByRole('button', { name: 'Go to now' })).toBeEnabled();
     await expectNoA11yViolations(page);
   });
 }
@@ -158,22 +157,27 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(page.getByRole('button', { name: '24-hour' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
-  await page.keyboard.press('Tab');
-  const input = page.getByLabel('Time zone', { exact: true });
-  await expect(input).toBeFocused();
-  const outline = await input.evaluate((el) => getComputedStyle(el).outlineStyle);
-  expect(outline).toBe('solid');
-
-  await page.keyboard.type('Asia/Tokyo');
-  await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Add zone' })).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(row(page, 'Asia/Tokyo')).toBeVisible();
-
-  // The scrollable grid is itself focusable, then the row's remove button.
+  // The scrollable grid is itself focusable, then Add city below it.
   await page.keyboard.press('Tab');
   await expect(grid(page)).toBeFocused();
   await page.keyboard.press('Tab');
+  const add = page.getByRole('button', { name: 'Add city', exact: true });
+  await expect(add).toBeFocused();
+  const outline = await add.evaluate((el) => getComputedStyle(el).outlineStyle);
+  expect(outline).toBe('solid');
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Tokyo');
+  const first = page.getByRole('dialog', { name: 'Add city' }).locator('.add-city__result').first();
+  await expect(first).toContainText('Japan');
+  await page.keyboard.press('Tab');
+  await expect(first).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'Asia/Tokyo')).toBeVisible();
+  await expect(add).toBeFocused();
+
+  // The row's remove button sits between the grid and Add city.
+  await page.keyboard.press('Shift+Tab');
   await expect(page.getByRole('button', { name: 'Remove Tokyo' })).toBeFocused();
 });
 
@@ -206,7 +210,7 @@ test('storage: migrates the legacy keys once and keeps changes across reloads', 
   ]);
   expect(legacy).toEqual([null, null]);
 
-  await addZone(page, 'Europe/Berlin');
+  await addZone(page, 'Berlin');
   await expect(page.getByTestId('announcer')).toHaveText('Added Berlin.');
   await page.getByRole('button', { name: 'Remove Tokyo' }).click();
   await expect(page.getByTestId('announcer')).toHaveText('Removed Tokyo.');
@@ -222,7 +226,7 @@ test('storage: a theme change in either tab keeps the timeline scroll and focus'
   await page.setViewportSize({ width: 360, height: 740 });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
-  await addZone(page, 'Asia/Tokyo');
+  await addZone(page, 'Tokyo');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('tzoverlap.state')))
     .toContain('Asia/Tokyo');
@@ -259,7 +263,7 @@ test('layout: no sideways page scroll at 320px; the grid scrolls inside itself',
 }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/');
-  await addZone(page, 'Asia/Tokyo');
+  await addZone(page, 'Tokyo');
   await expect(row(page, 'Asia/Tokyo')).toBeVisible();
   const { page: pageOverflow, region } = await page.evaluate(() => {
     const el = /** @type {HTMLElement} */ (document.querySelector('[role="grid"]'));
@@ -277,7 +281,7 @@ test('type scale: phone-first sizes at 390px (17px body, 13px secondary, 11px fl
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await addZone(page, 'Asia/Tokyo');
+  await addZone(page, 'Tokyo');
   await expect(row(page, 'Asia/Tokyo')).toBeVisible();
 
   const sizes = await page.evaluate(() => {
@@ -331,7 +335,7 @@ test('error state: browsers without time zone data get a clear failure message',
   const alert = page.getByRole('alert');
   await expect(alert).toContainText('Time zones aren’t available');
   await expect(alert.getByRole('button', { name: 'Try again' })).toBeVisible();
-  await expect(page.getByLabel('Time zone', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add city' })).toHaveCount(0);
   await expectNoA11yViolations(page);
 });
 
@@ -339,33 +343,6 @@ test('error state: browsers without time zone data get a clear failure message',
 
 /** Wednesday 18 Nov 2026, 12:00 in Sydney (AEDT). */
 const SYDNEY_NOON = new Date('2026-11-18T01:00:00Z');
-
-/**
- * Seed `tzoverlap.state` with `zones` before the first load only.
- * @param {import('@playwright/test').Page} page
- * @param {object[]} zones
- */
-async function seedZones(page, zones) {
-  await page.addInitScript((list) => {
-    if (sessionStorage.getItem('seeded')) return;
-    sessionStorage.setItem('seeded', '1');
-    localStorage.setItem(
-      'tzoverlap.state',
-      JSON.stringify({
-        version: 1,
-        zones: list,
-        settings: {
-          hourCycle: 'auto',
-          theme: 'system',
-          filter: 'all',
-          weekendsUnavailable: true,
-          defaultDuration: 60,
-        },
-        meta: { installHintDismissed: false, lastHomeTz: null },
-      }),
-    );
-  }, zones);
-}
 
 /**
  * Left edge and width of every matching element, in CSS px.
@@ -394,8 +371,8 @@ test.describe('grid', () => {
     page,
   }) => {
     await page.goto('/');
-    await addZone(page, 'Asia/Kolkata');
-    await addZone(page, 'Asia/Kathmandu');
+    await addZone(page, 'Kolkata');
+    await addZone(page, 'Kathmandu');
     await expect(row(page, 'Asia/Kathmandu')).toBeVisible();
 
     const home = await boxes(page, '[data-zone="Australia/Sydney"] [role="gridcell"]');
@@ -464,7 +441,7 @@ test.describe('grid', () => {
     expect(best.size).toBe(1);
 
     // Everyone segments have no text: Best has an inner edge, Unsuitable is plain.
-    await addZone(page, 'Asia/Tokyo');
+    await addZone(page, 'Tokyo');
     const edges = await row(page, 'everyone')
       .locator('[data-rating]')
       .evaluateAll((els) =>
@@ -512,7 +489,7 @@ test.describe('grid', () => {
 
   test('Everyone takes the reddest step among the zones', async ({ page }) => {
     await page.goto('/');
-    await addZone(page, 'Asia/Tokyo');
+    await addZone(page, 'Tokyo');
     const everyone = row(page, 'everyone');
     const bg = (/** @type {import('@playwright/test').Locator} */ el) =>
       el.evaluate((node) => getComputedStyle(node).backgroundColor);
@@ -536,8 +513,8 @@ test.describe('grid', () => {
 
   test('rows: home, then Everyone directly below, then zones in store order', async ({ page }) => {
     await page.goto('/');
-    await addZone(page, 'Asia/Kolkata');
-    await addZone(page, 'Asia/Tokyo');
+    await addZone(page, 'Kolkata');
+    await addZone(page, 'Tokyo');
     await expect(row(page, 'Asia/Tokyo')).toBeVisible();
     expect(await rowZones(page)).toEqual([
       'Australia/Sydney',
@@ -555,7 +532,7 @@ test.describe('grid', () => {
     page,
   }) => {
     await page.goto('/');
-    await addZone(page, 'Asia/Kolkata');
+    await addZone(page, 'Kolkata');
     await expect(row(page, 'Asia/Kolkata')).toBeVisible();
 
     const [midnight] = await boxes(
@@ -585,7 +562,7 @@ test.describe('grid', () => {
   test('a repeated hour gets a second cell with a marker and a tooltip', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-01T01:00:00Z')); // Sydney 1 Nov 12:00
     await page.goto('/');
-    await addZone(page, 'America/New_York');
+    await addZone(page, 'New York');
     const ny = row(page, 'America/New_York');
     const cell = (/** @type {string} */ iso) => ny.locator(`[data-start="${iso}"]`);
 
@@ -663,7 +640,7 @@ test.describe('grid', () => {
 
   test('headers show the local time and the offset', async ({ page }) => {
     await page.goto('/');
-    await addZone(page, 'Asia/Kolkata');
+    await addZone(page, 'Kolkata');
     await expect(grid(page)).toBeVisible();
     const home = row(page, 'Australia/Sydney').getByRole('rowheader');
     await expect(home).toContainText('Sydney');

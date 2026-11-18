@@ -7,12 +7,16 @@ import { expect } from '@playwright/test';
 export const NOW = new Date('2026-06-15T13:30:00Z');
 
 /**
+ * Add a zone through the Add city sheet: search for `query`, choose the first result.
  * @param {import('@playwright/test').Page} page
- * @param {string} zone
+ * @param {string} query
  */
-export async function addZone(page, zone) {
-  await page.getByLabel('Time zone', { exact: true }).fill(zone);
-  await page.getByLabel('Time zone', { exact: true }).press('Enter');
+export async function addZone(page, query) {
+  await page.getByRole('button', { name: 'Add city', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add city' });
+  await dialog.getByLabel('Search cities, countries or offsets').fill(query);
+  await dialog.locator('.add-city__result').first().click();
+  await expect(dialog).toBeHidden();
 }
 
 /** @param {import('@playwright/test').Page} page */
@@ -46,4 +50,31 @@ export async function chooseAppearance(page, option) {
   await dialog.getByRole('radio', { name: option, exact: true }).check();
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(dialog).toBeHidden();
+}
+
+/**
+ * Seed `tzoverlap.state` with `zones` before the first load only.
+ * @param {import('@playwright/test').Page} page
+ * @param {object[]} zones
+ */
+export async function seedZones(page, zones) {
+  await page.addInitScript((list) => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem(
+      'tzoverlap.state',
+      JSON.stringify({
+        version: 1,
+        zones: list,
+        settings: {
+          hourCycle: 'auto',
+          theme: 'system',
+          filter: 'all',
+          weekendsUnavailable: true,
+          defaultDuration: 60,
+        },
+        meta: { installHintDismissed: false, lastHomeTz: null },
+      }),
+    );
+  }, zones);
 }

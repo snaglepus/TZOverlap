@@ -15,6 +15,8 @@ export const strings = /** @satisfies {Strings} */ ({
     footer: 'Runs entirely in your browser. Nothing you enter leaves this device.',
     skipLink: 'Skip to content',
     settings: 'Settings',
+    now: 'Now',
+    nowLabel: 'Go to now',
     toolbar: 'Toolbar',
     /** The title bar 12/24 toggle; pressed while 24-hour times show. */
     hourToggle: '24-hour',
@@ -36,6 +38,7 @@ export const strings = /** @satisfies {Strings} */ ({
       h12: '12-hour',
       h23: '24-hour',
     },
+    weekends: 'Treat weekends as unavailable',
     resetHelp: 'Remove your time zones and settings from this device.',
     reset: 'Reset all data',
     resetConfirm: 'This removes your time zones and settings from this device. It can’t be undone.',
@@ -52,33 +55,25 @@ export const strings = /** @satisfies {Strings} */ ({
     available: 'Update available',
     reload: 'Reload',
   },
-  addZone: {
-    cardTitle: 'Add a time zone',
-    label: 'Time zone',
-    placeholder: 'e.g. Asia/Tokyo',
-    submit: 'Add zone',
-    /** @param {number} remaining */
-    help: (remaining) => `Use an IANA name. You can add ${remaining} more.`,
-    full: 'All eight slots are in use.',
+  addCity: {
+    button: 'Add city',
+    title: 'Add city',
+    promptTitle: 'Add the cities you work with',
+    /** @param {number} count */
+    promptBody: (count) => `Add up to ${count} to see which hours work for everyone.`,
+    /** @param {number} count */
+    limit: (count) => `Maximum of ${count} time zones. Remove one to add another.`,
+    search: 'Search cities, countries or offsets',
+    loading: 'Loading cities…',
+    loadFailedTitle: 'Couldn’t load the city list',
+    loadFailedBody: 'Reload the page to try again.',
+    noResults: 'No matching cities or time zones.',
+    addedMarker: 'Added',
+    alreadyAdded: 'That time zone is already in your list.',
     /** @param {string} city */
     added: (city) => `Added ${city}.`,
     /** @param {string} city */
     removed: (city) => `Removed ${city}.`,
-  },
-  errors: {
-    empty: 'Enter a time zone, for example Asia/Tokyo.',
-    /** @param {string} input */
-    invalid: (input) =>
-      `“${input}” isn’t a time zone this browser recognises. Use a name like America/New_York.`,
-    duplicate: 'That time zone is already on the board.',
-    /** @param {number} total */
-    limit: (total) => `You can compare up to ${total} zones. Remove one to add another.`,
-  },
-  empty: {
-    title: 'Only your time zone so far',
-    /** @param {number} count */
-    body: (count) => `Add up to ${count} more to see which hours work for everyone.`,
-    action: 'Add a time zone',
   },
   timelines: {
     cardTitle: 'Timelines',
@@ -110,8 +105,13 @@ export const strings = /** @satisfies {Strings} */ ({
     remove: (city) => `Remove ${city}`,
     repeatMarker: '2',
     repeatTitle: 'Clocks go back — this hour repeats',
-    /** @param {string} time "9:00 am" or "09:00" @param {string} rating @param {boolean} [repeat] */
-    cell: (time, rating, repeat = false) => `${time}${repeat ? ' (repeated)' : ''}, ${rating}`,
+    /**
+     * "00:00, Sat 13, Unsuitable, weekend" or "12:00 am, Sat 13, Unsuitable, weekend"
+     * @param {string} time "9:00 am" or "09:00" @param {string} rating @param {boolean} [repeat]
+     * @param {boolean} [weekend] @param {string} [day] "Sat 13", on a day's first hour
+     */
+    cell: (time, rating, repeat = false, weekend = false, day = '') =>
+      `${time}${repeat ? ' (repeated)' : ''}${day ? `, ${day}` : ''}, ${rating}${weekend ? ', weekend' : ''}`,
     /** @param {string} from "2:30 pm" or "14:30" @param {string} to @param {string} rating */
     segment: (from, to, rating) => `${from} to ${to} your time, ${rating} for everyone`,
   },
