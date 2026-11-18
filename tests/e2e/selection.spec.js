@@ -605,15 +605,20 @@ test.describe('phone', () => {
       const before = await scrollLeft(page);
       const box = await grid(page).boundingBox();
       if (!box) throw new Error('no grid box');
+      // A finger dragged 300 px left across the tracks, as raw touch events:
+      // synthesizeScrollGesture doesn't scroll in headless Chromium on Linux.
       const cdp = await page.context().newCDPSession(page);
-      await cdp.send('Input.synthesizeScrollGesture', {
-        x: Math.round(box.x + box.width * 0.75),
-        y: Math.round(box.y + box.height / 2),
-        xDistance: -300,
-        yDistance: 0,
-        gestureSourceType: 'touch',
-        speed: 2000,
-      });
+      const y = Math.round(box.y + box.height / 2);
+      const startX = Math.round(box.x + box.width * 0.75);
+      /** @param {'touchStart' | 'touchMove' | 'touchEnd'} type @param {number} x */
+      const touch = (type, x) =>
+        cdp.send('Input.dispatchTouchEvent', {
+          type,
+          touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+        });
+      await touch('touchStart', startX);
+      for (let step = 1; step <= 20; step++) await touch('touchMove', startX - step * 15);
+      await touch('touchEnd', startX - 300);
       await expect.poll(() => scrollLeft(page)).not.toBe(before);
       await expect(band(page)).toHaveAttribute('data-start', '2026-11-18T01:30:00.000Z');
       await expect(bar(page)).toContainText('12:30–13:30');
