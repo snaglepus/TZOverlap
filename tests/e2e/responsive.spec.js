@@ -382,6 +382,14 @@ for (const viewport of VIEWPORTS) {
               ? 'none'
               : viewport.controls;
           if (controls !== 'none') {
+            if (viewport.height <= 568 && fontSize === '200%') {
+              // The wrapped toolbar and the docked bar leave too little room
+              // for the toast, which then covers the app bar: check with the
+              // selection cleared (a human decision, TZO-30).
+              await page.keyboard.press('Escape');
+              await expect(page.getByRole('group', { name: 'Selected time' })).toBeHidden();
+              await toast(page).hover();
+            }
             // AC-12: every control on the page, row headers included (from
             // --bp-md the wide triggers and the home row's clock-change button).
             await expectReachable(page.locator('body'), { size: fontSize === '100%' });
