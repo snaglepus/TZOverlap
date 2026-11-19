@@ -53,8 +53,9 @@ const row = (page, zone) => page.locator(`[role="row"][data-zone="${zone}"]`);
 /** @param {import('@playwright/test').Page} page */
 const dateInput = (page) => page.locator('.toolbar input[type="date"]');
 
+/** The label's word, "Today" or "Date" (the short date beside it shows on phones only). */
 /** @param {import('@playwright/test').Page} page */
-const dateLabel = (page) => page.locator('.toolbar .date-field label');
+const dateLabel = (page) => page.locator('.toolbar .date-field__word');
 
 /** @param {import('@playwright/test').Page} page */
 const todayButton = (page) => page.getByRole('button', { name: 'Today', exact: true });
@@ -148,9 +149,10 @@ test('load: three days around now, now in view, label Today, Today button hidden
   expect(homeStarts[0]).toBe('2026-11-16T13:00:00.000Z');
   expect(homeStarts.at(-1)).toBe('2026-11-19T12:00:00.000Z');
   expect(await inVisibleTrack(page, '2026-11-18T01:00:00.000Z')).toBe(true);
-  await expect(page.getByLabel('Today', { exact: true })).toHaveValue('2026-11-18');
-  await expect(page.getByLabel('Today', { exact: true })).toHaveAttribute('min', '1980-01-01');
-  await expect(page.getByLabel('Today', { exact: true })).toHaveAttribute('max', '2099-12-31');
+  await expect(dateInput(page)).toHaveAccessibleName('Today');
+  await expect(dateInput(page)).toHaveValue('2026-11-18');
+  await expect(dateInput(page)).toHaveAttribute('min', '1980-01-01');
+  await expect(dateInput(page)).toHaveAttribute('max', '2099-12-31');
   await expect(todayButton(page)).toBeHidden();
 });
 
@@ -230,7 +232,8 @@ test('control and Today button: label Date away from today, Today brings it back
   await page.goto('/');
   await pickDate(page, '2026-07-15');
   await expect(dateLabel(page)).toHaveText('Date');
-  await expect(page.getByLabel('Date', { exact: true })).toHaveValue('2026-07-15');
+  await expect(dateInput(page)).toHaveAccessibleName('Date');
+  await expect(dateInput(page)).toHaveValue('2026-07-15');
   await expect(todayButton(page)).toBeVisible();
   const london = row(page, 'Europe/London').getByRole('rowheader');
   await expect(london).toContainText('UTC+1');
@@ -327,6 +330,7 @@ for (const width of [320, 375]) {
   }) => {
     await page.setViewportSize({ width, height: 740 });
     await page.goto('/');
+    // Settings is in the app bar on phones, and the Today button is not shown.
     const controls = () => [
       dateInput(page),
       todayButton(page),
@@ -336,7 +340,8 @@ for (const width of [320, 375]) {
     for (const date of [null, '2026-07-15']) {
       if (date) {
         await pickDate(page, date);
-        await expect(todayButton(page)).toBeVisible();
+        await expect(page.locator('.toolbar .date-field__short')).toHaveText('Wed 15 July');
+        await expect(todayButton(page)).toBeHidden();
       }
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -355,7 +360,7 @@ for (const width of [320, 375]) {
         expect(box.y + box.height).toBeLessThanOrEqual(740);
         boxes.push(box);
       }
-      expect(boxes.length).toBe(date ? 4 : 3);
+      expect(boxes.length).toBe(3);
       for (const [i, a] of boxes.entries()) {
         for (const b of boxes.slice(i + 1)) {
           const apart =
@@ -366,8 +371,9 @@ for (const width of [320, 375]) {
           expect(apart).toBe(true);
         }
       }
-      // The native control shows the whole date, not a clipped one.
-      expect(await dateInput(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      // The date button shows the whole short date, not a clipped one.
+      const label = page.locator('.toolbar .date-field__label');
+      expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
   });
 }

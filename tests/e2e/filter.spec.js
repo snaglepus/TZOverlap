@@ -361,15 +361,16 @@ test.describe('placement', () => {
     }
   }
 
-  test('phone: the last row of the bottom toolbar, clear of the footer', async ({ page }) => {
+  test('phone: the end of the bottom toolbar row, clear of the footer', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     const toolbar = page.getByRole('group', { name: 'Toolbar' });
     expect(await filterGroup(page).evaluate((el) => el.closest('.toolbar') !== null)).toBe(true);
     const group = await box(filterGroup(page));
     expect(group.y + group.height).toBeLessThanOrEqual(844);
-    const settings = await box(page.getByRole('button', { name: 'Settings' }));
-    expect(group.y).toBeGreaterThanOrEqual(settings.y + settings.height);
+    const now = await box(page.getByRole('button', { name: 'Go to now' }));
+    expect(Math.abs(group.y - now.y)).toBeLessThanOrEqual(2);
+    expect(group.x).toBeGreaterThanOrEqual(now.x + now.width);
     await expectBigSegments(page);
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const footer = await box(page.locator('footer'));
@@ -399,7 +400,7 @@ test.describe('placement', () => {
       for (const date of [null, '2026-07-15']) {
         if (date) {
           await dateInput(page).fill(date);
-          await expect(page.getByRole('button', { name: 'Today', exact: true })).toBeVisible();
+          await expect(page.locator('.toolbar .date-field__short')).toHaveText('Wed 15 July');
         }
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
