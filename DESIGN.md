@@ -481,7 +481,9 @@ large text wraps to more rows never sits under the toast. The region spans the
 viewport above that line with `pointer-events: none`, and the toast sits at its
 foot (`align-items: safe flex-end`): if it were ever taller than the room left
 it would start at the top of the viewport instead and cover the toolbar's first
-row while it shows. It dismisses itself after 6s
+row while it shows. While the Everyone row is pinned to the bottom of the
+screen, the region's foot rises to sit above it (`--everyone-pin-room`, at all
+widths). It dismisses itself after 6s
 (pausing while hovered or focused). Use to confirm something that happened
 outside the user's view, e.g. "All data was reset." A toast with an Undo action (a deleted
 row) passes `duration` 5000 and keeps only the latest deletion undoable.
@@ -698,7 +700,24 @@ The summary ignores the filter, follows the 12/24-hour setting in place and
 never changes on the minute tick. When a rebuild (zones, home, weekends, date)
 changes it, the polite announcer says "Everyone: …" once, joined to that
 action's own message ("Added Tokyo. Everyone: …"); a filter change says
-"Filter: Good. Everyone: …". From `--bp-md` "DST" is visible text in the meta line, and the
+"Filter: Good. Everyone: …". While the grid runs below the visible area, the
+Everyone row is pinned to its bottom: just above the phone toolbar below
+`--bp-md`, the viewport bottom from it. It is never raised over the home row,
+and it settles back continuously, with no jump, as the grid's end scrolls into
+view. `position: sticky` can't do this (the grid's `overflow-x: auto` makes it
+the sticky container), so `src/ui/pin.js` positions it by script inside the
+scroller: one rAF-coalesced read per frame (on page scroll, resize and size
+changes of the grid, toolbar and body) gives the lift from `pinLift()`
+(`src/lib/scroll.js`), set as `--everyone-lift` on the row, and its header and
+track get a `translateY` by it (the row element itself never moves). It is the
+same single row, so its segments, the band and the now line stay aligned at
+every `scrollLeft`; there is no clone or second scroller, and no pinned-state
+shadow. While pinned, `--everyone-pin-room` on `<html>` (the room from the
+row's top to the viewport bottom) lifts toasts above it and sets the page's
+`scroll-padding-block-end`, so focus scrolling leaves it clear; a row control
+focused while it would sit under the row (on `focusin` in the grid, or in the
+first frame after a rebuild) is scrolled clear. The grid root itself, focused
+without scrolling by a track press or after clearing a selection, never is. From `--bp-md` "DST" is visible text in the meta line, and the
 warning is a bordered chip ("29 Mar") with the alert icon. On user rows it sits
 inside the wide trigger, named by visually hidden "Clocks change Sun 29 Mar",
 and the trigger's Popover adds the change's sentence. On the home row it is a
@@ -758,7 +777,8 @@ var(--ease-standard)`. Only transforms change: the rows keep their DOM order
 until the drop, and the grid (`data-reordering`) is `user-select: none`. The
 timeline's `scrollLeft` is held and a long-press drag never pans. Rows are
 measured once at pickup relative to the grid's top, so page scroll and content
-inserted above the grid don't misplace the drop. Near the top of the viewport,
+inserted above the grid don't misplace the drop; only the Everyone row's top is
+read live (its header's rect), since it moves while pinned. Near the top of the viewport,
 or the top of the phone toolbar, the page auto-scrolls vertically, up to 16px a
 frame within 48px of the edge. The drop position is the lifted row's centre
 among the other rows' midpoints, except that a release with the pointer over
@@ -883,8 +903,11 @@ followed across tabs; Reset all data returns to All) greys out, with masks
 (§3.1), every instant whose Everyone rating it excludes. Layers in the grid,
 bottom to top: cell fills (with the Good hatch, weekend band and Everyone Best
 edge), the masks (after each track's cells), then hour labels, the repeat
-marker, midnight dividers and the now line (`z-index: 1`), then the sticky row
-headers (`z-index: 2`). The grid is `isolation: isolate`, so none of this
+marker, midnight dividers, then the Everyone track (opaque
+`--color-surface-sunken`, after the zone rows, so the pinned row covers them),
+then the selection band and the now line (all `z-index: 1`), then the sticky
+row headers (`z-index: 2`, the Everyone header last, over the others), then
+the lifted drag row (`z-index: 3`). The grid is `isolation: isolate`, so none of this
 reaches the fixed toolbar. Changing the filter replaces only the masks and the
 Everyone labels: no rebuild, and the scroll position, the date and the loaded
 days stay. With All there are no masks. Lazy extension redraws them for the

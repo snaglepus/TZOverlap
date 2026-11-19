@@ -14,7 +14,8 @@ same moment. The timelines open on yesterday to tomorrow of a chosen date
 (today by default, picked in the toolbar) and load more days as you scroll, up
 to 14 either side. A heat scale shows which hours are ideal, acceptable (the shoulder
 hours) or unacceptable in each zone, and an Everyone row at the bottom shows the
-overlap and says its answer ("Best 10:00–17:00", "No shared hours"). When the
+overlap and says its answer ("Best 10:00–17:00", "No shared hours"); while the
+grid runs past the screen, the Everyone row stays in view at its bottom. When the
 date has no slot the filter allows (under All: no Best or Good slot), a
 no-overlap message offers the next day that works.
 Rows can be dragged into a new order by their grab handle (on phones it shows
@@ -167,8 +168,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         deleteFocusTarget() (the row focused after an Edit-mode delete)
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps,
                         instantAt() and CLICK_SLOP_PX for click-to-select; edgeScrollStep() (page
-                        auto-scroll while dragging a row) and the gesture constants (LONG_PRESS_MS,
-                        LONG_PRESS_SLOP_PX, HAPTIC_MS)
+                        auto-scroll while dragging a row), pinLift() (the pinned Everyone row's
+                        lift) and the gesture constants (LONG_PRESS_MS, LONG_PRESS_SLOP_PX, HAPTIC_MS)
     selection.js        selection state: snapToSlot(), createSelection(), createSelectionState()
     selection-details.js
                         describeSelection(): per-zone local times and ratings of a selection;
@@ -197,6 +198,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         user rows' drag handles; the Everyone row last, with its summary line
                         (setSummary()); Edit mode (data-editing, setEditing()):
                         each user row's Delete button, focusDelete()
+    pin.js              keeps the Everyone row in view at the bottom: attachPin() (rAF lift,
+                        --everyone-pin-room for toasts and focus scrolling), visibleBottom()
     reorder.js          drag to reorder user rows: Pointer Events with pointer capture, handle
                         drag and touch long press, lifted row and shifts, edge auto-scroll, cancel
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
