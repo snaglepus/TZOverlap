@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  anchorShortDate,
   dayDifference,
   dayDifferenceLabel,
   dayLabel,
@@ -99,6 +100,13 @@ describe('dates', () => {
   it('works for fixed zones', () => {
     assert.equal(shortDate(fixed(14 * 60), NOV), 'Wed 18 Nov');
     assert.equal(fullDate(fixed(-11 * 60), NOV), 'Monday 16 November 2026');
+  });
+
+  it('gives an anchor date as a short date', () => {
+    assert.equal(anchorShortDate({ year: 2026, month: 11, day: 18 }), 'Wed 18 Nov');
+    assert.equal(anchorShortDate({ year: 2026, month: 12, day: 31 }), 'Thu 31 Dec');
+    assert.equal(anchorShortDate({ year: 2027, month: 1, day: 1 }), 'Fri 1 Jan');
+    assert.equal(anchorShortDate({ year: 2028, month: 2, day: 29 }), 'Tue 29 Feb');
   });
 });
 
