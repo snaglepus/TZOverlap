@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { dayQualifies, greyedSpans, nextQualifyingDay, qualifies } from '../../src/lib/filter.js';
+import {
+  dayQualifies,
+  daySlots,
+  greyedSpans,
+  nextQualifyingDay,
+  qualifies,
+} from '../../src/lib/filter.js';
 import { MAX_DATE, MAX_DAYS, buildGrid, formatAnchor } from '../../src/lib/grid.js';
 
 /** @typedef {import('../../src/lib/zones.js').Zone} Zone */
@@ -150,7 +156,12 @@ describe('dayQualifies', () => {
     const anchor = ymd('2026-06-13');
     assert.equal(dayQualifies({ ...base, anchor, filter: 'best' }), false);
     assert.equal(dayQualifies({ ...base, anchor, filter: 'good' }), false);
-    assert.equal(dayQualifies({ ...base, anchor, filter: 'all' }), true);
+    // Under All a date qualifies only with a Best or Good slot.
+    assert.equal(dayQualifies({ ...base, anchor, filter: 'all' }), false);
+    assert.equal(
+      dayQualifies({ ...base, anchor, filter: 'all', weekendsUnavailable: false }),
+      true,
+    );
     assert.equal(
       dayQualifies({ ...base, anchor, filter: 'best', weekendsUnavailable: false }),
       true,
@@ -160,7 +171,29 @@ describe('dayQualifies', () => {
   it('eight zones over more than 16 hours: never Best (PRD T10)', () => {
     const options = { ...base, zones: SPREAD, anchor: ymd('2026-06-15') };
     assert.equal(dayQualifies({ ...options, filter: 'best' }), false);
-    assert.equal(dayQualifies({ ...options, filter: 'all' }), true);
+    // Good is 06:00–20:00 local, 14 hours; UTC−10 to UTC+12 is 22 hours apart,
+    // so no instant is Good for all eight either.
+    assert.equal(dayQualifies({ ...options, filter: 'good' }), false);
+    assert.equal(dayQualifies({ ...options, filter: 'all' }), false);
+  });
+});
+
+describe('daySlots', () => {
+  it('rates every 15 minutes of the home date, home first', () => {
+    const slots = daySlots({
+      homeZone: london,
+      zones: [newYork],
+      anchor: ymd('2026-06-15'),
+      weekendsUnavailable: true,
+    });
+    // 24 hours of BST, from 23:00Z on 14 Jun.
+    assert.equal(slots.length, 96);
+    assert.equal(slots[0]?.start.toISOString(), '2026-06-14T23:00:00.000Z');
+    assert.equal(slots[95]?.start.toISOString(), '2026-06-15T22:45:00.000Z');
+    assert.equal(slots[0]?.zones.length, 2);
+    // 14:00 London is 09:00 New York: both Best.
+    const two = slots.find((slot) => slot.start.toISOString() === '2026-06-15T13:00:00.000Z');
+    assert.equal(two?.overlap.rating, 'best');
   });
 });
 
@@ -169,6 +202,11 @@ describe('nextQualifyingDay', () => {
 
   it('from Saturday 13 Jun 2026 (Best) finds Monday 15 Jun', () => {
     const next = nextQualifyingDay({ ...base, anchor: ymd('2026-06-13'), filter: 'best' });
+    assert.deepEqual(next, ymd('2026-06-15'));
+  });
+
+  it('from Saturday 13 Jun 2026 (All) finds Monday 15 Jun', () => {
+    const next = nextQualifyingDay({ ...base, anchor: ymd('2026-06-13'), filter: 'all' });
     assert.deepEqual(next, ymd('2026-06-15'));
   });
 

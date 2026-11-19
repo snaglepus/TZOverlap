@@ -57,7 +57,7 @@ async function choose(page, name) {
 }
 
 /**
- * Each track's masks as "start/end", in order: home, Everyone, user rows.
+ * Each track's masks as "start/end", in order: home, user rows, Everyone.
  * @param {import('@playwright/test').Page} page
  */
 const masksByTrack = (page) =>
@@ -134,7 +134,8 @@ test.describe('AC-6: Best greys every row at the same instants', () => {
   }) => {
     await seedZones(page, zones(['Australia/Sydney', 'America/New_York']));
     await page.goto('/');
-    await expect(message(page)).toBeEmpty();
+    // No Best or Good slot today, so the message shows under All too (TZO-29).
+    await expect(message(page)).toContainText('No time works for everyone today');
     await choose(page, 'Best');
     const { masks, segments } = await expectUnmasked(page, ['best']);
     expect(segments.some((s) => s.rating === 'best')).toBe(false);
@@ -250,10 +251,15 @@ test.describe('keys and assistive tech', () => {
 
     await page.keyboard.press('2');
     await expect(radio(page, 'Good')).toBeChecked();
-    await expect(page.getByTestId('announcer')).toHaveText('Filter: Good');
+    // With the summary, which ignores the filter: London 14:00–17:00 is New York 09:00–12:00.
+    await expect(page.getByTestId('announcer')).toHaveText(
+      'Filter: Good. Everyone: Best 14:00–17:00.',
+    );
     await page.keyboard.press('3');
     await expect(radio(page, 'Best')).toBeChecked();
-    await expect(page.getByTestId('announcer')).toHaveText('Filter: Best');
+    await expect(page.getByTestId('announcer')).toHaveText(
+      'Filter: Best. Everyone: Best 14:00–17:00.',
+    );
     await expect(page.locator('.grid__mask').first()).toBeAttached();
     expect(await checked()).toBe(1);
     await expect(grid(page)).toBeFocused();
@@ -303,7 +309,7 @@ test.describe('no-overlap message (FR-29b, PRD T10)', () => {
     { width: 1280, height: 800 },
     { width: 390, height: 844 },
   ]) {
-    test(`${viewport.width}px: seven zones over 16 hours: none in the next 14 days, All clears it`, async ({
+    test(`${viewport.width}px: seven zones over 16 hours: none in the next 14 days, All keeps it`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
@@ -327,8 +333,9 @@ test.describe('no-overlap message (FR-29b, PRD T10)', () => {
       expect(second.top).toBeGreaterThanOrEqual(first.bottom);
       await expect(dateInput(page)).toHaveValue(date);
       await expect(grid(page)).toBeFocused();
+      // No slot is even Good for all eight zones, so All shows the message too.
       await choose(page, 'All');
-      await expect(message(page)).toBeEmpty();
+      await expect(message(page)).toContainText('No time works for everyone today');
     });
   }
 

@@ -210,6 +210,8 @@ the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--weekend-band-width` 4px (top band on weekend hour cells) ·
 `--day-divider-width` 2px (midnight divider line) ·
+`--everyone-rule-width` 2px (the Everyone row's top rule, in
+`--color-border-strong`: the total line above it) ·
 `--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--selection-edge-width` 3px (the four sides of the selection band, in
 `--color-accent`) ·
@@ -658,7 +660,9 @@ height.
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
-Everyone, then the added zones in order. It opens on yesterday to tomorrow of
+the added zones in order, then Everyone last as a total line under them, with
+a `--everyone-rule-width` top rule in `--color-border-strong` on its header and
+track (no bottom border: the grid's own border closes it). It opens on yesterday to tomorrow of
 the anchor date in the home zone (today, or the date picked in the toolbar),
 with the current instant (or the start of a picked date) a third of the way in.
 Scrolling within 6 columns of either end adds a whole home-zone day on that
@@ -683,7 +687,18 @@ and "Clocks change Sun 29 Mar"; the popover then adds "Daylight saving time"
 and the change's full sentence. From `--bp-md` every detail is inline: on user
 rows inside a wide trigger button with the same hover and expanded background,
 opening the same Popover; on the home row as static text. The Everyone header
-is plain text. From `--bp-md` "DST" is visible text in the meta line, and the
+is plain text: the name, then on its own line a summary of the anchor date in
+the home zone (`src/lib/everyone-summary.js`), in `--color-text` at
+`--font-weight-medium`, wrapping rather than truncating. It names the longest
+Best run ("Best 10:00–17:00"), else the longest Good run ("Good 6–9 am"), else
+"No shared hours", and counts the other runs of that rating ("Best
+10:00–17:00, +1 more"). Below the wide header query the short variant shows
+("… +1", "None shared"), from it the long one; the other is `display: none`.
+The summary ignores the filter, follows the 12/24-hour setting in place and
+never changes on the minute tick. When a rebuild (zones, home, weekends, date)
+changes it, the polite announcer says "Everyone: …" once, joined to that
+action's own message ("Added Tokyo. Everyone: …"); a filter change says
+"Filter: Good. Everyone: …". From `--bp-md` "DST" is visible text in the meta line, and the
 warning is a bordered chip ("29 Mar") with the alert icon. On user rows it sits
 inside the wide trigger, named by visually hidden "Clocks change Sun 29 Mar",
 and the trigger's Popover adds the change's sentence. On the home row it is a
@@ -746,8 +761,9 @@ measured once at pickup relative to the grid's top, so page scroll and content
 inserted above the grid don't misplace the drop. Near the top of the viewport,
 or the top of the phone toolbar, the page auto-scrolls vertically, up to 16px a
 frame within 48px of the edge. The drop position is the lifted row's centre
-among the other rows' midpoints, so a release over the home or Everyone rows
-lands first among the user rows. Releasing inside the grid saves the order
+among the other rows' midpoints, except that a release with the pointer over
+the home row lands first among the user rows and one over the Everyone row
+lands last, whatever the pickup offset; no row ever goes below Everyone. Releasing inside the grid saves the order
 through `store.move()` (nothing for a drop in place; no toast or
 announcement). Esc (without clearing the selection), `pointercancel`, a release
 outside the grid, a window resize and any height change in the home, Everyone
@@ -878,8 +894,9 @@ No-overlap message: page pattern, not a shared component. A persistent
 `.no-overlap` polite `role="status"` region sits in the Timelines card between
 its header and the grid (below `--bp-md`, between the Edit button and the
 grid), mounted empty and taking no space while empty. After
-every build and filter change, if Good or Best leaves the anchor date (the date
-in the toolbar) with no qualifying slot, it shows "No time works for everyone
+every build and filter change, under every filter, if the anchor date (the
+date in the toolbar) has no qualifying slot (no Best under Best, no Best or
+Good under Good and All), it shows "No time works for everyone
 today" (`--font-weight-medium`) and a `secondary` "Show next day that works"
 button, on `--color-surface-sunken` with a `--color-border-strong` hairline and
 `--radius-md`. The button finds the first later date, up to 14 days on and not

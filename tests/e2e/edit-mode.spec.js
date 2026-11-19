@@ -289,7 +289,10 @@ for (const viewport of [DESKTOP, PHONE]) {
       await expect(editButton(page)).toHaveCount(0);
       await expect(doneButton(page)).toHaveCount(0);
       await expect(anyDelete(page)).toHaveCount(0);
-      await expect(announcer(page)).toHaveText('Finished editing time zones.');
+      // One write: the mode ending and the summary, now London's own Best hours.
+      await expect(announcer(page)).toHaveText(
+        'Finished editing time zones. Everyone: Best 09:00–17:00.',
+      );
       await expect(page.getByRole('button', { name: 'Add city', exact: true })).toBeFocused();
 
       await page.locator('.toast').getByRole('button', { name: 'Undo' }).click();

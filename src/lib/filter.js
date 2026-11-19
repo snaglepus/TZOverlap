@@ -1,5 +1,6 @@
 // The All / Good / Best filter: which overlap ratings qualify, the spans of the
-// window to grey out, and whether a home-zone date has any qualifying slot.
+// window to grey out, a home-zone date's slots and whether it has any
+// qualifying slot (under All, any Best or Good one).
 
 import { MAX_DAYS, formatAnchor, gridWindow, parseAnchor } from './grid.js';
 import { buildSlots } from './suitability.js';
@@ -59,19 +60,27 @@ export function greyedSpans(everyone, filter) {
 }
 
 /**
- * Whether any 15-minute slot of the home-zone date `anchor` qualifies.
- * @param {DayOptions} options
+ * The rated 15-minute slots of the home-zone date `anchor`, home first.
+ * @param {Omit<DayOptions, 'filter'>} options
  */
-export function dayQualifies({ homeZone, zones, anchor, weekendsUnavailable, filter }) {
-  if (filter === 'all') return true;
+export function daySlots({ homeZone, zones, anchor, weekendsUnavailable }) {
   const { start, end } = gridWindow(homeZone, anchor, 0, 0);
-  const slots = buildSlots({
+  return buildSlots({
     start,
     end,
     zones: [homeZone, ...zones].map((zone) => ({ zone, country: zone.country })),
     weekendsUnavailable,
   });
-  return slots.some((slot) => qualifies(slot.overlap.rating, filter));
+}
+
+/**
+ * Whether any 15-minute slot of the home-zone date `anchor` qualifies. Under
+ * All that means a Best or Good slot, as under Good.
+ * @param {DayOptions} options
+ */
+export function dayQualifies({ filter, ...rest }) {
+  const shown = filter === 'all' ? 'good' : filter;
+  return daySlots(rest).some((slot) => qualifies(slot.overlap.rating, shown));
 }
 
 /**

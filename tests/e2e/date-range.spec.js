@@ -267,7 +267,8 @@ test('invalid input: clearing the date changes nothing, blur restores it', async
 // cell, so 12,000 at the cap (was 9,000) and, after a pick, the 1,400-element
 // load budget in timelines.spec.js (was 1,100). Each user row's drag handle
 // (TZO-23: button, svg, path) adds 21 elements for seven zones: 1,425 after a pick.
-test('bounded DOM: seven zones at the 29-day cap, back under 1,425 after a pick', async ({
+// The Everyone summary (TZO-29: a wrapper and two variants) adds 3: 1,428.
+test('bounded DOM: seven zones at the 29-day cap, back under 1,428 after a pick', async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -305,7 +306,7 @@ test('bounded DOM: seven zones at the 29-day cap, back under 1,425 after a pick'
   await expect(
     row(page, HOME).locator('[role="gridcell"][data-start="2026-07-14T14:00:00.000Z"]'),
   ).toHaveCount(1);
-  expect(await count()).toBeLessThanOrEqual(1425);
+  expect(await count()).toBeLessThanOrEqual(1428);
 });
 
 test('re-render keeps the view: adding a zone keeps the days and the scroll', async ({ page }) => {

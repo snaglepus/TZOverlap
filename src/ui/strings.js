@@ -178,6 +178,28 @@ export const strings = /** @satisfies {Strings} */ ({
      */
     segment: (from, to, rating, greyed = false) =>
       `${from} to ${to} your time, ${rating} for everyone${greyed ? ', greyed out by the filter' : ''}`,
+    /** The Everyone header's summary line: `long` from the wide header, `short` below it. */
+    summary: {
+      /** @param {string} from @param {string} to */
+      range: (from, to) => `${from}–${to}`,
+      best: {
+        /** @param {string} range @param {number} more other Best runs */
+        long: (range, more) => `Best ${range}${more > 0 ? `, +${more} more` : ''}`,
+        /** @param {string} range @param {number} more */
+        short: (range, more) => `Best ${range}${more > 0 ? ` +${more}` : ''}`,
+      },
+      good: {
+        /** @param {string} range @param {number} more other Good runs */
+        long: (range, more) => `Good ${range}${more > 0 ? `, +${more} more` : ''}`,
+        /** @param {string} range @param {number} more */
+        short: (range, more) => `Good ${range}${more > 0 ? ` +${more}` : ''}`,
+      },
+      none: { long: 'No shared hours', short: 'None shared' },
+      /** @param {string} text the long summary */
+      announce: (text) => `Everyone: ${text}.`,
+      /** @param {string} message "Added Tokyo." @param {string} text the long summary */
+      withMessage: (message, text) => `${message} Everyone: ${text}.`,
+    },
   },
   /** Edit mode: the card header's Edit / Done button and its announcements. */
   edit: {
@@ -196,8 +218,8 @@ export const strings = /** @satisfies {Strings} */ ({
       good: 'Good',
       best: 'Best',
     },
-    /** @param {string} option */
-    changed: (option) => `Filter: ${option}`,
+    /** @param {string} option @param {string} summary the long Everyone summary */
+    changed: (option, summary) => `Filter: ${option}. Everyone: ${summary}.`,
     noOverlap: 'No time works for everyone today',
     nextDay: 'Show next day that works',
     /** @param {number} days */

@@ -106,9 +106,9 @@ test('focus after travel: home row moves to the new zone, with a toast', async (
   await page.goto('/');
   expect(await rowZones(page)).toEqual([
     'Australia/Sydney',
-    'everyone',
     'Europe/London',
     'Asia/Tokyo',
+    'everyone',
   ]);
   await expect(page.getByText(/You're now in/)).toHaveCount(0);
 
@@ -120,9 +120,9 @@ test('focus after travel: home row moves to the new zone, with a toast', async (
   );
   expect(await rowZones(page)).toEqual([
     'America/Los_Angeles',
-    'everyone',
     'Europe/London',
     'Asia/Tokyo',
+    'everyone',
   ]);
   await expect(page.getByText(TRAVEL_TOAST)).toBeVisible();
   await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('London');
@@ -173,15 +173,15 @@ test('a stored copy of home stays hidden and comes back after moving away', asyn
   await page.goto('/');
   expect(await rowZones(page)).toEqual([
     'Australia/Sydney',
-    'everyone',
     'Europe/London',
     'America/Los_Angeles',
+    'everyone',
   ]);
 
   await moveTo(page, 'America/Los_Angeles');
   await focus(page);
   await expect(page.getByText(TRAVEL_TOAST)).toBeVisible();
-  expect(await rowZones(page)).toEqual(['America/Los_Angeles', 'everyone', 'Europe/London']);
+  expect(await rowZones(page)).toEqual(['America/Los_Angeles', 'Europe/London', 'everyone']);
   // The sheet follows the new home: Sydney is no longer Added, Los Angeles is.
   await page.getByRole('button', { name: 'Add city' }).click();
   const sheet = page.getByRole('dialog', { name: 'Add city' });
@@ -202,9 +202,9 @@ test('a stored copy of home stays hidden and comes back after moving away', asyn
   await expect(row(page, 'Australia/Sydney')).toBeVisible();
   expect(await rowZones(page)).toEqual([
     'Australia/Sydney',
-    'everyone',
     'Europe/London',
     'America/Los_Angeles',
+    'everyone',
   ]);
 });
 

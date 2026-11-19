@@ -1,5 +1,5 @@
 // The timeline grid: one horizontal scroll container (role="grid") with a row
-// per zone plus the Everyone row. Cells are absolutely positioned in each
+// per zone plus the Everyone row last, whose header carries the day's summary. Cells are absolutely positioned in each
 // row's track from the grid model (src/lib/grid.js), in home columns. Adds
 // wheel, mouse-drag and arrow-key scrolling and the now line; touch and
 // trackpad scrolling stay native. An IntersectionObserver extends the window
@@ -320,8 +320,10 @@ function homeSymbol() {
  *   focusRow: (id: string) => boolean,
  *   focusDelete: (id: string) => boolean,
  *   setEditing: (on: boolean) => void,
+ *   setSummary: (text: SummaryText) => void,
  *   destroy: () => void,
  * }} GridView
+ * @typedef {{ long: string, short: string }} SummaryText
  * @typedef {import('../lib/row-order.js').Direction} Direction
  * @typedef {{
  *   canMove: (zone: StoredZone, direction: Direction) => boolean,
@@ -348,7 +350,8 @@ function homeSymbol() {
  * meeting starting there. Once the grid is in the document, call
  * scrollToNow(), scrollTo() or set scrollLeft, then watch() to start lazy
  * extension. `editing` starts the grid in Edit mode, which shows each user
- * row's Delete button. Call `destroy()` before dropping the grid.
+ * row's Delete button. `summary` is the Everyone header's summary line, long
+ * and short. Call `destroy()` before dropping the grid.
  * @param {{
  *   grid: Grid,
  *   zones: readonly StoredZone[],
@@ -368,6 +371,7 @@ function homeSymbol() {
  *   weekendsUnavailable: boolean,
  *   slot?: Date | null,
  *   editing?: boolean,
+ *   summary: SummaryText,
  * }} options
  * @returns {GridView}
  */
@@ -390,6 +394,7 @@ export function timelineGrid({
   weekendsUnavailable,
   slot: preferredSlot = null,
   editing = false,
+  summary,
 }) {
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   // One popover for every header trigger, filled from the row that opened it:
@@ -741,8 +746,14 @@ export function timelineGrid({
     everyoneSegments(grid, cycle, filter, segments),
   );
   tracks.push(everyoneTrack);
+  // Both variants stay in the DOM; CSS shows one per breakpoint, like the banner's.
+  const summaryShort = h('span', { class: 'grid__summary-short', text: summary.short });
+  const summaryLong = h('span', { class: 'grid__summary-long', text: summary.long });
   const everyone = row(
-    [h('span', { class: 'grid__name', text: strings.timelines.everyone })],
+    [
+      h('span', { class: 'grid__name', text: strings.timelines.everyone }),
+      h('span', { class: 'grid__summary' }, [summaryShort, summaryLong]),
+    ],
     everyoneTrack,
     'everyone',
     ' grid__row--everyone',
@@ -758,7 +769,7 @@ export function timelineGrid({
       class: 'grid',
       attrs: { role: 'grid', 'aria-label': strings.timelines.gridLabel, tabindex: '0' },
     },
-    [homeRow, everyone, ...userRows, band, line],
+    [homeRow, ...userRows, everyone, band, line],
   );
   root.style.setProperty('--grid-hours', String(grid.hours));
   root.toggleAttribute('data-editing', editing);
@@ -1278,6 +1289,11 @@ export function timelineGrid({
     /** Show or hide the user rows' Delete buttons and enlarged handles. */
     setEditing(on) {
       root.toggleAttribute('data-editing', on);
+    },
+    /** Rewrite the Everyone header's summary line. */
+    setSummary(text) {
+      summaryShort.textContent = text.short;
+      summaryLong.textContent = text.long;
     },
     /** Stop lazy extension, label fitting, reordering and the breakpoint listeners. */
     destroy() {

@@ -6,6 +6,7 @@ import {
   dropIndex,
   dropTarget,
   moveTarget,
+  pointerDropIndex,
   rowShift,
 } from '../../src/lib/row-order.js';
 import { createStore } from '../../src/lib/store.js';
@@ -68,6 +69,14 @@ describe('moveTarget', () => {
     assert.equal(moveTarget(zones, HOME, 'c', 'down'), null);
   });
 
+  it('never moves the last row down, even past a hidden home copy after it', () => {
+    // A, B, C, then a hidden copy of home: Everyone stays below C.
+    const homeLast = [zone('a', 'Asia/Tokyo'), zone('b', 'Europe/London'), zone('c', 'UTC')];
+    homeLast.push(zone('h', HOME));
+    assert.equal(moveTarget(homeLast, HOME, 'c', 'down'), null);
+    assert.equal(canMove(homeLast, HOME, 'c', 'down'), false);
+  });
+
   it('returns null for an unknown id or the hidden home copy', () => {
     assert.equal(moveTarget(zones, HOME, 'nope', 'down'), null);
     assert.equal(moveTarget(zones, HOME, 'h', 'down'), null);
@@ -114,6 +123,47 @@ describe('dropIndex', () => {
     // Row 1 dragged down past row 3's midpoint (190).
     assert.equal(dropIndex(rects, 1, 189), 2);
     assert.equal(dropIndex(rects, 1, 191), 3);
+  });
+});
+
+describe('pointerDropIndex', () => {
+  // The spec's fixture [0–40, 40–120, 120–140, 140–220] has a last midpoint of
+  // 180, so the moved centre 186 already passes it (dropIndex gives 3, not 2).
+  // With `rects` (last row 160–220, midpoint 190) the shape holds: row 1
+  // (centre 80) picked up at y 119 and released at pointer y 225 moves its
+  // centre by 106 to 186, short of 190, while the pointer is past the
+  // Everyone top at 220.
+  const drop = { rects, from: 1, homeBottom: 0, everyoneTop: 220 };
+
+  it('lands last with the pointer over Everyone, whatever the pickup offset', () => {
+    assert.equal(dropIndex(rects, 1, 186), 2);
+    assert.equal(pointerDropIndex({ ...drop, centre: 186, pointerY: 225 }), 3);
+    assert.equal(pointerDropIndex({ ...drop, centre: 186, pointerY: 220 }), 3);
+  });
+
+  it('lands first with the pointer over the home row', () => {
+    const home = { ...drop, from: 3, homeBottom: 40, everyoneTop: 260 };
+    assert.equal(dropIndex(rects, 3, 60), 1);
+    assert.equal(pointerDropIndex({ ...home, centre: 60, pointerY: 39 }), 0);
+  });
+
+  it('is dropIndex between the home row and Everyone', () => {
+    for (const centre of [-500, 21, 79, 81, 139, 141, 189, 191, 5000]) {
+      for (let from = 0; from < rects.length; from += 1) {
+        assert.equal(
+          pointerDropIndex({ ...drop, from, centre, pointerY: 100 }),
+          dropIndex(rects, from, centre),
+          `from ${from} at ${centre}`,
+        );
+      }
+    }
+  });
+
+  it('never puts a row past the last user row', () => {
+    for (const pointerY of [219, 220, 5000]) {
+      const index = pointerDropIndex({ ...drop, centre: 5000, pointerY });
+      assert.equal(index, rects.length - 1);
+    }
   });
 });
 
@@ -185,6 +235,7 @@ describe('dropTarget', () => {
     assert.equal(dropTarget(zones, HOME, 'b', 1), null);
     assert.equal(dropTarget(zones, HOME, 'a', 0), null);
     assert.equal(dropTarget(zones, HOME, 'a', 3), null);
+    assert.equal(dropTarget(zones, HOME, 'a', 4), null);
     assert.equal(dropTarget(zones, HOME, 'a', -1), null);
     assert.equal(dropTarget(zones, HOME, 'nope', 0), null);
     assert.equal(dropTarget(zones, HOME, 'h', 0), null);

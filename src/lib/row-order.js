@@ -1,7 +1,9 @@
 // Move up / Move down and drag to reorder for user rows. Rows show the stored
 // zones minus a stored copy of the home zone, so moves skip that hidden copy;
-// store.move() takes indices into the full stored list. deleteFocusTarget()
-// picks the row an Edit-mode delete moves focus to.
+// store.move() takes indices into the full stored list. pointerDropIndex()
+// keeps a drag between the home and Everyone rows: a release over either lands
+// first or last among the user rows. deleteFocusTarget() picks the row an
+// Edit-mode delete moves focus to.
 
 /**
  * @typedef {import('./store.js').StoredZone} StoredZone
@@ -73,6 +75,26 @@ export function dropIndex(rects, from, y) {
     if (i !== from && (top + bottom) / 2 < y) index++;
   });
   return index;
+}
+
+/**
+ * dropIndex(), except that a pointer over the home row (above `homeBottom`)
+ * gives the first position and one over the Everyone row (from `everyoneTop`)
+ * the last, whatever the pickup offset. `pointerY` is in the same coordinates
+ * as `rects`; `centre` is the dragged row's moved centre.
+ * @param {{
+ *   rects: readonly { top: number, bottom: number }[],
+ *   from: number,
+ *   centre: number,
+ *   pointerY: number,
+ *   homeBottom: number,
+ *   everyoneTop: number,
+ * }} options
+ */
+export function pointerDropIndex({ rects, from, centre, pointerY, homeBottom, everyoneTop }) {
+  if (pointerY < homeBottom) return 0;
+  if (pointerY >= everyoneTop) return rects.length - 1;
+  return dropIndex(rects, from, centre);
 }
 
 /**

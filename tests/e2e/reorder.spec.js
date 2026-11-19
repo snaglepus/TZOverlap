@@ -222,7 +222,7 @@ test.describe('touch at 390 px', () => {
     const order = await page
       .locator('[role="row"]')
       .evaluateAll((els) => els.map((el) => /** @type {HTMLElement} */ (el).dataset.zone));
-    expect(order.slice(0, 3)).toEqual([HOME, 'everyone', C]);
+    expect(order).toEqual([HOME, C, A, B, D, 'everyone']);
     expect(await scrollLeft(page)).toBe(before);
     await expect(details(page)).toBeHidden();
 
@@ -336,7 +336,7 @@ test.describe('touch at 390 px', () => {
     const order = await page
       .locator('[role="row"]')
       .evaluateAll((els) => els.map((el) => /** @type {HTMLElement} */ (el).dataset.zone));
-    expect(order.slice(0, 2)).toEqual([HOME, 'everyone']);
+    expect(order).toEqual([HOME, D, A, B, C, 'everyone']);
   });
 
   test('a touch drag on hour cells scrolls and never reorders', async ({ page }) => {
@@ -713,6 +713,72 @@ test.describe('mouse at 1280 px', () => {
 
     await row(page, A).locator('.grid__trigger:visible').click();
     await expect(details(page)).toBeVisible();
+  });
+
+  test('Everyone is the last row, under every user row', async ({ page }) => {
+    await seedZones(page, seeded(FOUR));
+    await page.goto('/');
+    const order = await page
+      .locator('[role="row"]')
+      .evaluateAll((els) => els.map((el) => /** @type {HTMLElement} */ (el).dataset.zone));
+    expect(order).toEqual([HOME, A, B, C, D, 'everyone']);
+    const bottoms = await page
+      .locator('[role="row"]:not([data-zone="everyone"])')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().bottom));
+    const everyoneTop = await row(page, 'everyone').evaluate(
+      (el) => el.getBoundingClientRect().top,
+    );
+    for (const bottom of bottoms) expect(everyoneTop).toBeGreaterThanOrEqual(bottom - 0.5);
+  });
+
+  /**
+   * Drag `zone` by its handle, grabbed `dy` px off the handle's centre, and
+   * release just inside the top of the Everyone row.
+   * @param {Page} page
+   * @param {string} zone
+   * @param {number} dy
+   */
+  async function dropOnEveryone(page, zone, dy) {
+    const grab = await centre(handle(page, zone));
+    const y = grab.y + dy;
+    await page.mouse.move(grab.x, y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x, y + LIFT_PX);
+    const target = await row(page, 'everyone').boundingBox();
+    if (!target) throw new Error('no box');
+    await page.mouse.move(grab.x, target.y + 2, { steps: 10 });
+    await page.mouse.up();
+  }
+
+  test('a release over Everyone lands last among the user rows', async ({ page }) => {
+    await spyOnWrites(page);
+    await seedZones(page, seeded(FOUR));
+    await page.goto('/');
+    await armWrites(page);
+
+    // The last row: a drop in place, so nothing moves or is written.
+    await dropOnEveryone(page, D, 0);
+    await expectRowsAtRest(page);
+    expect(await userZones(page)).toEqual([A, B, C, D]);
+    expect(await writes(page)).toBe(0);
+
+    // The first row, grabbed below the header's centre: its moved centre is
+    // above the pointer, and still lands last.
+    await dropOnEveryone(page, A, 14);
+    await expect.poll(() => userZones(page)).toEqual([B, C, D, A]);
+    const order = await page
+      .locator('[role="row"]')
+      .evaluateAll((els) => els.map((el) => /** @type {HTMLElement} */ (el).dataset.zone));
+    expect(order).toEqual([HOME, B, C, D, A, 'everyone']);
+    await expect.poll(() => storedIds(page)).toEqual(['b', 'c', 'd', 'a']);
+  });
+
+  test('the last user row cannot move down', async ({ page }) => {
+    await seedZones(page, seeded(FOUR));
+    await page.goto('/');
+    await handle(page, D).click();
+    await expect(details(page).getByRole('button', { name: 'Move down' })).toBeDisabled();
+    await expect(details(page).getByRole('button', { name: 'Move up' })).toBeEnabled();
   });
 
   test('a mouse drag on hour cells scrolls and never reorders', async ({ page }) => {

@@ -15,6 +15,7 @@ const callers = [
   'ui/install.js',
   'ui/selection-bar.js',
   'lib/selection-details.js',
+  'lib/everyone-summary.js',
   'lib/dst.js',
 ];
 
@@ -130,7 +131,31 @@ describe('strings', () => {
       strings.timelines.segment('06:00', '14:00', 'Good', true),
       '06:00 to 14:00 your time, Good for everyone, greyed out by the filter',
     );
-    assert.equal(strings.filter.changed('Best'), 'Filter: Best');
+    assert.equal(
+      strings.filter.changed('Good', 'No shared hours'),
+      'Filter: Good. Everyone: No shared hours.',
+    );
+    assert.equal(strings.timelines.summary.range('10:00', '17:00'), '10:00–17:00');
+    assert.equal(strings.timelines.summary.best.long('10:00–17:00', 0), 'Best 10:00–17:00');
+    assert.equal(
+      strings.timelines.summary.best.long('10:00–17:00', 1),
+      'Best 10:00–17:00, +1 more',
+    );
+    assert.equal(strings.timelines.summary.best.short('10:00–17:00', 1), 'Best 10:00–17:00 +1');
+    assert.equal(strings.timelines.summary.good.long('6–9 am', 0), 'Good 6–9 am');
+    assert.equal(strings.timelines.summary.good.short('6–9 am', 2), 'Good 6–9 am +2');
+    assert.deepEqual(strings.timelines.summary.none, {
+      long: 'No shared hours',
+      short: 'None shared',
+    });
+    assert.equal(
+      strings.timelines.summary.announce('Best 10:00–17:00'),
+      'Everyone: Best 10:00–17:00.',
+    );
+    assert.equal(
+      strings.timelines.summary.withMessage('Added Tokyo.', 'Best 10:00–17:00'),
+      'Added Tokyo. Everyone: Best 10:00–17:00.',
+    );
     assert.equal(strings.filter.noOverlap, 'No time works for everyone today');
     assert.equal(
       strings.filter.noneFound(14),

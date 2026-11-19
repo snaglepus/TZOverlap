@@ -52,7 +52,12 @@ test('first visit: shows your zone, an empty state, and loads nothing third-part
   expect(await rowZones(page)).toEqual(['Europe/London', 'everyone']);
   await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('14:30');
   await expect(row(page, 'Europe/London').getByRole('rowheader')).toContainText('UTC+1');
-  await expect(row(page, 'everyone').getByRole('rowheader')).toHaveText('Everyone');
+  // Everyone with its summary: London's own Best hours (the long variant here).
+  const everyoneHeader = row(page, 'everyone').getByRole('rowheader');
+  await expect(everyoneHeader.locator('.grid__name')).toHaveText('Everyone');
+  await expect(everyoneHeader.locator('.grid__summary')).toHaveText('Best 09:00–17:00', {
+    useInnerText: true,
+  });
   const empty = page.locator('[data-component="empty-state"]');
   await expect(empty).toContainText('Add the cities you work with');
   await expect(empty).toContainText('Add up to 7 to see which hours work for everyone.');
@@ -64,7 +69,9 @@ test('user flow: add zones, see the overlap, remove a zone', async ({ page }) =>
 
   // Row added, prompt gone.
   await addZone(page, 'New York');
-  await expect(page.getByTestId('announcer')).toHaveText('Added New York.');
+  await expect(page.getByTestId('announcer')).toHaveText(
+    'Added New York. Everyone: Best 14:00–17:00.',
+  );
   await expect(page.locator('[data-component="empty-state"]')).toHaveCount(0);
 
   const ny = row(page, 'America/New_York');
@@ -93,9 +100,9 @@ test('user flow: add zones, see the overlap, remove a zone', async ({ page }) =>
   await expect(grid(page).getByRole('row')).toHaveCount(4); // you + everyone + 2
   expect(await rowZones(page)).toEqual([
     'Europe/London',
-    'everyone',
     'America/New_York',
     'Asia/Tokyo',
+    'everyone',
   ]);
 
   // Delete -> focus moves to Add city, the toast says so.
@@ -605,21 +612,21 @@ test.describe('grid', () => {
     expect(await bg(everyone.locator(morning))).toBe(await bg(tokyo06));
   });
 
-  test('rows: home, then Everyone directly below, then zones in store order', async ({ page }) => {
+  test('rows: home, then zones in store order, then Everyone last', async ({ page }) => {
     await page.goto('/');
     await addZone(page, 'Kolkata');
     await addZone(page, 'Tokyo');
     await expect(row(page, 'Asia/Tokyo')).toBeVisible();
     expect(await rowZones(page)).toEqual([
       'Australia/Sydney',
-      'everyone',
       'Asia/Kolkata',
       'Asia/Tokyo',
+      'everyone',
     ]);
-    const homeBox = await row(page, 'Australia/Sydney').boundingBox();
+    const tokyoBox = await row(page, 'Asia/Tokyo').boundingBox();
     const everyoneBox = await row(page, 'everyone').boundingBox();
-    if (!homeBox || !everyoneBox) throw new Error('rows have no box');
-    expect(Math.abs(everyoneBox.y - (homeBox.y + homeBox.height))).toBeLessThanOrEqual(1);
+    if (!tokyoBox || !everyoneBox) throw new Error('rows have no box');
+    expect(Math.abs(everyoneBox.y - (tokyoBox.y + tokyoBox.height))).toBeLessThanOrEqual(1);
   });
 
   test('Everyone segments sit on 15-minute edges; with Kolkata, Best starts at 14:30', async ({

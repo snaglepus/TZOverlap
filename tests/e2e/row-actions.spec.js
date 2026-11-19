@@ -122,7 +122,10 @@ test.describe('with a fixed clock', () => {
       .poll(() => userZones(page))
       .toEqual(['America/New_York', 'Asia/Tokyo', 'Asia/Kolkata']);
     await expect(trigger(page, 'Asia/Tokyo')).toBeFocused();
-    await expect(page.getByTestId('announcer')).toHaveText('Changed Paris to Tokyo.');
+    // One write with the new summary: Good for New York, Tokyo and Kolkata only 11:00–12:00 London.
+    await expect(page.getByTestId('announcer')).toHaveText(
+      'Changed Paris to Tokyo. Everyone: Good 11:00–12:00.',
+    );
 
     // Add city afterwards is plain add mode again.
     await addButton(page).click();

@@ -13,7 +13,10 @@ zone plus up to seven others as horizontal, scrollable timelines aligned on the
 same moment. The timelines open on yesterday to tomorrow of a chosen date
 (today by default, picked in the toolbar) and load more days as you scroll, up
 to 14 either side. A heat scale shows which hours are ideal, acceptable (the shoulder
-hours) or unacceptable in each zone, and an "All zones" row shows the overlap.
+hours) or unacceptable in each zone, and an Everyone row at the bottom shows the
+overlap and says its answer ("Best 10:00–17:00", "No shared hours"). When the
+date has no slot the filter allows (under All: no Best or Good slot), a
+no-overlap message offers the next day that works.
 Rows can be dragged into a new order by their grab handle (on phones it shows
 in Edit mode only; a long press anywhere on the header works on touch), or
 moved with Move up / Move down in the row's popover.
@@ -143,7 +146,10 @@ src/                    the app (served as-is in dev; bundled for prod)
     time-format.js      formatTime() compact/full in 12- or 24-hour; resolves `auto` from the locale
     suitability.js      bands and heat constants; 15-minute slot ratings, heat distance, overlap, meeting rating, weekend rule
     filter.js           All / Good / Best filter: qualifies(), greyedSpans() (masks by instant),
-                        dayQualifies() and nextQualifyingDay() (the no-overlap message's search)
+                        daySlots() (a date's rated slots), dayQualifies() (under All: any Best
+                        or Good slot) and nextQualifyingDay() (the no-overlap message's search)
+    everyone-summary.js everyoneSummary(), summariseSlots(), summaryText(): the Everyone row's
+                        summary line (longest Best, else Good, run of the anchor date)
     weekends.js         country-to-weekend map
     store.js            versioned state (zones, settings, meta): validated load, legacy-key
                         migration, debounced save via injected Storage, cross-tab sync
@@ -178,7 +184,9 @@ src/                    the app (served as-is in dev; bundled for prod)
                         the toolbar, the date control and its short date, the two Settings gears
                         (app bar below 40rem, toolbar from it) and focus after a layout change;
                         the All / Good / Best filter (toolbar, keys 1/2/3) and the no-overlap message;
-                        the selection state, selection bar, announcements and Esc to clear;
+                        the selection state, selection bar and Esc to clear; announce(), the
+                        one writer of the polite live region (one batched write per action,
+                        with the Everyone summary when it or the filter changed);
                         Edit mode (Edit / Done button, delete and handle focus, auto end, Esc order);
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
@@ -186,7 +194,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         lazy extension (IntersectionObserver), row actions popover
                         (Change, Move up, Move down, Delete); click/tap selection, the selection
                         band, header selected times, roving home-cell keyboard slots,
-                        user rows' drag handles; Edit mode (data-editing, setEditing()):
+                        user rows' drag handles; the Everyone row last, with its summary line
+                        (setSummary()); Edit mode (data-editing, setEditing()):
                         each user row's Delete button, focusDelete()
     reorder.js          drag to reorder user rows: Pointer Events with pointer capture, handle
                         drag and touch long press, lifted row and shifts, edge auto-scroll, cancel
