@@ -574,14 +574,21 @@ for (const [name, viewport] of /** @type {[string, {width: number, height: numbe
     });
 
     test('AC-8: a toast sits clear of the row and the toolbar', async ({ page }) => {
-      // A travel toast on launch: all seven zones stay, so 375x667 still pins
-      // (with six, the grid fits above the toolbar there).
-      await page.addInitScript(() => {
-        const state = JSON.parse(/** @type {string} */ (localStorage.getItem('tzoverlap.state')));
-        state.meta.lastHomeTz = 'Asia/Singapore';
-        localStorage.setItem('tzoverlap.state', JSON.stringify(state));
-      });
+      // At 375x667 a travel toast on launch keeps all seven zones, so it still
+      // pins (with six, the grid fits above the toolbar there). At 390x844 a
+      // delete leaves six, so the unpinned row ends clear of the toast's place.
+      if (viewport === SHORT_PHONE) {
+        await page.addInitScript(() => {
+          const state = JSON.parse(/** @type {string} */ (localStorage.getItem('tzoverlap.state')));
+          state.meta.lastHomeTz = 'Asia/Singapore';
+          localStorage.setItem('tzoverlap.state', JSON.stringify(state));
+        });
+      }
       await open(page);
+      if (viewport !== SHORT_PHONE) {
+        await trigger(page, /** @type {string} */ (ZONES[0])).click();
+        await menu(page).getByRole('button', { name: 'Delete', exact: true }).click();
+      }
       const toast = page.locator('.toast');
       await expect(toast).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, 0));
