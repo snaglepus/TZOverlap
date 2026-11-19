@@ -199,6 +199,16 @@ describe('pinLift', () => {
     assert.equal(pinLift({ ...home, rowTop: 100, rowBottom: 160, visibleBottom: 50 }), 0);
   });
 
+  it('rounds a fractional lift down to whole px', () => {
+    assert.equal(pinLift({ ...home, rowTop: 750, rowBottom: 810.47, visibleBottom: 614 }), 196);
+    assert.equal(pinLift({ ...home, rowTop: 750, rowBottom: 810.9, visibleBottom: 614 }), 196);
+    assert.equal(pinLift({ ...home, rowTop: 780, rowBottom: 840, visibleBottom: 839.7 }), 0);
+  });
+
+  it('never rounds the lift over the home row', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300.6, rowBottom: 360.6, visibleBottom: 160 }), 200);
+  });
+
   it('is 0 with the row exactly at the visible bottom', () => {
     assert.equal(pinLift({ ...home, rowTop: 740, rowBottom: 800, visibleBottom: 800 }), 0);
   });

@@ -738,7 +738,10 @@ the sticky container), so `src/ui/pin.js` positions it by script inside the
 scroller: one rAF-coalesced read per frame (on page scroll, resize and size
 changes of the grid, toolbar and body) gives the lift from `pinLift()`
 (`src/lib/scroll.js`), set as `--everyone-lift` on the row, and its header and
-track get a `translateY` by it (the row element itself never moves). It is the
+track get a `translateY` by it (the row element itself never moves). The lift is
+rounded down to whole px: a fractional one leaves a sliver of the row behind
+showing under the track, so instead the track tucks under the visible bottom by
+less than 1 px. It is the
 same single row, so its segments, the band and the now line stay aligned at
 every `scrollLeft`; there is no clone or second scroller, and no pinned-state
 shadow. While pinned, `--everyone-pin-room` on `<html>` (the room from the
