@@ -394,7 +394,7 @@ export function timelineGrid({
   const homeZone = /** @type {Zone} */ (grid.rows[0]?.zone);
   // One popover for every header trigger, filled from the row that opened it:
   // the details, then a user row's actions.
-  /** @type {{ trigger: () => HTMLElement, hidden: () => HTMLElement | null } | null} */
+  /** @type {{ trigger: () => HTMLElement, hidden: () => HTMLElement | null, anchor: HTMLElement } | null} */
   let openRow = null;
   const details = popover({
     label: strings.timelines.details,
@@ -408,6 +408,8 @@ export function timelineGrid({
   /** Delete button of each user row, by stored id. @type {Map<string, HTMLElement>} */
   const rowDeletes = new Map();
   const wide = window.matchMedia(WIDE);
+  // Below --bp-md (width only) the handles show in Edit mode only (app.css).
+  const handles = window.matchMedia('(min-width: 40rem)');
   /** @type {((date: Date, offsetAt: Date) => void)[]} */
   const updates = [];
   /** @type {[HTMLElement, GridCell, string | undefined][]} */
@@ -614,7 +616,7 @@ export function timelineGrid({
         }
         fillWarning();
         details.open(warning);
-        openRow = { trigger: () => trigger, hidden: () => warning };
+        openRow = { trigger: () => trigger, hidden: () => warning, anchor: warning };
       });
     }
 
@@ -652,7 +654,7 @@ export function timelineGrid({
       details.body.replaceChildren(detailsPart);
       if (list) details.body.append(list);
       details.open(from);
-      openRow = { trigger: visible, hidden };
+      openRow = { trigger: visible, hidden, anchor: from };
       list?.querySelector(/** @type {'button'} */ ('button:enabled'))?.focus();
     }
 
@@ -1153,16 +1155,54 @@ export function timelineGrid({
   }
 
   // Crossing --bp-md hides the open popover's anchor: close it, and keep focus
-  // on the row's visible trigger.
-  function onWide() {
+  // on the row's visible trigger (`force`: even when focus is elsewhere).
+  /** @param {boolean} [force] */
+  function closeRow(force = false) {
     if (!openRow) return;
     const { trigger, hidden } = openRow;
     const focused = document.activeElement;
-    const refocus = details.root.contains(focused) || focused === hidden();
+    const refocus = force || details.root.contains(focused) || focused === hidden();
     details.close();
     if (refocus) trigger().focus();
   }
+  const onWide = () => closeRow();
   wide.addEventListener('change', onWide);
+
+  /** Whether `el` is one of this grid's handles, hidden at the current width. @param {Element | null | undefined} el */
+  const hiddenHandle = (el) =>
+    el instanceof HTMLElement &&
+    el.classList.contains('grid__handle') &&
+    root.contains(el) &&
+    el.getClientRects().length === 0;
+
+  // The browser blurs a focused handle as it hides, before the change event:
+  // remember it, so focus can still move to its row's trigger.
+  /** @type {Element | null} */
+  let blurredHandle = null;
+  root.addEventListener('focusout', (event) => {
+    blurredHandle = hiddenHandle(/** @type {Element | null} */ (event.target))
+      ? /** @type {Element} */ (event.target)
+      : null;
+  });
+
+  // Crossing --bp-md wide outside Edit mode hides or shows the handles: close a
+  // popover a hidden handle opened, or move focus off a hidden handle, to the
+  // row's visible trigger.
+  function onHandles() {
+    const active = document.activeElement;
+    const focused = active === null || active === document.body ? blurredHandle : active;
+    blurredHandle = null;
+    if (root.hasAttribute('data-editing')) return;
+    const anchor = openRow?.anchor;
+    if (hiddenHandle(anchor)) {
+      closeRow(focused === anchor);
+      return;
+    }
+    if (!hiddenHandle(focused)) return;
+    const id = focused?.closest('.grid__row')?.getAttribute('data-id');
+    if (id) rowTriggers.get(id)?.().focus();
+  }
+  handles.addEventListener('change', onHandles);
 
   return {
     root,
@@ -1239,10 +1279,11 @@ export function timelineGrid({
     setEditing(on) {
       root.toggleAttribute('data-editing', on);
     },
-    /** Stop lazy extension, label fitting, reordering and the breakpoint listener. */
+    /** Stop lazy extension, label fitting, reordering and the breakpoint listeners. */
     destroy() {
       reorder.destroy();
       wide.removeEventListener('change', onWide);
+      handles.removeEventListener('change', onHandles);
       window.removeEventListener('resize', watch);
       observer?.disconnect();
       observer = null;

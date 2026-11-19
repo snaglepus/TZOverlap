@@ -98,8 +98,9 @@ hatch (a single line, distinct from the filter mask's cross-hatch),
 Best cells are bold, Everyone Best segments (which have no text) carry a solid
 inner edge in `--color-best-ink` (`--best-edge-width`), Unsuitable cells are
 dimmed with muted text and have neither, legend swatches have a
-`--color-border-strong` outline (≥ 3:1 against the card; the Good swatch shows
-the near step), and every
+`--color-border-strong` outline (≥ 3:1 against the card, and against
+`--color-bg` below `--bp-md`, where the Timelines card has no surface; the Good
+swatch shows the near step), and every
 cell and segment has an `aria-label` naming its rating. Weekend hour cells
 (`data-weekend="true"`, per zone from `src/lib/weekends.js`) carry a solid top
 band in `--color-weekend-band` (`--weekend-band-width`, ≥ 3:1 against every cell
@@ -186,11 +187,11 @@ durations become `0ms` (handled in `tokens.css`).
 also the minimum of `sm` buttons) ·
 `--slot-width` 48px · `--slot-height` 3.5rem (56px, phone rows) ·
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
-`--row-header-width-compact` `min(max(7rem, 144px), max(40vw, 288px - 9rem))`
-(144px, phone: room for the 44px drag handle beside the "10:30 pm" clock line
-at default text; the rem term wins from about 130% text. The cap's second term
-falls from 144px at 100% text to 0 at 200%, so a 320px phone keeps 144px at
-default text and every phone gets at most 40% of the viewport at 200%) ·
+`--row-header-width-compact` `min(7rem, 40vw)` (112px, phone: the name and the
+"10:30 pm" clock line; the drag handle shows only in Edit mode below `--bp-md`,
+where Delete and the enlarged handle take a second line (108px). A 390px phone
+keeps 244px of hours, at least 6 columns; at 200% text the 40vw cap gives 128px
+at 320px and 156px at 390px) ·
 `--row-header-width` `min(11.25rem, 40vw)` (180px, from `--bp-md`) ·
 `--row-header-width-wide` `min(13.75rem, 40vw)` (220px, from `--bp-lg`) ·
 `--grid-header-width` (the current row header width). At large text the row
@@ -377,6 +378,16 @@ Has an `<h2>` title and a body. Use to group one task or one view (e.g. "Add a t
 "Timelines"). The one-time install hint ("Install TZ Overlap", with "Install
 app" and "Not now") is a card placed first in `<main>`: non-modal, no timeout.
 Do not nest cards.
+
+The Timelines card has no card look below `--bp-md`, through a page-level
+modifier (`.timelines`, added in `app.js`; `card()` is unchanged): no border,
+radius, shadow, background or padding, so the grid's own single edge spans the
+content width. Its `<h2>` is visually hidden there but still names the region
+(`aria-labelledby`). Its header and body are `display: contents`, and flex
+`order` places, with `--space-2` between them: Edit / Done alone on a line,
+right-aligned; the no-overlap message; the grid; the legend; then the
+popover, Add city (or the limit note or empty state) and the selection bar.
+The DOM, reading and tab order don't change.
 
 ### App shell — `appShell()` · `.shell`
 
@@ -615,11 +626,11 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                    |
-| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, one-row toolbar fixed to the bottom (date button, Now, filter), shorter footer, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                  |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                     |
+| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 112px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows in Edit mode only), a cardless Timelines region (hidden heading, Edit above the grid, the legend after it), 56px rows, one-row toolbar fixed to the bottom (date button, Now, filter), shorter footer, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                                                                                                                            |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Short viewports keep the phone row header. The wide row header (its inline
 details, the 64px rows, the wider header padding) needs height as well as
@@ -704,10 +715,14 @@ the Popover open closes it and keeps focus on the row's visible trigger.
 
 Reordering (`src/ui/reorder.js`, maths in `src/lib/row-order.js` and
 `src/lib/scroll.js`): every user row's header ends with a `.grid__handle`
-button holding the `grip` icon, at every width (the home and Everyone rows
-have none). It is at least `--control-height` square, `--color-text-muted`,
-with the trigger's hover background, the standard focus ring, `cursor: grab`
-(`grabbing` while lifted) and `touch-action: none`. User row headers wrap:
+button holding the `grip` icon, from `--bp-md` wide (a phone in landscape
+too); below it, only in Edit mode (the home and Everyone rows have none).
+Outside Edit mode on phones, a long press on the header is the drag path, and
+Move up / Move down stay in the Popover. Crossing `--bp-md` wide outside Edit
+mode closes a Popover a now-hidden handle opened, and moves focus from a
+now-hidden handle, to the row's visible trigger. It is at least
+`--control-height` square, `--color-text-muted`, with the trigger's hover
+background, the standard focus ring, `cursor: grab` (`grabbing` while lifted) and `touch-action: none`. User row headers wrap:
 the trigger is `flex: 1 1 var(--row-header-trigger-basis)` and the handle
 `flex: none`, so at default text the handle sits at the inline end of the
 header's line, and at large text it wraps to a second line at the inline start,
@@ -746,8 +761,9 @@ legend in the Timelines card header (named "Edit time zones"; "Done", named
 "Done editing time zones", while on) turns it on and off. It is `hidden` while
 there are no user rows. Both labels sit in one grid cell (`.edit-toggle`, the
 inactive one `visibility: hidden`) with `--space-2` inline padding, so its
-width never changes and the card header doesn't reflow on a toggle; at 390px
-it shares the legend's line. The mode is held in memory only, survives grid
+width never changes and the card header doesn't reflow on a toggle; below
+`--bp-md` it sits alone on a line above the grid, right-aligned, and never
+wraps its label. The mode is held in memory only, survives grid
 rebuilds (`data-editing` on the grid) and is off after a reload. In Edit mode
 every user row header shows a Delete button (`.grid__delete`, an icon-only
 ghost Button with the `remove` icon in `--color-danger`, named "Delete Tokyo",
@@ -765,8 +781,8 @@ Delete button of the row now in its place, else the previous row's. When no
 user row is left the mode ends and focus goes to Add city; Undo restores the
 row with the mode as it is (focus on the row's trigger). Esc does one thing:
 it cancels a drag, else closes an open sheet or popover, else clears the
-selection, else leaves Edit mode (focus on a Delete button then moves to the
-Edit button).
+selection, else leaves Edit mode (focus on a Delete button, or on a handle
+that hides as the mode ends below `--bp-md`, then moves to the Edit button).
 
 Scrolling: touch and trackpad scrolling are native; the grid sets
 `overscroll-behavior-x: contain` and `touch-action: pan-x pan-y` so it never
@@ -860,7 +876,8 @@ new window.
 
 No-overlap message: page pattern, not a shared component. A persistent
 `.no-overlap` polite `role="status"` region sits in the Timelines card between
-its header and the grid, mounted empty and taking no space while empty. After
+its header and the grid (below `--bp-md`, between the Edit button and the
+grid), mounted empty and taking no space while empty. After
 every build and filter change, if Good or Best leaves the anchor date (the date
 in the toolbar) with no qualifying slot, it shows "No time works for everyone
 today" (`--font-weight-medium`) and a `secondary` "Show next day that works"
@@ -899,7 +916,8 @@ anywhere, including behind sheets.
   and 3 still work. Esc clears the selection unless a sheet or popover is open,
   which it closes instead. Each user row's drag handle is a button named
   "Reorder Tokyo" (the row's full name), the tab stop after the row's phone
-  header button (or wide trigger); it opens the same details Popover, whose
+  header button (or wide trigger) wherever it shows (below `--bp-md`, in Edit
+  mode only); it opens the same details Popover, whose
   Move up / Move down are the keyboard alternative to dragging. A drag in
   progress cancels on Esc. The Timelines card's Edit button is named "Edit
   time zones", and "Done editing time zones" while Edit mode is on (the name
