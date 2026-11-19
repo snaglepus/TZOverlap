@@ -366,17 +366,29 @@ test.describe('phone touch', () => {
     const before = await scrollLeft(page);
     const box = await grid(page).boundingBox();
     if (!box) throw new Error('no grid box');
+    // Finger swipes across the tracks as raw touch events:
+    // synthesizeScrollGesture doesn't scroll in headless Chromium on Linux.
     const cdp = await page.context().newCDPSession(page);
-    const gesture = {
-      x: Math.round(box.x + box.width * 0.75),
-      y: Math.round(box.y + box.height / 2),
-      yDistance: 0,
-      gestureSourceType: /** @type {const} */ ('touch'),
-      speed: 4000,
+    const y = Math.round(box.y + box.height / 2);
+    const left = Math.round(box.x + box.width * 0.2);
+    const right = Math.round(box.x + box.width * 0.8);
+    /** @param {'touchStart' | 'touchMove' | 'touchEnd'} type @param {number} x */
+    const touch = (type, x) =>
+      cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+      });
+    /** @param {number} from @param {number} to */
+    const swipe = async (from, to) => {
+      await touch('touchStart', from);
+      for (let step = 1; step <= 20; step++)
+        await touch('touchMove', from + ((to - from) * step) / 20);
+      await touch('touchEnd', to);
     };
-    // Past the start, then past the end.
-    await cdp.send('Input.synthesizeScrollGesture', { ...gesture, xDistance: 4000 });
-    await cdp.send('Input.synthesizeScrollGesture', { ...gesture, xDistance: -6000 });
+    // Towards the start, then further the other way.
+    for (let i = 0; i < 3; i++) await swipe(left, right);
+    for (let i = 0; i < 6; i++) await swipe(right, left);
+    await expect.poll(() => scrollLeft(page)).not.toBe(before);
 
     const after = await page.evaluate(() => {
       const el = /** @type {HTMLElement} */ (document.querySelector('[role="grid"]'));
@@ -387,7 +399,6 @@ test.describe('phone touch', () => {
         overflow: doc.scrollWidth - doc.clientWidth,
       };
     });
-    expect(after.scrollLeft).not.toBe(before);
     expect(after.pageX).toBe(0);
     expect(after.overflow).toBe(0);
   });

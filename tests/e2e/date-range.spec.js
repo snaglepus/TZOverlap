@@ -125,20 +125,18 @@ async function pickDate(page, value) {
 }
 
 /**
- * Scroll to one end until that side stops extending, waiting for each day.
+ * Scroll to one end until the window holds the given number of days. Counting
+ * to a known total, not waiting for growth to stall, so a slow machine that
+ * takes over a second to render a day can't stop it early.
  * @param {import('@playwright/test').Page} page
  * @param {'start' | 'end'} side
+ * @param {number} days
  */
-async function extendToCap(page, side) {
-  for (;;) {
-    const n = await homeCount(page);
+async function extendTo(page, side, days) {
+  await expect(async () => {
     await probe(page, HOME, side === 'end' ? 'end' : 0);
-    try {
-      await expect.poll(() => homeCount(page), { timeout: 1000 }).toBeGreaterThan(n);
-    } catch {
-      return;
-    }
-  }
+    expect(await homeCount(page)).toBe(days * 24);
+  }).toPass({ timeout: 30_000 });
 }
 
 test('load: three days around now, now in view, label Today, Today button hidden', async ({
@@ -281,8 +279,13 @@ test('bounded DOM: seven zones at the 29-day cap, back under 1,425 after a pick'
   ]);
   await page.goto('/');
   await expect(grid(page).getByRole('row')).toHaveCount(9);
-  await extendToCap(page, 'end');
-  await extendToCap(page, 'start');
+  // Yesterday to tomorrow, then 14 days either side of the anchor: 16, then 29.
+  await extendTo(page, 'end', 16);
+  await extendTo(page, 'start', 29);
+  // At the cap, scrolling to either end adds nothing.
+  await probe(page, HOME, 'end');
+  await probe(page, HOME, 0);
+  await page.waitForTimeout(1000);
   const rows = await page.locator('[role="grid"] [role="row"]').evaluateAll((els) =>
     els.map((el) => {
       const s = [...el.querySelectorAll('[role="gridcell"][data-start]')].map((c) =>
