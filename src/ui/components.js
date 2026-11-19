@@ -6,7 +6,7 @@ import { strings } from './strings.js';
 
 /** @typedef {import('./dom.js').Child} Child */
 
-/** @typedef {'alert' | 'gear' | 'grip' | 'location' | 'remove' | 'share'} IconName */
+/** @typedef {'alert' | 'gear' | 'grip' | 'location' | 'plus' | 'remove' | 'share'} IconName */
 
 /** SVG path data per icon, on a 24×24 grid. */
 const ICONS = /** @type {Record<IconName, string>} */ ({
@@ -17,6 +17,8 @@ const ICONS = /** @type {Record<IconName, string>} */ ({
   grip: 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z',
   location:
     'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z',
+  // A plain plus: Add city.
+  plus: 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z',
   // A filled circle with a minus bar: delete a row in Edit mode.
   remove: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 11H7v-2h10v2z',
   // A tray open at the top with an up arrow (the iOS Share button).

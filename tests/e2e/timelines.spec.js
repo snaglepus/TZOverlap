@@ -176,8 +176,8 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   // The filter: one stop, on the checked radio.
   await page.keyboard.press('Tab');
   await expect(page.getByRole('radio', { name: 'All', exact: true })).toBeFocused();
-  // The scrollable grid is itself focusable, then the home row's one keyboard
-  // slot, then Add city below it.
+  // First run: the scrollable grid is itself focusable, then the home row's one
+  // keyboard slot, then the empty state's Add city below it.
   await page.keyboard.press('Tab');
   await expect(grid(page)).toBeFocused();
   await page.keyboard.press('Tab');
@@ -198,15 +198,28 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(first).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(row(page, 'Asia/Tokyo')).toBeVisible();
+  // Focus returns to Add city, now in the card header.
   await expect(add).toBeFocused();
+  await expect(page.locator('.timelines .card__header .add-city-button')).toBeFocused();
 
-  // The row's header trigger and its drag handle sit between the grid and Add city.
+  // With zones: the filter, Add city, Edit, then the grid, the home slot and
+  // the new row's header trigger and drag handle.
   await page.keyboard.press('Shift+Tab');
+  await expect(page.getByRole('radio', { name: 'All', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(add).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Edit time zones' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(grid(page)).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(slot).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(row(page, 'Asia/Tokyo').locator('.grid__trigger:visible')).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(
     row(page, 'Asia/Tokyo').getByRole('button', { name: 'Reorder Tokyo' }),
   ).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(row(page, 'Asia/Tokyo').locator('.grid__trigger:visible')).toBeFocused();
 });
 
 test('storage: migrates the legacy keys once and keeps changes across reloads', async ({

@@ -70,6 +70,79 @@ test('first run: prompt and primary button; city data loads on the first open on
   expect(requests.filter((url) => url.includes('/data/cities'))).toHaveLength(1);
 });
 
+test('first run: the empty state holds the only Add city button, none in the header', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const empty = page.locator('[data-component="empty-state"]');
+  await expect(empty).toContainText('Add the cities you work with');
+  await expect(addButton(page)).toHaveCount(1);
+  await expect(empty.getByRole('button', { name: 'Add city', exact: true })).toHaveClass(
+    /btn--primary/,
+  );
+  await expect(
+    page.locator('.timelines .card__header').getByRole('button', { name: 'Add city' }),
+  ).toHaveCount(0);
+});
+
+/** @param {import('@playwright/test').Locator} locator */
+const box = async (locator) => {
+  const rect = await locator.boundingBox();
+  if (!rect) throw new Error('not rendered');
+  return rect;
+};
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+]) {
+  test(`with zones at ${viewport.width}px: a compact Add city button with a plus icon beside Edit`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await seedZones(page, seeded(['America/New_York', 'Asia/Kolkata']));
+    await page.goto('/');
+    await expect(addButton(page)).toHaveCount(1);
+    const header = page.locator('.timelines .card__header');
+    const add = header.getByRole('button', { name: 'Add city', exact: true });
+    await expect(add).toBeVisible();
+    await expect(add).toHaveText('Add city');
+    await expect(add.locator('svg.icon')).toHaveCount(1);
+    await expect(page.locator('.add-city-row')).toHaveCount(0);
+
+    const edit = await box(header.getByRole('button', { name: 'Edit time zones' }));
+    const own = await box(add);
+    expect(Math.abs(own.y + own.height / 2 - (edit.y + edit.height / 2))).toBeLessThanOrEqual(8);
+    expect(own.x + own.width).toBeLessThanOrEqual(edit.x);
+    // On phones the header line sits above the grid.
+    expect(own.y + own.height).toBeLessThanOrEqual((await box(grid(page))).y);
+
+    await add.click();
+    await expect(sheet(page)).toBeVisible();
+  });
+
+  test(`limit at ${viewport.width}px: the note sits in the header with Edit`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await seedZones(page, seeded(SEVEN));
+    await page.goto('/');
+    const header = page.locator('.timelines .card__header');
+    const note = header.getByText(LIMIT_NOTE);
+    await expect(note).toBeVisible();
+    await expect(addButton(page)).toHaveCount(0);
+    const edit = await box(header.getByRole('button', { name: 'Edit time zones' }));
+    const own = await box(note);
+    const sameLine = Math.abs(own.y + own.height / 2 - (edit.y + edit.height / 2)) <= 8;
+    if (viewport.width === 1440) expect(sameLine).toBe(true);
+    // At 390 the note may not fit beside Edit: then it wraps directly above it.
+    if (!sameLine) {
+      expect(own.y + own.height).toBeLessThanOrEqual(edit.y + 1);
+      expect(edit.y - (own.y + own.height)).toBeLessThan(16);
+    } else {
+      expect(own.x + own.width).toBeLessThanOrEqual(edit.x);
+    }
+  });
+}
+
 test('popular list: region headings and Tokyo with its time and offset', async ({ page }) => {
   await page.goto('/');
   await addButton(page).click();
