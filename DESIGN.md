@@ -98,9 +98,9 @@ hatch (a single line, distinct from the filter mask's cross-hatch),
 Best cells are bold, Everyone Best segments (which have no text) carry a solid
 inner edge in `--color-best-ink` (`--best-edge-width`), Unsuitable cells are
 dimmed with muted text and have neither, legend swatches have a
-`--color-border-strong` outline (≥ 3:1 against the card, and against
-`--color-bg` below `--bp-md`, where the Timelines card has no surface; the Good
-swatch shows the near step), and every
+`--color-border-strong` outline (≥ 3:1 against `--color-bg`, since the
+Timelines region has no surface at any width; the Good swatch shows the near
+step), and every
 cell and segment has an `aria-label` naming its rating. Weekend hour cells
 (`data-weekend="true"`, per zone from `src/lib/weekends.js`) carry a solid top
 band in `--color-weekend-band` (`--weekend-band-width`, ≥ 3:1 against every cell
@@ -183,7 +183,10 @@ durations become `0ms` (handled in `tokens.css`).
 
 ### 3.6 Layout sizes
 
-`--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target,
+`--page-max-width` 120rem (the top bar, `<main>` and the footer: the
+timelines grow to it, centred) · `--content-max-width` 72rem (the measure for
+text in the page from `--bp-md`: banners, the install hint, the fatal error
+state and the footer's text, start-aligned with the grid) · `--control-height` 2.75rem (44px touch target,
 also the minimum of `sm` buttons) ·
 `--slot-width` 48px · `--slot-height` 3.5rem (56px, phone rows) ·
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
@@ -384,34 +387,42 @@ Has an `<h2>` title and a body. Use to group one task or one view (e.g. "Add a t
 app" and "Not now") is a card placed first in `<main>`: non-modal, no timeout.
 Do not nest cards.
 
-The Timelines card has no card look below `--bp-md`, through a page-level
-modifier (`.timelines`, added in `app.js`; `card()` is unchanged): no border,
-radius, shadow, background or padding, so the grid's own single edge spans the
-content width. Its `<h2>` is visually hidden there but still names the region
-(`aria-labelledby`). Its header and body are `display: contents` in a
-wrapping flex row, and flex `order` places, with `--space-2` between lines:
-Add city (or the limit note) and Edit / Done right-aligned on the first line
-(`.timelines__tools`; the note wraps above Edit when it doesn't fit beside
-it), with the no-overlap message (when shown) sharing that line on their left;
-the grid; the legend; then the popover and the first-run empty state, each on
-a line of its own. At large text the message takes its own line above the
-tools. The selection bar is not in this flow: it docks above the toolbar
-(§Selection bar). The DOM, reading and tab order don't change.
+The Timelines region is built with `card()` but has no card look at any
+width, through a page-level modifier (`.timelines`, added in `app.js`;
+`card()` is unchanged): no border, radius, shadow, background or padding, so
+the grid's own single edge is the only edge. Its `<h2>` is visually hidden but
+still names the region (`aria-labelledby`). Its header and body are
+`display: contents` in a wrapping flex row, and flex `order` places them, with
+`--space-2` between lines. Below `--bp-md`: Add city (or the limit note) and
+Edit / Done right-aligned on the first line (`.timelines__tools`; the note
+wraps above Edit when it doesn't fit beside it), with the no-overlap message
+(when shown) sharing that line on their left; the grid; the legend; then the
+popover and the first-run empty state, each on a line of its own. At large
+text the message takes its own line above the tools. The selection bar is not
+in this flow: it docks above the toolbar (§Selection bar). From `--bp-md`: the
+legend and the tools share the first line, vertically centred, the legend
+starting where the hour area does (`--grid-header-width` plus the grid's
+border) and the tools at the end (they wrap under the legend at large text);
+then the no-overlap message (when shown) on a full line; the grid; then the
+popover, the selection bar and the first-run empty state in DOM order. The
+DOM, reading and tab order don't change.
 
 ### App shell — `appShell()` · `.shell`
 
 Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline,
-then the `barActions`), toolbar, `<main id="main">` constrained to
-`--content-max-width` and opening with the page's one banner region (returned
+then the `barActions`), toolbar, `<main id="main">` opening with the page's one banner region (returned
 as `banner`), footer, and the page's one toast region (returned as `toaster`).
 The toolbar (`role="group"`, "Toolbar") holds the `actions` (on the timelines
 page: the Date field, a ghost "Today" button that is hidden while the date
-shown is today, the "24-hour" toggle (a ghost pressed-state Button, pressed
-while 24-hour times show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`,
-where the toolbar is in the title bar), a ghost **Now** button, named "Go to
-now", Settings, then the "Filter" Segmented control: All, Good, Best), comes
-right after the brand and the `barActions` in DOM order, and is omitted when
-there are none.
+shown is today, a ghost **Now** button, named "Go to now", the "24-hour"
+toggle (a ghost pressed-state Button, pressed while 24-hour times show,
+`aria-keyshortcuts="T"`; shown only from `--bp-lg`, where the toolbar is in
+the title bar), the "Filter" Segmented control (All, Good, Best), then
+Settings), comes right after the brand and the `barActions` in DOM order, and
+is omitted when there are none. The header, `<main>` and the footer are
+capped at `--page-max-width` and centred, with the gutters inside; from
+`--bp-md` the text content of `<main>` (everything but the Timelines region)
+and the footer's text are capped at `--content-max-width`, start-aligned.
 
 Below `--bp-md` the title bar is a slim app bar, at most 52px at default text
 (`--space-1` above and below a 44px control): the `<h1>` in `--font-size-lg`,
@@ -427,9 +438,17 @@ filter, all in `--font-size-sm` with `--space-1` gaps, stretched to the tallest
 control. The Today button is not shown there (Now and the picker cover going
 back) and the 24-hour toggle is hidden below `--bp-lg`. At large text it wraps
 onto more rows. It is padded by the bottom, left and right safe-area insets,
-and the shell pads its bottom to match. From `--bp-md` the title bar is as
-before: `--font-size-2xl` name over the tagline, and the toolbar in it at the
-end, with the filter on its own line under the other controls, right-aligned. The title bar pads its top by
+and the shell pads its bottom to match. From `--bp-md` the title and the
+toolbar share one slim top bar: `--space-3` above and below, the name in
+`--font-size-xl` on the left and the toolbar after it, right-aligned, its
+controls (filter included) on the same row. Below `--bp-lg` the tagline is
+hidden and the bar may wrap to at most two rows (112px at default text),
+never widening the page. From `--bp-lg` it is one row, at most 72px at default
+text (also at 1024px with Today showing), with the tagline beside the name in
+muted `--font-size-sm`: it takes no room of its own, filling what the toolbar
+leaves on one line and truncating with an ellipsis, so it never wraps the bar.
+From `--bp-md` `<main>` no longer stretches to fill the viewport and pads
+`--space-4` below, so the footer directly follows the timelines. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Below `--bp-md` the bottom of the viewport is one
 fixed stack, top to bottom: the content scrolling above it, the selection bar
@@ -563,7 +582,7 @@ label's width plus `--segment-inset` on each side, and at least
 `--font-size-sm`, so at default text the filter shares the one toolbar row
 with the one-line date button and Now, down to 320px.
 From `--bp-md` they size as a flex row with `--space-3` padding, and in the
-toolbar the filter takes its own line. Arrow keys move the choice natively and
+top bar the filter sits on the toolbar's row, just before Settings. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set
 `aria-keyshortcuts`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a short, always-visible view mode switched often, e.g. the
@@ -593,10 +612,10 @@ support). For a single bad input value, use the Input error message instead.
 
 ### Selection bar — `selectionBar()` · `.selection-bar`
 
-`src/ui/selection-bar.js`. In the Timelines card body directly after the grid
-(and its popover), before the first-run empty state; hidden while nothing is
-selected, taking no space. Below `--bp-md` it is docked by CSS alone, never
-moved in the DOM (reading and tab order stay those of the card): fixed, full
+`src/ui/selection-bar.js`. In the Timelines region's body directly after the
+grid (and its popover), before the first-run empty state; hidden while nothing
+is selected, taking no space. Below `--bp-md` it is docked by CSS alone, never
+moved in the DOM (reading and tab order stay those of the region): fixed, full
 viewport width, its bottom at the toolbar's top (the same expression as the
 shell's padding, so a toolbar wrapped by large text never covers it), at the
 toolbar's `z-index` 2, on `--color-surface` with a top `--color-border`
@@ -625,11 +644,12 @@ hides it.
 ### Add city — `addCitySheet()` (`src/ui/add-city.js`) · `.add-city*`
 
 Page pattern, not a shared component. With user zones, "Add city" is a
-compact `secondary` button with the `plus` icon in the Timelines card header,
-just before Edit (`.timelines__tools`): `--space-2` inline padding like Edit,
-still `--control-height` tall. From `--bp-md` the two end the header row;
-below it they share one right-aligned line above the grid. With no user zones
-the header has no Add city button: the card body shows the first-run Empty
+compact `secondary` button with the `plus` icon in the Timelines region's
+header, just before Edit (`.timelines__tools`): `--space-2` inline padding
+like Edit, still `--control-height` tall. From `--bp-md` the two end the
+legend's line on the grid's top edge; below it they share one right-aligned
+line above the grid. With no user zones the header has no Add city button: the
+region's body shows the first-run Empty
 state ("Add the cities you work with", one sentence on the 7-zone limit) after
 the grid, with a `primary` Add city button as its action. At 7 stored zones
 the button gives way, in the same place before Edit, to a muted
@@ -663,8 +683,8 @@ and `scripts/lint-tokens.js` rejects any other width in a media query.
 | Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 112px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows in Edit mode only), a cardless Timelines region (hidden heading, Add city and Edit above the grid, the legend after it), 56px rows, the selection bar docked above the toolbar while a selection exists, one-row toolbar fixed to the bottom (date button: "Today" or the short date; Now; filter), shorter footer, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                                                                                                                                                                                                                                         |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `--bp-md` | `40rem`   | `--space-6` gutters, one slim top bar (title, then the toolbar with Today and Settings; at most two rows, no tagline), 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, the legend and Add city / Edit on one line on the grid's top edge, text content at the `--content-max-width` measure, main not stretched (the footer follows the timelines), sheets are centred modals                                                                                                                                                                      |
+| `--bp-lg` | `64rem`   | The top bar is one row with the tagline beside the title (truncating), the 24-hour toggle shows, 220px row headers; the page grows to `--page-max-width`, centred                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 Short viewports keep the phone row header. The wide row header (its inline
 details, the 64px rows, the wider header padding) needs height as well as
@@ -832,11 +852,11 @@ rows jump into place and the lifted row keeps only its shadow (`--lift-scale`
 is `1`).
 
 Edit mode (`src/ui/app.js`, `src/ui/grid.js`): a ghost "Edit" button after the
-legend in the Timelines card header (named "Edit time zones"; "Done", named
+legend in the Timelines region's header (named "Edit time zones"; "Done", named
 "Done editing time zones", while on) turns it on and off. It is `hidden` while
 there are no user rows. Both labels sit in one grid cell (`.edit-toggle`, the
 inactive one `visibility: hidden`) with `--space-2` inline padding, so its
-width never changes and the card header doesn't reflow on a toggle; below
+width never changes and the header line doesn't reflow on a toggle; below
 `--bp-md` it sits alone on a line above the grid, right-aligned, and never
 wraps its label. The mode is held in memory only, survives grid
 rebuilds (`data-editing` on the grid) and is off after a reload. In Edit mode
@@ -953,8 +973,9 @@ days stay. With All there are no masks. Lazy extension redraws them for the
 new window.
 
 No-overlap message: page pattern, not a shared component. A persistent
-`.no-overlap` polite `role="status"` region sits in the Timelines card between
-its header and the grid, mounted empty and taking no space while empty. After
+`.no-overlap` polite `role="status"` region sits in the Timelines region
+between its header and the grid (from `--bp-md` shown between the legend and
+tools line and the grid), mounted empty and taking no space while empty. After
 every build and filter change, under every filter, if the anchor date (the
 date in the toolbar) has no qualifying slot (no Best under Best, no Best or
 Good under Good and All), it shows "No time works for everyone

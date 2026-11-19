@@ -29,8 +29,11 @@ to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 On phones (below 40rem) the title bar is a slim app bar (the name and a
 Settings gear) and the toolbar is one row fixed to the bottom: a compact date
 button (opening the native picker; "Today" on today with the date visually
-hidden, else the short date, "Wed 15 July"), Now and All / Good / Best. From 40rem the toolbar sits in the title bar with Today, the 24-hour
-toggle (from 64rem) and its own Settings gear.
+hidden, else the short date, "Wed 15 July"), Now and All / Good / Best. From
+40rem the title and toolbar share one slim top bar (one row from 64rem, with
+the tagline beside the title) holding Today, the 24-hour toggle (from 64rem)
+and its own Settings gear; the Timelines region has no card look at any width,
+and the page grows to 120rem while text keeps a 72rem measure.
 
 Clicking, tapping or pressing Enter on a slot selects it (snapped to 15
 minutes, `settings.defaultDuration` long): an outlined band crosses every row,

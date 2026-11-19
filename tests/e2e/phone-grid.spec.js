@@ -3,7 +3,8 @@
 // the no-overlap message on its line in short wording, TZO-36), the legend follows the grid,
 // headers are 112 px and the drag handles show in Edit mode only; focus leaves
 // a handle that hides. The grid limits hold with and without the message. From
-// --bp-md (and a phone in landscape) nothing changes. Device in Sydney, clock
+// --bp-md the region keeps no card look either (TZO-32), with the legend above
+// the grid; a phone in landscape keeps its handles. Device in Sydney, clock
 // fixed at 12:00 on Wed 18 Nov 2026, four zones that share no hours seeded (so
 // the no-overlap message shows), install hint dismissed.
 
@@ -463,7 +464,7 @@ test('the legend wraps rather than widening the page at 320 px, 200% text', asyn
   expect(await noSidewaysScroll(page)).toBe(true);
 });
 
-test('AC-12: 1440×900 keeps the card look, the heading, the legend above and the handles', async ({
+test('AC-12: 1440×900 has no card look or visible heading; the legend sits above, the handles show', async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP);
@@ -476,11 +477,12 @@ test('AC-12: 1440×900 keeps the card look, the heading, the legend above and th
       padding: [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft],
     };
   });
-  expect(style.border).toBe('1px');
-  expect(style.shadow).not.toBe('none');
-  expect(style.padding).toEqual(['24px', '24px', '24px', '24px']);
-  await expect(region(page).getByRole('heading', { level: 2, name: 'Timelines' })).toBeVisible();
-  await expect(page.locator('.card__header').getByRole('list', { name: 'Legend' })).toBeVisible();
+  expect(style.border).toBe('0px');
+  expect(style.shadow).toBe('none');
+  expect(style.padding).toEqual(['0px', '0px', '0px', '0px']);
+  const heading = region(page).getByRole('heading', { level: 2, name: 'Timelines' });
+  expect((await box(heading)).width).toBeLessThanOrEqual(1);
+  await expect(legend(page)).toBeVisible();
   const l = await box(legend(page));
   expect(l.y + l.height).toBeLessThanOrEqual((await box(grid(page))).y);
   await expect(page.locator('.grid__handle:visible')).toHaveCount(4);
@@ -490,7 +492,7 @@ test('AC-12: 1440×900 keeps the card look, the heading, the legend above and th
   for (const width of widths) expect(Math.abs(width - 220)).toBeLessThanOrEqual(2);
 });
 
-test('TZO-36: at 1440×900 the no-overlap message keeps its box between the header and the grid', async ({
+test('TZO-36: at 1440×900 the no-overlap message keeps its box between the legend row and the grid', async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP);
@@ -498,8 +500,9 @@ test('TZO-36: at 1440×900 the no-overlap message keeps its box between the head
   await expect(message(page)).toContainText('No time works for everyone today');
   await expectWording(page, true);
   const m = await box(message(page));
-  const header = await box(region(page).locator('.card__header'));
-  expect(m.y).toBeGreaterThanOrEqual(header.y + header.height);
+  for (const above of [await box(legend(page)), await box(editButton(page))]) {
+    expect(m.y).toBeGreaterThanOrEqual(above.y + above.height);
+  }
   expect(m.y + m.height).toBeLessThanOrEqual((await box(grid(page))).y);
   const style = await message(page).evaluate((el) => {
     const s = getComputedStyle(el);

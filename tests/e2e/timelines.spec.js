@@ -161,8 +161,8 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(skip).toBeFocused();
   await expect(skip).toBeInViewport();
 
-  // The date control (one stop per date part), the 24-hour toggle, then Settings:
-  // Today is hidden.
+  // The date control (one stop per date part), the 24-hour toggle, the filter,
+  // then Settings: Today is hidden and Now is disabled.
   await page.keyboard.press('Tab');
   const date = page.locator('.toolbar input[type="date"]');
   await expect(date).toHaveAccessibleName('Today');
@@ -171,11 +171,11 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
     await page.keyboard.press('Tab');
   }
   await expect(page.getByRole('button', { name: '24-hour' })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
   // The filter: one stop, on the checked radio.
   await page.keyboard.press('Tab');
   await expect(page.getByRole('radio', { name: 'All', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
   // First run: the scrollable grid is itself focusable, then the home row's one
   // keyboard slot, then the empty state's Add city below it.
   await page.keyboard.press('Tab');
@@ -202,10 +202,10 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   await expect(add).toBeFocused();
   await expect(page.locator('.timelines .card__header .add-city-button')).toBeFocused();
 
-  // With zones: the filter, Add city, Edit, then the grid, the home slot and
+  // With zones: Settings, Add city, Edit, then the grid, the home slot and
   // the new row's header trigger and drag handle.
   await page.keyboard.press('Shift+Tab');
-  await expect(page.getByRole('radio', { name: 'All', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(add).toBeFocused();
   await page.keyboard.press('Tab');
