@@ -280,14 +280,31 @@ test.describe('phone, 390×844', () => {
   });
 });
 
+/**
+ * Line tops of the date in the date button's text (after "Today · " on today).
+ * @param {import('@playwright/test').Page} page
+ */
+const dateLineTops = (page) =>
+  shortDate(page).evaluate((el) => {
+    const text = /** @type {Text} */ (el.firstChild);
+    const dot = text.data.indexOf('· ');
+    const range = document.createRange();
+    range.setStart(text, dot < 0 ? 0 : dot + 2);
+    range.setEnd(text, text.data.length);
+    return [...new Set([...range.getClientRects()].map((r) => Math.round(r.top)))];
+  });
+
 test('320×568: one toolbar row, no sideways scroll, big controls', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/');
-  for (const date of [null, '2026-07-15']) {
-    if (date) {
-      await dateInput(page).fill(date);
-      await expect(shortDate(page)).toHaveText('Wed 15 July');
-    }
+  // 30 Sept is among the widest short dates.
+  for (const [date, text] of /** @type {const} */ ([
+    [null, 'Today · Wed 18 Nov'],
+    ['2026-07-15', 'Wed 15 July'],
+    ['2026-09-30', 'Wed 30 Sept'],
+  ])) {
+    if (date) await dateInput(page).fill(date);
+    await expect(shortDate(page)).toHaveText(text);
     await expectOneRow(page);
     expect(
       await page.evaluate(
@@ -295,6 +312,9 @@ test('320×568: one toolbar row, no sideways scroll, big controls', async ({ pag
       ),
     ).toBe(true);
     await expectBigControls(page);
+    // The date never breaks inside itself, and never runs out of the button.
+    expect(await dateLineTops(page)).toHaveLength(1);
+    expect(await dateButton(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   }
 });
 

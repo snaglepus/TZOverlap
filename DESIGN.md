@@ -351,11 +351,14 @@ in `--font-size-sm`; when both don't fit (large text) the input wraps under the
 label and may shrink to the field's width.
 
 Below `--bp-md` the field is one compact button: the label, at least 44×44px
-with a `--color-border-strong` border, `--radius-md` and `--font-size-xs` text
+with a `--color-border-strong` border, `--radius-md` and `--font-size-sm` text
 centred, shows the short date. When the short date already says the label
 ("Today · Wed 18 Nov", `replacesLabel`) the word is left out; otherwise ("Wed
 18 Nov") the word stays visually hidden, so the accessible name is "Date Wed 18
-Nov". The text may wrap onto two or three lines in a narrow toolbar. The native
+Nov". The date's spaces are no-break spaces, so in a narrow toolbar the text
+wraps after "Today ·" and never inside the date, and the button is never
+narrower than the date (`min-width: min-content`): if the row can't hold it,
+the toolbar wraps instead of the text running out of the button. The native
 input stays in the DOM with its value, `min` / `max` and handlers, laid over the
 whole button at `opacity: 0`, so a tap focuses it; its click handler also calls
 `showPicker()` (feature-checked, in `try`/`catch`) while the phone layout is
@@ -398,7 +401,8 @@ from `--bp-md`, so exactly one Settings button shows at any width; if the
 layout changes while Settings is open (a phone rotating), closing it focuses
 the gear that shows now. The toolbar is fixed to the bottom of the viewport on
 a surface with a top hairline, one row at default text: the compact Date field
-button (it takes the room left), Now (`--space-2` inline padding), then the
+button (it takes the room left), Now (a ghost button with `--space-1` inline
+padding, at least `--control-height` wide), then the
 filter, all in `--font-size-sm` with `--space-1` gaps, stretched to the tallest
 control. The Today button is not shown there (Now and the picker cover going
 back) and the 24-hour toggle is hidden below `--bp-lg`. At large text it wraps
@@ -522,8 +526,10 @@ the `--color-surface-sunken` fill, a second inset `--color-border-strong`
 border and `--font-weight-bold` text, like the pressed Button, so the state
 never relies on colour alone. A focused radio puts the standard focus ring on
 its segment (`:has(:focus-visible)`). Below `--bp-md` each segment takes its
-label's width plus `--segment-inset` on each side, in `--font-size-sm` in the
-toolbar, so the filter shares the one toolbar row with the date button and Now.
+label's width plus `--segment-inset` on each side, and at least
+`--control-height` wide; in the toolbar the padding is `--space-1` and the text
+`--font-size-sm`, so the filter shares the one toolbar row with the date button
+and Now and leaves the date room for one line at 320px.
 From `--bp-md` they size as a flex row with `--space-3` padding, and in the
 toolbar the filter takes its own line. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set

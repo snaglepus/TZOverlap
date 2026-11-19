@@ -409,7 +409,8 @@ export function mountApp(
   /** Label, short date and Today button against today's date at `current`. @param {Date} current */
   function syncDate(current) {
     const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
-    const date = anchorShortDate(anchor);
+    // No-break spaces: the phone date button may wrap after "Today ·", never inside the date.
+    const date = anchorShortDate(anchor).replaceAll(' ', '\u00a0');
     dateControl.setLabel(isToday ? strings.date.today : strings.date.other);
     dateControl.setShortDate(isToday ? strings.date.todayShort(date) : date, isToday);
     todayButton.hidden = isToday;

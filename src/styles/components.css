@@ -91,8 +91,10 @@
   anchor-name: --toolbar;
 }
 
+/* Now: a ghost button, so its tight padding doesn't show; still a 44px target. */
 .toolbar > .btn:not(.btn--icon) {
-  padding-inline: var(--space-2);
+  min-width: var(--control-height);
+  padding-inline: var(--space-1);
   font-size: var(--font-size-sm);
 }
 
@@ -151,6 +153,7 @@
   }
 
   .toolbar > .btn:not(.btn--icon) {
+    min-width: auto;
     padding-inline: var(--space-4);
     font-size: inherit;
   }
@@ -300,8 +303,11 @@
   min-width: var(--space-0);
 }
 
+/* Never narrower than its longest unbreakable line ("Wed 15 July" stays
+   together), so the text never runs out of the button. */
 .toolbar > .date-field {
   flex: 1 1 var(--control-height);
+  min-width: min-content;
 }
 
 .date-field__label {
@@ -315,7 +321,7 @@
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-tight);
   text-align: center;
@@ -362,6 +368,7 @@
 
   .toolbar > .date-field {
     flex: initial;
+    min-width: var(--space-0);
   }
 
   .date-field__label {
@@ -789,7 +796,10 @@
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
+/* Tighter than --segment-inset, so the date button keeps room for its date on
+   one line; the segment is still at least --control-height wide. */
 .toolbar .segmented__option {
+  padding-inline: var(--space-1);
   font-size: var(--font-size-sm);
 }
 
