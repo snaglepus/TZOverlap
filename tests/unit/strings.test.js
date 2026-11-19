@@ -156,7 +156,14 @@ describe('strings', () => {
       strings.timelines.summary.withMessage('Added Tokyo.', 'Best 10:00–17:00'),
       'Added Tokyo. Everyone: Best 10:00–17:00.',
     );
-    assert.equal(strings.filter.noOverlap, 'No time works for everyone today');
+    assert.deepEqual(strings.filter.noOverlap, {
+      long: 'No time works for everyone today',
+      short: 'No time works today',
+    });
+    assert.deepEqual(strings.filter.nextDay, {
+      long: 'Show next day that works',
+      short: 'Next day',
+    });
     assert.equal(
       strings.filter.noneFound(14),
       'No time works for everyone in the next 14 days either.',

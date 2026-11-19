@@ -300,10 +300,14 @@
 /* ---------- Timelines card ---------- */
 /* Below --bp-md no card look: the grid runs the content width. The heading is
    visually hidden (it still names the region), and the header and body join
-   one column, without DOM changes: Add city (or the limit note) and Edit /
-   Done on one right-aligned line, the no-overlap message, the grid, then the
-   legend and the rest in DOM order. The selection bar docks above the toolbar. */
+   one wrapping row, without DOM changes: the no-overlap message (when shown)
+   and the tools (Add city or the limit note, then Edit / Done) share the first
+   line, the tools right-aligned; then the grid, the legend and the rest in DOM
+   order, each on a line of its own. The message's minimum width scales with
+   text, so at large text it wraps above the tools. The selection bar docks
+   above the toolbar. */
 .timelines {
+  flex-flow: row wrap;
   gap: var(--space-2);
   padding: var(--space-0);
   background: transparent;
@@ -329,12 +333,22 @@
   border: var(--space-0);
 }
 
-.timelines .timelines__tools {
-  order: -3;
+.timelines > .card__header > *,
+.timelines > .card__body > * {
+  flex-basis: 100%;
 }
 
 .timelines > .no-overlap {
+  order: -3;
+  flex: 1 1 0;
+  min-inline-size: min(100%, var(--no-overlap-min-width));
+}
+
+.timelines .timelines__tools {
   order: -2;
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  align-self: center;
 }
 
 .timelines .grid {
@@ -343,6 +357,7 @@
 
 @media (min-width: 40rem) {
   .timelines {
+    flex-flow: column nowrap;
     gap: var(--space-4);
     padding: var(--space-5);
     background: var(--color-surface);
@@ -364,6 +379,21 @@
     overflow: visible;
     clip-path: none;
     white-space: normal;
+  }
+
+  .timelines > .card__header > *,
+  .timelines > .card__body > * {
+    flex-basis: auto;
+  }
+
+  .timelines > .no-overlap {
+    flex: 0 1 auto;
+    min-inline-size: auto;
+  }
+
+  .timelines .timelines__tools {
+    flex: 0 1 auto;
+    margin-inline-start: var(--space-0);
   }
 
   .timelines .timelines__tools,
@@ -850,6 +880,9 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 /* ---------- No-overlap message: above the grid while the filter leaves the date empty ---------- */
+/* Below --bp-md it shares Edit / Done's line: plain small text in the short
+   wording, no box, the button at its label's width beside the first line (under
+   it when the line is too narrow for both). From --bp-md a sunken, bordered box. */
 .no-overlap:empty {
   display: none;
 }
@@ -860,27 +893,37 @@ button.grid__warning[aria-expanded='true'] {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-  background: var(--color-surface-sunken);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
 }
 
 .no-overlap__message {
-  flex: 1 1 auto;
-  min-width: var(--space-0);
+  flex: 1 1 0;
   font-weight: var(--font-weight-medium);
-  overflow-wrap: anywhere;
+  line-height: var(--line-height-tight);
+  overflow-wrap: break-word;
 }
 
 /* Its button's label wraps when the button alone is wider than the message
    (large text on a phone), rather than widening the page; its padding shrinks
    with the phone gutter, so the wrapped label takes fewer lines. */
 .no-overlap .btn {
+  flex: 0 1 auto;
   min-width: var(--space-0);
-  padding-inline: var(--phone-gutter);
+  padding-inline: min(var(--space-3), var(--phone-gutter));
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* Below --bp-md the short wording shows and the long one is visually hidden
+   (base.css .visually-hidden), still the accessible text (src/ui/app.js). */
+.no-overlap__long {
+  position: absolute;
+  width: var(--hairline);
+  height: var(--hairline);
+  margin: calc(var(--hairline) * -1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The none-found line replaces the button: under the first line, one block.
@@ -888,6 +931,41 @@ button.grid__warning[aria-expanded='true'] {
 .no-overlap__message + .no-overlap__message {
   flex-basis: 100%;
   max-width: none;
+}
+
+@media (min-width: 40rem) {
+  .no-overlap {
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+    font-size: inherit;
+    background: var(--color-surface-sunken);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+  }
+
+  .no-overlap__message {
+    flex: 1 1 auto;
+    min-width: var(--space-0);
+    line-height: var(--line-height-base);
+    overflow-wrap: anywhere;
+  }
+
+  .no-overlap .btn {
+    padding-inline: var(--phone-gutter);
+  }
+
+  .no-overlap__short {
+    display: none;
+  }
+
+  .no-overlap__long {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: var(--space-0);
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
 }
 
 /* ---------- Selection bar ---------- */
