@@ -153,9 +153,14 @@ export function field({ label, name, placeholder, help, suggestions }) {
   };
 }
 
+/** The --bp-md breakpoint (tokens.css); below it the date field is a compact button. */
+const WIDE = '(min-width: 40rem)';
+
 /**
  * Labelled native date input (`<input type="date">`), value "YYYY-MM-DD".
- * The label sits beside the input, so it fits the toolbar.
+ * The label sits beside the input, so it fits the toolbar. Below --bp-md the
+ * label shows the short date as a button, with the input laid over it
+ * transparently: a tap opens the native picker.
  * @param {{ label: string, name: string, value: string, min?: string, max?: string }} options
  */
 export function dateField({ label, name, value, min, max }) {
@@ -165,14 +170,41 @@ export function dateField({ label, name, value, min, max }) {
     attrs: { id, name, type: 'date', min, max },
   });
   input.value = value;
-  const labelEl = h('label', { class: 'date-field__label', text: label, attrs: { for: id } });
+  // Desktop browsers open the picker only from its icon; the phone button opens it anywhere.
+  input.addEventListener('click', () => {
+    if (window.matchMedia(WIDE).matches || !('showPicker' in input)) return;
+    try {
+      input.showPicker();
+    } catch {
+      // Already open, or not allowed here: the input still has focus.
+    }
+  });
+  const wordEl = h('span', { class: 'date-field__word', text: label });
+  const shortEl = h('span', { class: 'date-field__short' });
+  // The space keeps the accessible name "Date Wed 15 July", not "DateWed 15 July".
+  const labelEl = h('label', { class: 'date-field__label', attrs: { for: id } }, [
+    wordEl,
+    ' ',
+    shortEl,
+  ]);
   const root = h('div', { class: 'date-field' }, [labelEl, input]);
   return {
     root,
     input,
     /** @param {string} text */
     setLabel(text) {
-      labelEl.textContent = text;
+      wordEl.textContent = text;
+    },
+    /**
+     * The short date shown below --bp-md. When it already says the label
+     * ("Today · Wed 18 Nov"), the label word is left out there; otherwise it
+     * stays visually hidden, for the accessible name.
+     * @param {string} text
+     * @param {boolean} [replacesLabel]
+     */
+    setShortDate(text, replacesLabel = false) {
+      shortEl.textContent = text;
+      root.classList.toggle('date-field--short-only', replacesLabel);
     },
   };
 }
@@ -667,12 +699,18 @@ export function switchControl({ label, checked, onChange }) {
 }
 
 /**
- * App shell: skip link, title bar with <h1> and a toolbar for the actions,
- * <main> opening with the page's banner region, footer, and the page's one
- * toast region.
- * @param {{ title: string, tagline?: string, actions?: Child[], footer?: Child[] }} options
+ * App shell: skip link, title bar with <h1>, the app bar's own controls
+ * (`barActions`) and a toolbar for the actions, <main> opening with the page's
+ * banner region, footer, and the page's one toast region.
+ * @param {{
+ *   title: string,
+ *   tagline?: string,
+ *   barActions?: Child[],
+ *   actions?: Child[],
+ *   footer?: Child[],
+ * }} options
  */
-export function appShell({ title, tagline, actions = [], footer = [] }) {
+export function appShell({ title, tagline, barActions = [], actions = [], footer = [] }) {
   const banner = createBanner();
   const main = h('main', { class: 'shell__main', attrs: { id: 'main', tabindex: '-1' } }, [
     banner.root,
@@ -693,6 +731,7 @@ export function appShell({ title, tagline, actions = [], footer = [] }) {
         h('h1', { class: 'shell__title', text: title }),
         tagline ? h('p', { class: 'shell__tagline', text: tagline }) : null,
       ]),
+      ...barActions,
       toolbar,
     ]),
     main,

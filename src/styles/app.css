@@ -144,6 +144,25 @@
   }
 }
 
+/* ---------- One Settings gear per layout; the Today button from --bp-md ---------- */
+/* Below --bp-md the gear sits in the app bar and the toolbar holds only the
+   date button, Now and the filter. */
+.toolbar-settings,
+.today-button {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .bar-settings {
+    display: none;
+  }
+
+  .toolbar-settings,
+  .today-button {
+    display: inline-flex;
+  }
+}
+
 /* ---------- Title bar 12/24-hour toggle: desktop only ---------- */
 .hour-toggle {
   display: none;
