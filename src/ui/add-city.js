@@ -31,12 +31,13 @@ const pad = (n) => String(n).padStart(2, '0');
  *   store: Store,
  *   homeZone: () => string,
  *   now: () => Date,
- *   announcer: HTMLElement,
+ *   announce: (text: string) => void,
  *   focusTarget: () => HTMLElement | null,
  *   focusRow: (id: string) => boolean,
  * }} deps `focusRow` focuses a changed zone's row on close; else `focusTarget()`.
+ * `announce` speaks "Added X." or "Changed X to Y." in the app's live region.
  */
-export function addCitySheet({ store, homeZone, now, announcer, focusTarget, focusRow }) {
+export function addCitySheet({ store, homeZone, now, announce, focusTarget, focusRow }) {
   const search = field({ label: strings.addCity.search, name: 'city-search' });
   const results = h('div', { class: 'add-city__results' });
   const note = h('p', { class: 'add-city__note', attrs: { 'aria-live': 'polite' } });
@@ -163,7 +164,7 @@ export function addCitySheet({ store, homeZone, now, announcer, focusTarget, foc
         return;
       }
       panel.close();
-      announcer.textContent = strings.addCity.changed(from, outcome.zone.label);
+      announce(strings.addCity.changed(from, outcome.zone.label));
       return;
     }
     const outcome = store.add(zone);
@@ -172,7 +173,7 @@ export function addCitySheet({ store, homeZone, now, announcer, focusTarget, foc
       return;
     }
     panel.close();
-    announcer.textContent = strings.addCity.added(outcome.zone.label);
+    announce(strings.addCity.added(outcome.zone.label));
   }
 
   function load() {

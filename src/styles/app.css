@@ -314,10 +314,34 @@
   min-height: var(--slot-height);
 }
 
-/* On the header and track, not the row: the opaque sticky header then covers
-   its part of the lines, so the band and now line never show through there. */
+/* The Everyone row is last, a total line under the zone rows. The rule is on
+   the header and track, not the row: the opaque sticky header then covers its
+   part of it, so the band and now line never show through there. No bottom
+   border: the grid's own border closes the row. */
 .grid__row--everyone > * {
-  border-block: var(--border-width) solid var(--color-border-strong);
+  border-block-start: var(--everyone-rule-width) solid var(--color-border-strong);
+}
+
+/* The name, then the summary on its own line under it. */
+.grid__row--everyone > .grid__header {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-0);
+}
+
+.grid__summary {
+  display: block;
+  max-width: 100%;
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: break-word;
+}
+
+/* One variant per breakpoint (display: none keeps the other out of the
+   accessibility tree); the switch is the wide header query below. */
+.grid__summary-long {
+  display: none;
 }
 
 .grid__header {
@@ -735,7 +759,7 @@ button.grid__warning[aria-expanded='true'] {
   flex: 1 1 auto;
   min-width: var(--space-0);
   font-weight: var(--font-weight-medium);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Its button's label wraps when the button alone is wider than the message
@@ -745,7 +769,7 @@ button.grid__warning[aria-expanded='true'] {
   min-width: var(--space-0);
   padding-inline: var(--phone-gutter);
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* The none-found line replaces the button: under the first line, one block.
@@ -776,7 +800,7 @@ button.grid__warning[aria-expanded='true'] {
 .selection-bar__when,
 .selection-bar__rating {
   min-width: var(--space-0);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   hyphens: auto;
 }
 
@@ -853,6 +877,14 @@ button.grid__warning[aria-expanded='true'] {
 @media (min-width: 40rem) and (min-height: 40rem) {
   .grid__row {
     min-height: var(--slot-height-wide);
+  }
+
+  .grid__summary-short {
+    display: none;
+  }
+
+  .grid__summary-long {
+    display: inline;
   }
 
   .grid__header {

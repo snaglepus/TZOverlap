@@ -98,7 +98,9 @@ test('search: nyc finds New York, adds it, and it survives a reload', async ({ p
 
   await expect(sheet(page)).toBeHidden();
   await expect(row(page, 'America/New_York').getByRole('rowheader')).toContainText('New York');
-  await expect(page.getByTestId('announcer')).toHaveText('Added New York.');
+  await expect(page.getByTestId('announcer')).toHaveText(
+    'Added New York. Everyone: Best 14:00–17:00.',
+  );
   await expect(addButton(page)).toHaveClass(/btn--secondary/);
 
   await page.reload();

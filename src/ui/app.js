@@ -4,6 +4,7 @@
 
 import { cityDataIfLoaded } from '../lib/city-data.js';
 import { bannerMessage, changeSentence, changesBetween } from '../lib/dst.js';
+import { everyoneSummary, sameSummary, summaryText } from '../lib/everyone-summary.js';
 import { dayQualifies, nextQualifyingDay } from '../lib/filter.js';
 import {
   DEFAULT_DAYS,
@@ -100,6 +101,47 @@ export function mountApp(
     class: 'visually-hidden',
     attrs: { 'aria-live': 'polite', 'data-testid': 'announcer' },
   });
+
+  // --- Announcements -----------------------------------------------------------
+  // The only writer of the live region. Messages and the summary and filter
+  // flags set within one task are collected, and one microtask writes them once.
+  /** @type {string[]} */
+  let pendingMessages = [];
+  let summaryChanged = false;
+  let filterChanged = false;
+  let flushQueued = false;
+
+  function queueFlush() {
+    if (flushQueued) return;
+    flushQueued = true;
+    queueMicrotask(flushAnnouncements);
+  }
+
+  /** Say `message` once this task ends, with any summary or filter change. @param {string} message */
+  function announce(message) {
+    pendingMessages.push(message);
+    queueFlush();
+  }
+
+  function flushAnnouncements() {
+    const messages = pendingMessages.join(' ');
+    const summary = summaryText(shownSummary, homeZone(), shownCycle).long;
+    let text = messages;
+    if (filterChanged) {
+      const filter = strings.filter.changed(strings.filter.options[shownFilter], summary);
+      text = messages ? `${messages} ${filter}` : filter;
+    } else if (summaryChanged) {
+      text = messages
+        ? strings.timelines.summary.withMessage(messages, summary)
+        : strings.timelines.summary.announce(summary);
+    }
+    pendingMessages = [];
+    summaryChanged = false;
+    filterChanged = false;
+    flushQueued = false;
+    announcer.textContent = text;
+  }
+
   const nowButton = button({
     label: strings.app.now,
     ariaLabel: strings.app.nowLabel,
@@ -214,7 +256,7 @@ export function mountApp(
     store,
     homeZone: home.current,
     now,
-    announcer,
+    announce,
     focusTarget: () =>
       timelinesCard.body.querySelector('.add-city-button') ??
       timelinesCard.body.querySelector('[role="grid"]'),
@@ -257,7 +299,7 @@ export function mountApp(
     editButton.setAttribute('aria-label', on ? strings.edit.doneLabel : strings.edit.editLabel);
     view?.setEditing(on);
     view?.refresh();
-    announcer.textContent = on ? strings.edit.on : strings.edit.off;
+    announce(on ? strings.edit.on : strings.edit.off);
     if (!on && refocus) (editButton.hidden ? addButton : editButton)?.focus();
   }
 
@@ -304,10 +346,13 @@ export function mountApp(
   selection.subscribe(() => {
     view?.setSelection(selection.get());
     const summary = syncBar();
-    announcer.textContent = summary
-      ? strings.selection.announce(summary)
-      : strings.selection.cleared;
+    announce(summary ? strings.selection.announce(summary) : strings.selection.cleared);
   });
+
+  /** The Everyone summary on screen. @type {import('../lib/everyone-summary.js').Summary | null} */
+  let shownSummary = null;
+  /** Whether a build has set it yet: the first one is the baseline. */
+  let summaryBuilt = false;
 
   /** Home, zone list and weekend setting of the last render; other changes keep the DOM. */
   let renderedKey = '';
@@ -448,7 +493,10 @@ export function mountApp(
     };
   }
 
-  /** Show the no-overlap message while Good or Best leaves the anchor date empty. */
+  /**
+   * Show the no-overlap message while the filter leaves the anchor date empty:
+   * no Best slot under Best, no Best or Good slot under Good and All.
+   */
   function checkOverlap() {
     if (dayQualifies(dayOptions())) {
       noOverlap.replaceChildren();
@@ -498,6 +546,14 @@ export function mountApp(
     const current = now();
     const slot = view?.slot() ?? null;
     const hadDeleteFocus = deleteFocused();
+    const summary = everyoneSummary(dayOptions());
+    // The first build sets the baseline; later ones announce a different answer.
+    if (summaryBuilt && !sameSummary(summary, shownSummary)) {
+      summaryChanged = true;
+      queueFlush();
+    }
+    summaryBuilt = true;
+    shownSummary = summary;
     view?.destroy();
     rowZones = [homeZone(), ...shown];
     view = timelineGrid({
@@ -533,6 +589,7 @@ export function mountApp(
       weekendsUnavailable: settings.weekendsUnavailable,
       slot,
       editing,
+      summary: summaryText(summary, homeZone(), shownCycle),
     });
     view.setSelection(selection.get());
     syncBar();
@@ -603,6 +660,7 @@ export function mountApp(
     shownCycle = next;
     hourToggle.setAttribute('aria-pressed', String(next === 'h23'));
     view?.setHourCycle(next);
+    view?.setSummary(summaryText(shownSummary, homeZone(), next));
     syncBar();
   }
 
@@ -636,7 +694,7 @@ export function mountApp(
     if (inBar) view?.root.focus({ preventScroll: true });
   }
 
-  /** Follow the stored filter: control, masks and message, without a rebuild. */
+  /** Follow the stored filter: control, masks and message, without a rebuild; announce it. */
   function syncFilter() {
     const next = store.getState().settings.filter;
     if (next === shownFilter) return;
@@ -644,6 +702,8 @@ export function mountApp(
     filterControl.setValue(next);
     view?.setFilter(next);
     checkOverlap();
+    filterChanged = true;
+    queueFlush();
   }
 
   // 1, 2 and 3 pick All, Good and Best, only while focus is in the grid (WCAG 2.1.4).
@@ -657,7 +717,6 @@ export function mountApp(
     if (filter === shownFilter) return;
     event.preventDefault();
     store.updateSettings({ filter });
-    announcer.textContent = strings.filter.changed(strings.filter.options[filter]);
   }
 
   // T toggles the cycle, only while focus is in the timeline grid (WCAG 2.1.4).
@@ -712,7 +771,7 @@ export function mountApp(
     if (!target) return;
     store.move(zone.id, target.toIndex);
     focusRow(zone.id);
-    announcer.textContent = strings.timelines.moved(zone.label, target.position, target.count);
+    announce(strings.timelines.moved(zone.label, target.position, target.count));
   }
 
   /**
@@ -746,7 +805,7 @@ export function mountApp(
           const restored = store.restore(removed.zone, removed.index);
           if (!restored.ok) return;
           focusRow(restored.zone.id);
-          announcer.textContent = strings.addCity.restored(restored.zone.label);
+          announce(strings.addCity.restored(restored.zone.label));
         },
       },
       duration: UNDO_DURATION_MS,

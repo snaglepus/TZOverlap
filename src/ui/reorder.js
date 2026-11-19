@@ -6,9 +6,10 @@
 // position. Esc, pointercancel, a release outside the grid, a resize or a row
 // height change cancels. Geometry is measured once at pickup, relative to the
 // grid's top, so page scroll and layout shifts above the grid move it with the
-// rows. The maths is in src/lib/row-order.js and src/lib/scroll.js.
+// rows. A release over the home or Everyone row lands first or last among the
+// user rows. The maths is in src/lib/row-order.js and src/lib/scroll.js.
 
-import { dropIndex, rowShift } from '../lib/row-order.js';
+import { pointerDropIndex, rowShift } from '../lib/row-order.js';
 import {
   CLICK_SLOP_PX,
   HAPTIC_MS,
@@ -38,6 +39,8 @@ const SIZE_EPSILON_PX = 0.5;
  * @typedef {{ top: number, bottom: number }} Rect
  * @typedef {{
  *   rects: Rect[],
+ *   homeBottom: number,
+ *   everyoneTop: number,
  *   pickupY: number,
  *   centre: number,
  *   height: number,
@@ -49,8 +52,8 @@ const SIZE_EPSILON_PX = 0.5;
 
 /**
  * Let a row's pointer gestures reorder `rows` (the user rows, in display
- * order). `fixed` are the rows above them (home and All zones); a height change
- * in any of these or `rows` cancels a drag. `onDrop(from, position)` runs after
+ * order). `fixed` are the home and Everyone rows, in that order, which stay
+ * first and last; a height change in any of these or `rows` cancels a drag. `onDrop(from, position)` runs after
  * a drop that moves row `from` to 0-based `position`. Call `destroy()` before
  * dropping the grid; it cancels a drag without dropping.
  * @param {{
@@ -99,8 +102,16 @@ export function attachReorder({ root, rows, fixed, onDrop }) {
   function layout() {
     if (!drag || !press) return;
     const { from } = press;
-    const dy = press.y - rootTop() - drag.pickupY;
-    const position = dropIndex(drag.rects, from, drag.centre + dy);
+    const pointerY = press.y - rootTop();
+    const dy = pointerY - drag.pickupY;
+    const position = pointerDropIndex({
+      rects: drag.rects,
+      from,
+      centre: drag.centre + dy,
+      pointerY,
+      homeBottom: drag.homeBottom,
+      everyoneTop: drag.everyoneTop,
+    });
     const { height } = drag;
     drag.position = position;
     rows.forEach((row, i) => {
@@ -138,8 +149,12 @@ export function attachReorder({ root, rows, fixed, onDrop }) {
       return { top: rect.top - top, bottom: rect.bottom - top };
     });
     const own = /** @type {Rect} */ (rects[press.from]);
+    const homeRow = /** @type {HTMLElement} */ (fixed[0]);
+    const everyoneRow = /** @type {HTMLElement} */ (fixed[1]);
     drag = {
       rects,
+      homeBottom: homeRow.getBoundingClientRect().bottom - top,
+      everyoneTop: everyoneRow.getBoundingClientRect().top - top,
       pickupY: press.y - top,
       centre: (own.top + own.bottom) / 2,
       height: own.bottom - own.top,
