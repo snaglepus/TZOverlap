@@ -54,6 +54,15 @@ const handle = (page, zone) => row(page, zone).locator('.grid__handle');
 /** @param {Page} page */
 const details = (page) => page.getByRole('group', { name: 'Time zone details' });
 
+/**
+ * Turn Edit mode on: below --bp-md the handles show only then.
+ * @param {Page} page
+ */
+async function editMode(page) {
+  await page.getByRole('button', { name: 'Edit time zones', exact: true }).click();
+  await expect(page.locator('.grid__handle').first()).toBeVisible();
+}
+
 /** The data-zone of each user row, in order. @param {Page} page */
 const userZones = (page) =>
   page
@@ -197,6 +206,7 @@ test.describe('touch at 390 px', () => {
   }) => {
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     expect(await userZones(page)).toEqual([A, B, C, D]);
     const before = await scrollLeft(page);
 
@@ -258,6 +268,7 @@ test.describe('touch at 390 px', () => {
     await spyOnWrites(page);
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     // Select a slot first.
     const homeTrack = row(page, HOME).locator('.grid__track');
     const trackBox = await homeTrack.boundingBox();
@@ -292,6 +303,7 @@ test.describe('touch at 390 px', () => {
     await spyOnWrites(page);
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     await armWrites(page);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const title = await centre(page.getByRole('heading', { level: 1 }));
@@ -314,6 +326,7 @@ test.describe('touch at 390 px', () => {
   test('a release over the home row lands first among the user rows', async ({ page }) => {
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     const touch = await touchscreen(page);
     const grab = await touch.lift(await centre(handle(page, D)));
     const home = await centre(row(page, HOME).locator('[role="rowheader"]'));
@@ -347,6 +360,7 @@ test.describe('touch at 390 px', () => {
     await spyOnWrites(page);
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     await armWrites(page);
     const touch = await touchscreen(page);
     const grab = await touch.lift(await centre(handle(page, B)));
@@ -362,6 +376,7 @@ test.describe('touch at 390 px', () => {
   test('the lifted row is raised and scaled; the others slide', async ({ page }) => {
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     const touch = await touchscreen(page);
     const grab = await touch.lift(await centre(handle(page, C)));
     await touch.move({ x: grab.x, y: grab.y - 30 }, 3);
@@ -377,6 +392,7 @@ test.describe('touch at 390 px', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     const touch = await touchscreen(page);
     const grab = await touch.lift(await centre(handle(page, C)));
     await touch.move({ x: grab.x, y: grab.y - 30 }, 3);
@@ -396,6 +412,7 @@ test.describe('touch at 390 px', () => {
   }) => {
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     const touch = await touchscreen(page);
     const mids = await midpoints(page);
     const grab = await touch.lift(await centre(handle(page, C)));
@@ -427,6 +444,7 @@ test.describe('touch at 390 px', () => {
     await spyOnWrites(page);
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     await armWrites(page);
     const touch = await touchscreen(page);
     const mids = await midpoints(page);
@@ -448,6 +466,7 @@ test.describe('touch at 390 px', () => {
     await spyOnWrites(page);
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     await armWrites(page);
     const touch = await touchscreen(page);
     const mids = await midpoints(page);
@@ -489,6 +508,7 @@ test.describe('touch at 390 px', () => {
     });
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await editMode(page);
     const touch = await touchscreen(page);
     const grab = await touch.lift(await centre(handle(page, C)));
     await touch.move({ x: grab.x, y: grab.y - 40 }, 4);
@@ -519,9 +539,20 @@ test.describe('touch at 390 px', () => {
     expect(errors).toEqual([]);
   });
 
-  test('handles: one per user row, named, 44 px, keyboard opens the details', async ({ page }) => {
+  test('handles: hidden outside Edit mode; in it named, 44 px, keyboard opens the details', async ({
+    page,
+  }) => {
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
+    await expect(page.locator('.grid__handle')).toHaveCount(4);
+    await expect(page.locator('.grid__handle:visible')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Reorder/ })).toHaveCount(0);
+    // Not a tab stop: Tab from C's trigger goes on to D's.
+    await row(page, C).locator('.grid__trigger:visible').focus();
+    await page.keyboard.press('Tab');
+    await expect(row(page, D).locator('.grid__trigger:visible')).toBeFocused();
+
+    await editMode(page);
     for (const [, tz, label] of FOUR) {
       await expect(row(page, tz).getByRole('button', { name: `Reorder ${label}` })).toHaveCount(1);
       const box = await handle(page, tz).boundingBox();
@@ -532,23 +563,21 @@ test.describe('touch at 390 px', () => {
     await expect(row(page, HOME).locator('.grid__handle')).toHaveCount(0);
     await expect(row(page, 'everyone').locator('.grid__handle')).toHaveCount(0);
 
-    await row(page, C).locator('.grid__trigger:visible').focus();
-    await page.keyboard.press('Tab');
-    await expect(handle(page, C)).toBeFocused();
+    await handle(page, C).focus();
     await page.keyboard.press('Enter');
     await expect(details(page)).toBeVisible();
     await expect(details(page).getByRole('button', { name: 'Move up' })).toBeVisible();
     await expect(details(page).getByRole('button', { name: 'Move down' })).toBeVisible();
   });
 
-  test('phone headers are 144 px wide', async ({ page }) => {
+  test('phone headers are 112 px wide', async ({ page }) => {
     await seedZones(page, seeded(FOUR));
     await page.goto('/');
     const widths = await page
       .locator('[role="rowheader"]')
       .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
     expect(widths).toHaveLength(6);
-    for (const width of widths) expect(Math.abs(width - 144)).toBeLessThanOrEqual(2);
+    for (const width of widths) expect(Math.abs(width - 112)).toBeLessThanOrEqual(2);
   });
 });
 
@@ -558,6 +587,7 @@ test.describe('auto-scroll at 390 × 600', () => {
   test('holding the row at the bottom edge scrolls the page', async ({ page }) => {
     await seedZones(page, seeded(SEVEN));
     await page.goto('/');
+    await editMode(page);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const toolbar = await page.getByRole('group', { name: 'Toolbar' }).boundingBox();
     if (!toolbar) throw new Error('no toolbar');
@@ -584,6 +614,7 @@ test.describe('large text', () => {
       test('headers keep their width and handles wrap inside the grid', async ({ page }) => {
         await seedZones(page, seeded(FOUR));
         await page.goto('/');
+        await editMode(page);
         await setRootFontSize(page, '200%');
         const report = await grid(page).evaluate((root) => {
           const rect = root.getBoundingClientRect();

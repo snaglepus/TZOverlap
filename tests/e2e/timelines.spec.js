@@ -870,7 +870,7 @@ test.describe('row headers', () => {
     for (const box of await zoneHeaders(page).evaluateAll((els) =>
       els.map((el) => el.getBoundingClientRect().width),
     )) {
-      expect(Math.abs(box - 144)).toBeLessThanOrEqual(2);
+      expect(Math.abs(box - 112)).toBeLessThanOrEqual(2);
     }
 
     // Two one-line rows of text in each button; date and offset stay in the popover.
@@ -946,7 +946,7 @@ test.describe('row headers', () => {
   });
 
   for (const [width, height, headerWidth, rowHeight] of /** @type {const} */ ([
-    [390, 844, 144, 56],
+    [390, 844, 112, 56],
     [820, 1180, 180, 64],
     [1440, 900, 220, 64],
   ])) {

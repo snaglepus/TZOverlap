@@ -40,9 +40,9 @@ const VIEWPORTS = [
   { width: 1440, height: 900, controls: 'page', text: false },
 ];
 
-/** Row header widths at default text: 144px on phones, 180px from --bp-md, 220px from --bp-lg. */
+/** Row header widths at default text: 112px on phones, 180px from --bp-md, 220px from --bp-lg. */
 /** @param {number} width */
-const defaultHeaderWidth = (width) => (width >= 1024 ? 220 : width >= 640 ? 180 : 144);
+const defaultHeaderWidth = (width) => (width >= 1024 ? 220 : width >= 640 ? 180 : 112);
 
 /** @typedef {import('@playwright/test').Page} Page */
 /** @typedef {import('@playwright/test').Locator} Locator */
