@@ -790,7 +790,7 @@ function legend() {
   /** @type {[Rating, string | undefined][]} */
   const items = [
     ['best', undefined],
-    ['good', '1'],
+    ['good', '0'],
     ['unsuitable', undefined],
   ];
   return h(
