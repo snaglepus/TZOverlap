@@ -660,13 +660,22 @@ test.describe('large text', () => {
 
         if (viewport.width !== 390) return;
         // Rows are taller than the space above the toolbar: bring C's handle
-        // just above the toolbar, lift it, hold it at the top edge until the
-        // page has scrolled A's midpoint into view, then drop above it.
-        await handle(page, C).evaluate((el) => {
-          const toolbar = /** @type {Element} */ (document.querySelector('.toolbar'));
-          const room = toolbar.getBoundingClientRect().top - el.getBoundingClientRect().bottom;
-          window.scrollBy(0, 60 - room);
-        });
+        // just above the pinned Everyone row (which sits on the toolbar), lift
+        // it, hold it at the top edge until the page has scrolled A's midpoint
+        // into view, then drop above it. The row's pinned place moves with the
+        // scroll, so settle twice.
+        for (let i = 0; i < 2; i++) {
+          await handle(page, C).evaluate((el) => {
+            const pinned = /** @type {Element} */ (
+              document.querySelector('[data-zone="everyone"] > .grid__header')
+            );
+            const room = pinned.getBoundingClientRect().top - el.getBoundingClientRect().bottom;
+            window.scrollBy(0, 60 - room);
+          });
+          await page.evaluate(
+            () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+          );
+        }
         const touch = await touchscreen(page);
         const mids = await midpoints(page);
         const grab = await touch.lift(await centre(handle(page, C)));

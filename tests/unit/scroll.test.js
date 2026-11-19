@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   CLICK_SLOP_PX,
+  TOAST_RAISE_MAX_SHARE,
   EDGE_SCROLL_MAX_STEP_PX,
   EDGE_SCROLL_ZONE_PX,
   columnsAt,
@@ -10,6 +11,8 @@ import {
   isLineVisible,
   keyStep,
   nowScrollLeft,
+  pinLift,
+  toastRoom,
   wheelToHorizontal,
 } from '../../src/lib/scroll.js';
 
@@ -172,5 +175,61 @@ describe('edgeScrollStep', () => {
 
   it('measures from the given top, such as a toolbar edge', () => {
     assert.equal(edgeScrollStep(400, 0, 420), edgeScrollStep(580, 0, 600));
+  });
+});
+
+describe('pinLift', () => {
+  const home = { homeBottom: 100 };
+
+  it('is 0 when the row is in view', () => {
+    assert.equal(pinLift({ ...home, rowTop: 400, rowBottom: 460, visibleBottom: 800 }), 0);
+  });
+
+  it('raises the row by as much as it runs past the visible bottom', () => {
+    assert.equal(pinLift({ ...home, rowTop: 780, rowBottom: 840, visibleBottom: 800 }), 40);
+  });
+
+  it('raises the row right under the home row when it just fits', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 160 }), 200);
+  });
+
+  it('does not pin when the row cannot fit under the home row', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 159 }), 0);
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 120 }), 0);
+    assert.equal(pinLift({ ...home, rowTop: 100, rowBottom: 160, visibleBottom: 50 }), 0);
+  });
+
+  it('rounds a fractional lift down to whole px', () => {
+    assert.equal(pinLift({ ...home, rowTop: 750, rowBottom: 810.47, visibleBottom: 614 }), 196);
+    assert.equal(pinLift({ ...home, rowTop: 750, rowBottom: 810.9, visibleBottom: 614 }), 196);
+    assert.equal(pinLift({ ...home, rowTop: 780, rowBottom: 840, visibleBottom: 839.7 }), 0);
+  });
+
+  it('never rounds the lift over the home row', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300.6, rowBottom: 360.6, visibleBottom: 160 }), 200);
+  });
+
+  it('is 0 with the row exactly at the visible bottom', () => {
+    assert.equal(pinLift({ ...home, rowTop: 740, rowBottom: 800, visibleBottom: 800 }), 0);
+  });
+});
+
+describe('toastRoom', () => {
+  it('is half the viewport at most', () => {
+    assert.equal(TOAST_RAISE_MAX_SHARE, 0.5);
+  });
+
+  it('is 0 when the row is not pinned', () => {
+    assert.equal(toastRoom({ pinRoom: 0, viewportHeight: 667 }), 0);
+  });
+
+  it('raises toasts above the pinned row when it leaves room', () => {
+    assert.equal(toastRoom({ pinRoom: 120, viewportHeight: 667 }), 120);
+    assert.equal(toastRoom({ pinRoom: 300, viewportHeight: 600 }), 300);
+  });
+
+  it('keeps toasts in place when the pinned row and bars take over half the viewport', () => {
+    assert.equal(toastRoom({ pinRoom: 301, viewportHeight: 600 }), 0);
+    assert.equal(toastRoom({ pinRoom: 320, viewportHeight: 568 }), 0);
   });
 });

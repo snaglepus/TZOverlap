@@ -9,6 +9,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Focus scrolling stays clear of the pinned Everyone row (src/ui/pin.js). */
+  scroll-padding-block-end: calc(var(--everyone-pin-room, 0) * var(--hairline));
 }
 
 body {

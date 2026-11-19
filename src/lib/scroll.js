@@ -1,6 +1,6 @@
 // Timeline scroll maths: where the now line sits, where to scroll to bring it
-// back, how wheel and arrow-key input map to horizontal scrolling, and the
-// page auto-scroll while a row is dragged. Pure: the caller measures the DOM
+// back, how wheel and arrow-key input map to horizontal scrolling, the page
+// auto-scroll while a row is dragged and the pinned Everyone row's lift. Pure: the caller measures the DOM
 // and passes pixel sizes in.
 
 const HOUR = 3600000;
@@ -110,4 +110,38 @@ export function edgeScrollStep(y, top, bottom) {
   if (y < top + EDGE_SCROLL_ZONE_PX) return -step(top + EDGE_SCROLL_ZONE_PX - y);
   if (y > bottom - EDGE_SCROLL_ZONE_PX) return step(y - (bottom - EDGE_SCROLL_ZONE_PX));
   return 0;
+}
+
+/**
+ * How many px the Everyone row is raised so it stays in view: by as much as it
+ * runs past `visibleBottom`. All arguments are viewport px; 0 when the row's
+ * natural place is in view, and 0 when the row doesn't fit between the home row
+ * and `visibleBottom`, so it never rises over the home row. Rounded down to
+ * whole px: a fractional lift (or one rounded up) leaves a sliver of the row
+ * behind showing under the raised track; rounded down, the track tucks under
+ * the visible bottom by less than 1 px instead.
+ * @param {{ rowTop: number, rowBottom: number, homeBottom: number, visibleBottom: number }} rects
+ */
+export function pinLift({ rowTop, rowBottom, homeBottom, visibleBottom }) {
+  const lift = rowBottom - visibleBottom;
+  return lift > 0 && lift <= rowTop - homeBottom ? Math.floor(lift) : 0;
+}
+
+/**
+ * The most of the viewport that the pinned Everyone row and the bottom bars
+ * below it may take for toasts still to rise above them: half. Past that, a
+ * raised toast would leave too little of the screen (very short screens with
+ * large text), so it stays in its usual place over the row.
+ */
+export const TOAST_RAISE_MAX_SHARE = 0.5;
+
+/**
+ * How far above the viewport bottom toasts sit to clear the pinned Everyone
+ * row, in px: `pinRoom` (from the viewport bottom to the pinned row's top, 0
+ * when not pinned) while it is at most TOAST_RAISE_MAX_SHARE of
+ * `viewportHeight`, else 0 (the toast's usual place).
+ * @param {{ pinRoom: number, viewportHeight: number }} sizes
+ */
+export function toastRoom({ pinRoom, viewportHeight }) {
+  return pinRoom > 0 && pinRoom <= viewportHeight * TOAST_RAISE_MAX_SHARE ? pinRoom : 0;
 }

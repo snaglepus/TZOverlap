@@ -6,8 +6,9 @@
 // position. Esc, pointercancel, a release outside the grid, a resize or a row
 // height change cancels. Geometry is measured once at pickup, relative to the
 // grid's top, so page scroll and layout shifts above the grid move it with the
-// rows. A release over the home or Everyone row lands first or last among the
-// user rows. The maths is in src/lib/row-order.js and src/lib/scroll.js.
+// rows; only the Everyone row's top is read live, as it moves while pinned
+// (src/ui/pin.js). A release over the home or Everyone row lands first or last
+// among the user rows. The maths is in src/lib/row-order.js and src/lib/scroll.js.
 
 import { pointerDropIndex, rowShift } from '../lib/row-order.js';
 import {
@@ -17,9 +18,7 @@ import {
   LONG_PRESS_SLOP_PX,
   edgeScrollStep,
 } from '../lib/scroll.js';
-
-/** The --bp-md breakpoint (tokens.css); below it the toolbar is fixed at the bottom. */
-const WIDE = '(min-width: 40rem)';
+import { visibleBottom } from './pin.js';
 
 /** Height differences below this many px are rounding, not a layout change. */
 const SIZE_EPSILON_PX = 0.5;
@@ -40,7 +39,6 @@ const SIZE_EPSILON_PX = 0.5;
  * @typedef {{
  *   rects: Rect[],
  *   homeBottom: number,
- *   everyoneTop: number,
  *   pickupY: number,
  *   centre: number,
  *   height: number,
@@ -64,8 +62,9 @@ const SIZE_EPSILON_PX = 0.5;
  * }} options
  */
 export function attachReorder({ root, rows, fixed, onDrop }) {
-  const wide = window.matchMedia(WIDE);
   const headers = rows.map((row) => /** @type {HTMLElement} */ (row.firstElementChild));
+  // The Everyone row's header: its rendered place, raised while the row is pinned.
+  const everyoneHeader = /** @type {HTMLElement} */ (fixed[1]?.firstElementChild);
   /** @type {Press | null} */
   let press = null;
   /** @type {Drag | null} */
@@ -86,12 +85,6 @@ export function attachReorder({ root, rows, fixed, onDrop }) {
 
   const rootTop = () => root.getBoundingClientRect().top;
 
-  /** Where the page auto-scroll's bottom edge is: the top of a bottom toolbar, else the viewport's. */
-  function viewportBottom() {
-    const toolbar = wide.matches ? null : document.querySelector('.toolbar');
-    return toolbar ? toolbar.getBoundingClientRect().top : window.innerHeight;
-  }
-
   /** @param {HTMLElement} row @param {number | null} px */
   function setY(row, px) {
     // An empty value removes the property.
@@ -110,7 +103,8 @@ export function attachReorder({ root, rows, fixed, onDrop }) {
       centre: drag.centre + dy,
       pointerY,
       homeBottom: drag.homeBottom,
-      everyoneTop: drag.everyoneTop,
+      // Read live: the pinned Everyone row moves with page scroll (src/ui/pin.js).
+      everyoneTop: everyoneHeader.getBoundingClientRect().top - rootTop(),
     });
     const { height } = drag;
     drag.position = position;
@@ -127,7 +121,7 @@ export function attachReorder({ root, rows, fixed, onDrop }) {
 
   function tick() {
     if (!drag || !press) return;
-    const step = edgeScrollStep(press.y, 0, viewportBottom());
+    const step = edgeScrollStep(press.y, 0, visibleBottom());
     if (step !== 0) window.scrollBy({ top: step, behavior: 'instant' });
     layout();
     drag.frame = requestAnimationFrame(tick);
@@ -150,11 +144,9 @@ export function attachReorder({ root, rows, fixed, onDrop }) {
     });
     const own = /** @type {Rect} */ (rects[press.from]);
     const homeRow = /** @type {HTMLElement} */ (fixed[0]);
-    const everyoneRow = /** @type {HTMLElement} */ (fixed[1]);
     drag = {
       rects,
       homeBottom: homeRow.getBoundingClientRect().bottom - top,
-      everyoneTop: everyoneRow.getBoundingClientRect().top - top,
       pickupY: press.y - top,
       centre: (own.top + own.bottom) / 2,
       height: own.bottom - own.top,
