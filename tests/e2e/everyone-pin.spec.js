@@ -1,6 +1,6 @@
 // E2E: the Everyone row stays in view at the bottom of the screen (TZO-34).
 // While the grid runs past the visible bottom (the viewport's from --bp-md, the
-// phone toolbar's top below it) the row's header and track are raised to it,
+// top of the phone toolbar or the docked selection bar below it) the row's header and track are raised to it,
 // and settle back in place as the grid's end scrolls into view. Checks the
 // rendered rects (the row's children), never the row element's own rect, which
 // stays its natural place. Device in Sydney, clock fixed at 12:00 on
@@ -278,6 +278,36 @@ test.describe('tiny phone, 200% text', () => {
     expect(Math.abs(extent.top - natural.top)).toBeLessThanOrEqual(1);
     expect(extent.top).toBeGreaterThanOrEqual(home.bottom);
   });
+
+  test('pinned with no room for a raised toast: the toast keeps its usual place', async ({
+    page,
+  }) => {
+    await open(page);
+    await setRootFontSize(page, '200%');
+    await frames(page);
+    await trigger(page, /** @type {string} */ (ZONES[0])).click();
+    await menu(page).getByRole('button', { name: 'Delete', exact: true }).click();
+    const toast = page.locator('.toast');
+    await expect(toast).toBeVisible();
+    // Scroll the home row off the top: the row now fits under it, so it pins.
+    const home = await rectOf(page, `[data-zone="${HOME}"]`);
+    await page.evaluate((y) => window.scrollBy(0, y), home.bottom);
+    await frames(page);
+    const extent = await expectPinned(page);
+    const room = await page.evaluate(() => ({
+      pin: Number(document.documentElement.style.getPropertyValue('--everyone-pin-room')),
+      toast: document.documentElement.style.getPropertyValue('--everyone-toast-room'),
+      half: innerHeight / 2,
+    }));
+    // Precondition: the pinned row and the toolbar take over half the viewport.
+    expect(room.pin).toBeGreaterThan(room.half);
+    expect(room.toast).toBe('');
+    // Its usual place: directly above the toolbar, over the pinned row.
+    const toolbar = await rectOf(page, '.toolbar');
+    const t = await rectOf(page, '.toast');
+    expect(t.bottom).toBeLessThanOrEqual(toolbar.top);
+    expect(t.bottom).toBeGreaterThan(extent.top);
+  });
 });
 
 for (const [name, viewport] of /** @type {[string, {width: number, height: number}][]} */ (
@@ -530,3 +560,35 @@ for (const [name, viewport] of /** @type {[string, {width: number, height: numbe
     });
   });
 }
+
+test.describe('short phone with a selection', () => {
+  test.use({ viewport: SHORT_PHONE });
+
+  test('a toast sits clear of the row and the docked selection bar', async ({ page }) => {
+    await open(page);
+    const { x, y } = await homeTrackPoint(page);
+    await page.mouse.click(x, y);
+    await expect(page.locator('.selection-bar')).toBeVisible();
+    await trigger(page, /** @type {string} */ (ZONES[0])).click();
+    await menu(page).getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.locator('.toast')).toBeVisible();
+    await expect(page.locator('.selection-bar')).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await frames(page);
+    await expectPinned(page);
+    await expect
+      .poll(async () => {
+        const t = await rectOf(page, '.toast');
+        const bar = await rectOf(page, '.selection-bar');
+        const extent = await rendered(page);
+        return (
+          disjoint(extent, bar) &&
+          disjoint(t, extent) &&
+          disjoint(t, bar) &&
+          disjoint(t, await rectOf(page, '.toolbar')) &&
+          t.bottom <= extent.top
+        );
+      })
+      .toBe(true);
+  });
+});
