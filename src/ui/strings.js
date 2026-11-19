@@ -25,8 +25,6 @@ export const strings = /** @satisfies {Strings} */ ({
   date: {
     today: 'Today',
     other: 'Date',
-    /** The phone date button on today. @param {string} date "Wed 18 Nov" */
-    todayShort: (date) => `Today · ${date}`,
     todayButton: 'Today',
   },
   sheet: {

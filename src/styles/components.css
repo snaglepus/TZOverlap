@@ -73,8 +73,9 @@
 }
 
 /* Toolbar: fixed to the bottom on phones, one row unless large text wraps it:
-   small text and tight gaps, and the controls stretch to the tallest (the date
-   button, when its text takes two or three lines). In the header from --bp-md. */
+   small text and tight gaps. The date button's text is one line at default
+   text; large text can wrap it, and the controls stretch to the tallest. In
+   the header from --bp-md. */
 .toolbar {
   position: fixed;
   inset-inline: var(--space-0);
@@ -293,8 +294,8 @@
 }
 
 /* ---------- Date field ---------- */
-/* Below --bp-md one compact button: the label shows the short date ("Today ·
-   Wed 18 Nov", or "Wed 18 Nov" with the word "Date" visually hidden), and the
+/* Below --bp-md one compact button: the label shows "Today" (the date visually
+   hidden) or the short date (the word "Date" visually hidden), and the
    native input lies over it transparently, so a tap opens the picker. From
    --bp-md the label word beside the input; when both don't fit, the input
    wraps under the label. */
@@ -341,8 +342,10 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-/* Visually hidden (base.css .visually-hidden), still in the accessible name. */
-.date-field__word {
+/* Visually hidden (base.css .visually-hidden), still in the accessible name:
+   the word on other dates, the date on today (date-field--word-only). */
+.date-field__word,
+.date-field--word-only .date-field__short {
   position: absolute;
   width: var(--hairline);
   height: var(--hairline);
@@ -352,8 +355,14 @@
   white-space: nowrap;
 }
 
-.date-field--short-only .date-field__word {
-  display: none;
+/* Today: the button shows just the word. */
+.date-field--word-only .date-field__word {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: var(--space-0);
+  overflow: visible;
+  clip-path: none;
 }
 
 .date-field__input {
@@ -398,7 +407,7 @@
   }
 
   .date-field__word,
-  .date-field--short-only .date-field__word {
+  .date-field--word-only .date-field__word {
     position: static;
     display: inline;
     width: auto;
@@ -807,8 +816,8 @@
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
-/* Tighter than --segment-inset, so the date button keeps room for its date on
-   one line; the segment is still at least --control-height wide. */
+/* Tighter than --segment-inset, so the filter leaves the one-line date button
+   room; the segment is still at least --control-height wide. */
 .toolbar .segmented__option {
   padding-inline: var(--space-1);
   font-size: var(--font-size-sm);
