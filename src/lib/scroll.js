@@ -123,3 +123,22 @@ export function pinLift({ rowTop, rowBottom, homeBottom, visibleBottom }) {
   const lift = rowBottom - visibleBottom;
   return lift > 0 && lift <= rowTop - homeBottom ? lift : 0;
 }
+
+/**
+ * The most of the viewport that the pinned Everyone row and the bottom bars
+ * below it may take for toasts still to rise above them: half. Past that, a
+ * raised toast would leave too little of the screen (very short screens with
+ * large text), so it stays in its usual place over the row.
+ */
+export const TOAST_RAISE_MAX_SHARE = 0.5;
+
+/**
+ * How far above the viewport bottom toasts sit to clear the pinned Everyone
+ * row, in px: `pinRoom` (from the viewport bottom to the pinned row's top, 0
+ * when not pinned) while it is at most TOAST_RAISE_MAX_SHARE of
+ * `viewportHeight`, else 0 (the toast's usual place).
+ * @param {{ pinRoom: number, viewportHeight: number }} sizes
+ */
+export function toastRoom({ pinRoom, viewportHeight }) {
+  return pinRoom > 0 && pinRoom <= viewportHeight * TOAST_RAISE_MAX_SHARE ? pinRoom : 0;
+}

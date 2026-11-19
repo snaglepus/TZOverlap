@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   CLICK_SLOP_PX,
+  TOAST_RAISE_MAX_SHARE,
   EDGE_SCROLL_MAX_STEP_PX,
   EDGE_SCROLL_ZONE_PX,
   columnsAt,
@@ -11,6 +12,7 @@ import {
   keyStep,
   nowScrollLeft,
   pinLift,
+  toastRoom,
   wheelToHorizontal,
 } from '../../src/lib/scroll.js';
 
@@ -199,5 +201,25 @@ describe('pinLift', () => {
 
   it('is 0 with the row exactly at the visible bottom', () => {
     assert.equal(pinLift({ ...home, rowTop: 740, rowBottom: 800, visibleBottom: 800 }), 0);
+  });
+});
+
+describe('toastRoom', () => {
+  it('is half the viewport at most', () => {
+    assert.equal(TOAST_RAISE_MAX_SHARE, 0.5);
+  });
+
+  it('is 0 when the row is not pinned', () => {
+    assert.equal(toastRoom({ pinRoom: 0, viewportHeight: 667 }), 0);
+  });
+
+  it('raises toasts above the pinned row when it leaves room', () => {
+    assert.equal(toastRoom({ pinRoom: 120, viewportHeight: 667 }), 120);
+    assert.equal(toastRoom({ pinRoom: 300, viewportHeight: 600 }), 300);
+  });
+
+  it('keeps toasts in place when the pinned row and bars take over half the viewport', () => {
+    assert.equal(toastRoom({ pinRoom: 301, viewportHeight: 600 }), 0);
+    assert.equal(toastRoom({ pinRoom: 320, viewportHeight: 568 }), 0);
   });
 });

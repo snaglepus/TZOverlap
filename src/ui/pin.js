@@ -3,17 +3,25 @@
 // would stick to the grid, not the viewport; instead one rAF-coalesced read per
 // frame gives a lift in px, and CSS raises the row's header and track by it
 // (--everyone-lift, app.css). The row element itself never moves, so its rect is
-// its natural place. While pinned, --everyone-pin-room on <html> keeps toasts
-// and focus scrolling clear of it. The maths is pinLift() in src/lib/scroll.js.
+// its natural place. While pinned, --everyone-pin-room on <html> keeps focus
+// scrolling clear of it, and --everyone-toast-room raises toasts above it when
+// that leaves room. The maths is pinLift() and toastRoom() in src/lib/scroll.js.
 
-import { pinLift } from '../lib/scroll.js';
+import { pinLift, toastRoom } from '../lib/scroll.js';
 
 /** The --bp-md breakpoint (tokens.css); below it the toolbar is fixed at the bottom. */
 const WIDE = '(min-width: 40rem)';
 
-/** Where the visible area ends: the top of a bottom toolbar, else the viewport's bottom. */
+/**
+ * Where the visible area ends: the top of the bottom stack below --bp-md (the
+ * docked selection bar while it shows, else the toolbar), else the viewport's bottom.
+ */
 export function visibleBottom() {
-  const toolbar = window.matchMedia(WIDE).matches ? null : document.querySelector('.toolbar');
+  if (window.matchMedia(WIDE).matches) return window.innerHeight;
+  const bar = document.querySelector('.selection-bar');
+  const barRect = bar?.getBoundingClientRect();
+  if (barRect && barRect.height > 0) return barRect.top;
+  const toolbar = document.querySelector('.toolbar');
   return toolbar ? toolbar.getBoundingClientRect().top : window.innerHeight;
 }
 
@@ -29,6 +37,7 @@ export function attachPin({ root, row, home }) {
   let checkFocus = true;
   let lift = 0;
   let room = 0;
+  let toast = 0;
 
   /** Whether focus is on a home slot or a user row's control, which the pinned row can cover. */
   function eligible(/** @type {Element | null} */ el) {
@@ -62,6 +71,11 @@ export function attachPin({ root, row, home }) {
     if (nextRoom !== room) {
       room = nextRoom;
       html.style.setProperty('--everyone-pin-room', nextRoom > 0 ? String(nextRoom) : '');
+    }
+    const nextToast = toastRoom({ pinRoom: nextRoom, viewportHeight: viewport });
+    if (nextToast !== toast) {
+      toast = nextToast;
+      html.style.setProperty('--everyone-toast-room', nextToast > 0 ? String(nextToast) : '');
     }
     if (active && next > 0 && activeBottom > pinnedTop) {
       window.scrollBy({ top: activeBottom - pinnedTop, behavior: 'instant' });
@@ -100,6 +114,7 @@ export function attachPin({ root, row, home }) {
       root.removeEventListener('focusin', onFocusIn);
       row.style.setProperty('--everyone-lift', '');
       html.style.setProperty('--everyone-pin-room', '');
+      html.style.setProperty('--everyone-toast-room', '');
     },
   };
 }

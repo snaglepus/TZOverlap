@@ -644,7 +644,8 @@
   position: fixed;
   inset-inline: var(--space-0);
   top: env(safe-area-inset-top);
-  /* Above the pinned Everyone row too (--everyone-pin-room, src/ui/pin.js). */
+  /* Above the pinned Everyone row too while that leaves room
+     (--everyone-toast-room, src/ui/pin.js). */
   bottom: max(
     calc(
       max(
@@ -653,14 +654,14 @@
         ) +
         var(--selection-room, 0) * var(--hairline) + var(--space-2)
     ),
-    calc(var(--everyone-pin-room, 0) * var(--hairline) + var(--space-2))
+    calc(var(--everyone-toast-room, 0) * var(--hairline) + var(--space-2))
   );
   /* The toolbar's real top: large text can wrap it to more rows than
      --toolbar-height allows for; above the docked selection bar too. Without
      anchor positioning, the line above holds. */
   bottom: max(
     calc(anchor(--toolbar top) + var(--selection-room, 0) * var(--hairline) + var(--space-2)),
-    calc(var(--everyone-pin-room, 0) * var(--hairline) + var(--space-2))
+    calc(var(--everyone-toast-room, 0) * var(--hairline) + var(--space-2))
   );
   z-index: 2;
   display: flex;
@@ -697,7 +698,7 @@
   .toast-region {
     bottom: max(
       calc(var(--space-5) + env(safe-area-inset-bottom)),
-      calc(var(--everyone-pin-room, 0) * var(--hairline) + var(--space-2))
+      calc(var(--everyone-toast-room, 0) * var(--hairline) + var(--space-2))
     );
   }
 
