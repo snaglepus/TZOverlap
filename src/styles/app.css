@@ -815,30 +815,15 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 .heat[data-heat='0'] {
-  background-color: color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) 0%);
+  background-color: var(--color-heat-near);
 }
 
 .heat[data-heat='1'] {
-  background-color: color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) 50%);
+  background-color: var(--color-heat-mid);
 }
 
 .heat[data-heat='2'] {
-  background-color: color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) 100%);
-}
-
-/* No color-mix(): one token per step. A var() declaration can't fall back on its own. */
-@supports not (color: color-mix(in oklch, currentcolor, currentcolor)) {
-  .heat[data-heat='0'] {
-    background-color: var(--color-heat-near);
-  }
-
-  .heat[data-heat='1'] {
-    background-color: var(--color-heat-mid);
-  }
-
-  .heat[data-heat='2'] {
-    background-color: var(--color-heat-far);
-  }
+  background-color: var(--color-heat-far);
 }
 
 .heat[data-rating='unsuitable'] {

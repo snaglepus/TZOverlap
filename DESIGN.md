@@ -70,11 +70,11 @@ Components use only these semantic names, never a raw value. Values are in
 | `--color-danger-surface`                        | Error state background                          | `#FDECEA`             | `#3A1512`             |
 | `--color-danger-border`                         | Error state border                              | `#F1B5AE`             | `#7A2B22`             |
 | `--color-best` / `--color-best-ink`             | Best hours (09–17), solid green, bold text      | `#B9E3C6` / `#0C3A22` | `#1E5C3C` / `#D6F6E2` |
-| `--color-heat-near`                             | Good, step 0 (08, 17): yellow-green             | `#E0EB9C`             | `#4A5716`             |
-| `--color-heat-mid`                              | Good, step 1 (07, 18): amber, fallback only     | `#F4C57D`             | `#674400`             |
-| `--color-heat-far`                              | Good, step 2 (06, 19): red-orange               | `#F4A184`             | `#73301F`             |
-| `--color-heat-ink`                              | Text on every Good step                         | `#3D2600`             | `#FFF1D8`             |
-| `--color-heat-hatch`                            | Diagonal hatch over Good cells and segments     | `#C4AE7C`             | `#75653F`             |
+| `--color-heat-near`                             | Good, step 0 (08, 17): green tint, strongest    | `#DCF4E3`             | `#1A4430`             |
+| `--color-heat-mid`                              | Good, step 1 (07, 18): paler green tint         | `#E6F7EA`             | `#1B3A2A`             |
+| `--color-heat-far`                              | Good, step 2 (06, 19): palest green tint        | `#EFF9F2`             | `#1C3126`             |
+| `--color-heat-ink`                              | Text on every Good step                         | `#1D3A28`             | `#D6F6E2`             |
+| `--color-heat-hatch`                            | Diagonal hatch over Good cells and segments     | `#B8D4C0`             | `#29503B`             |
 | `--color-unsuitable` / `--color-unsuitable-ink` | Unsuitable hours (20–06, weekends): dimmed grey | `#E4E2EA` / `#57555F` | `#24232A` / `#9F9CAA` |
 | `--color-weekend`                               | Weekend Unsuitable hour cells: a deeper grey    | `#D2CFDB`             | `#34313F`             |
 | `--color-weekend-band`                          | Solid top band on weekend hour cells (≥ 3:1)    | `#4A4656`             | `#D4D1DE`             |
@@ -84,20 +84,22 @@ Components use only these semantic names, never a raw value. Values are in
 
 **Heat scale.** Ratings come from `src/lib/suitability.js` (Best, Good,
 Unsuitable, with a heat distance `d` for Good); `src/lib/grid.js` turns `d` into
-a step, `⌊d / 60⌋`: 0 next to Best, 2 next to Unsuitable. Good backgrounds are
-`color-mix(in oklch, var(--color-heat-near), var(--color-heat-far) p%)` with
-p = 0 / 50 / 100 for steps 0 / 1 / 2. Browsers without `color-mix()` get an
-`@supports not (color: color-mix(…))` block that maps the steps to
-`--color-heat-near` / `--color-heat-mid` / `--color-heat-far` (a declaration
-using `var()` can't fall back on its own). The Everyone row uses the reddest
-step among the zones that are Good in each slot. Styles key off
+a step, `⌊d / 60⌋`: 0 next to Best, 2 next to Unsuitable. Good backgrounds map
+straight to `--color-heat-near` / `--color-heat-mid` / `--color-heat-far` for
+steps 0 / 1 / 2. The Everyone row uses the farthest step among the zones that
+are Good in each slot. Loudness follows usefulness: Best is the strongest
+green, the Good steps are paler tints of the same green that fade as they near
+Unsuitable, and Unsuitable recedes most. Red and orange are reserved for
+errors. Styles key off
 `data-rating` / `data-heat` on elements with the `.heat` class (cells, segments,
 legend swatches). Colour is never the only cue (WCAG 1.4.1): every hour cell
-shows its local hour as text, Good cells and segments carry a diagonal hatch,
+shows its local hour as text, Good cells and segments carry a quiet diagonal
+hatch (a single line, distinct from the filter mask's cross-hatch),
 Best cells are bold, Everyone Best segments (which have no text) carry a solid
 inner edge in `--color-best-ink` (`--best-edge-width`), Unsuitable cells are
 dimmed with muted text and have neither, legend swatches have a
-`--color-border-strong` outline (≥ 3:1 against the card), and every
+`--color-border-strong` outline (≥ 3:1 against the card; the Good swatch shows
+the near step), and every
 cell and segment has an `aria-label` naming its rating. Weekend hour cells
 (`data-weekend="true"`, per zone from `src/lib/weekends.js`) carry a solid top
 band in `--color-weekend-band` (`--weekend-band-width`, ≥ 3:1 against every cell

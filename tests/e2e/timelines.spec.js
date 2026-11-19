@@ -509,7 +509,79 @@ test.describe('grid', () => {
     }
   });
 
-  test('Everyone takes the reddest step among the zones', async ({ page }) => {
+  test('heat: one green ramp, quiet Good hatch, distinct mask', async ({ page }) => {
+    await seedZones(page, [
+      { id: 't', kind: 'iana', tz: 'Asia/Tokyo', label: 'Tokyo' },
+      { id: 'l', kind: 'iana', tz: 'Europe/London', label: 'London' },
+      { id: 'n', kind: 'iana', tz: 'America/New_York', label: 'New_York' },
+    ]);
+    await page.goto('/');
+    await expect(grid(page).getByRole('row')).toHaveCount(5);
+    const homeRow = row(page, 'Australia/Sydney');
+
+    // OKLCH chroma and hue of a computed rgb() colour (Björn Ottosson's OKLab).
+    /** @param {import('@playwright/test').Locator} el */
+    const oklch = (el) =>
+      el.evaluate((node) => {
+        const [r = 0, g = 0, b = 0] = (
+          getComputedStyle(node).backgroundColor.match(/\d+(\.\d+)?/g) ?? []
+        ).map((v) => {
+          const c = Number(v) / 255;
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        });
+        const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+        const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+        const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+        const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+        const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+        return {
+          chroma: Math.hypot(a, bb),
+          hue: ((Math.atan2(bb, a) * 180) / Math.PI + 360) % 360,
+        };
+      });
+
+    // Good far is a paler tint of the Best green.
+    const far = homeRow.locator('[data-hour="19"]').first();
+    await expect(far).toHaveAttribute('data-heat', '2');
+    const best = homeRow.locator('[data-rating="best"]').first();
+    const farColour = await oklch(far);
+    const bestColour = await oklch(best);
+    expect(farColour.chroma).toBeLessThan(bestColour.chroma);
+    const hueGap = Math.abs(farColour.hue - bestColour.hue);
+    expect(Math.min(hueGap, 360 - hueGap)).toBeLessThanOrEqual(30);
+
+    // Every Good cell keeps its hatch.
+    const goodImages = await page
+      .locator('[role="grid"] .heat[data-rating="good"]')
+      .evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundImage));
+    expect(goodImages.length).toBeGreaterThan(0);
+    expect(goodImages.every((image) => image.includes('repeating-linear-gradient'))).toBe(true);
+
+    // The Best filter's mask has a cross-hatch, unlike Good's single hatch.
+    await grid(page).focus();
+    await page.keyboard.press('3');
+    const mask = page.locator('.grid__mask').first();
+    await expect(mask).toBeAttached();
+    const maskImage = await mask.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(maskImage.match(/repeating-linear-gradient/g)).toHaveLength(2);
+    expect(maskImage).not.toBe(goodImages[0]);
+    await page.keyboard.press('1');
+
+    // The legend's Good swatch shows Good near, in both themes.
+    const swatch = page.locator('.legend__swatch[data-rating="good"]');
+    const near = homeRow.locator('[data-hour="17"]').first();
+    await expect(near).toHaveAttribute('data-heat', '0');
+    /** @param {import('@playwright/test').Locator} el */
+    const bg = (el) => el.evaluate((node) => getComputedStyle(node).backgroundColor);
+    for (const scheme of /** @type {const} */ (['light', 'dark'])) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', scheme);
+      const nearColour = await bg(near);
+      await expect.poll(() => bg(swatch)).toBe(nearColour);
+    }
+  });
+
+  test('Everyone takes the farthest step among the zones', async ({ page }) => {
     await page.goto('/');
     await addZone(page, 'Tokyo');
     const everyone = row(page, 'everyone');
