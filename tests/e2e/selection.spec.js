@@ -643,11 +643,209 @@ test.describe('phone', () => {
   });
 });
 
+test('Esc from the selected home cell keeps focus on that cell', async ({ page }) => {
+  await seed(page, SEEDED);
+  await page.goto('/');
+  await roving(page).focus();
+  const slot = cell(page, '2026-11-18T01:00:00.000Z');
+  await expect(slot).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(bar(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(bar(page)).toBeHidden();
+  await expect(band(page)).toBeHidden();
+  await expect(slot).toBeFocused();
+  await expect(page.getByTestId('announcer')).toHaveText('Selection cleared');
+});
+
+test.describe('placement', () => {
+  const FOUR = ['America/New_York', 'Europe/London', 'Asia/Kolkata', 'America/Los_Angeles'];
+  const SEVEN = [...FOUR, 'Asia/Tokyo', 'Europe/Berlin', 'America/Chicago'];
+  const NOON = '2026-11-18T01:00:00.000Z';
+
+  /** @param {import('@playwright/test').Locator} locator */
+  const box = async (locator) => {
+    const rect = await locator.boundingBox();
+    if (!rect) throw new Error('not rendered');
+    return rect;
+  };
+
+  /** @param {import('@playwright/test').Page} page */
+  const toolbar = (page) => page.locator('.toolbar');
+
+  /** @param {import('@playwright/test').Page} page */
+  const shellPadding = (page) =>
+    page.locator('.shell').evaluate((el) => getComputedStyle(el).paddingBottom);
+
+  /** @param {import('@playwright/test').Page} page @param {string} size */
+  const rootFont = (page, size) =>
+    page.evaluate((value) => {
+      document.documentElement.style.fontSize = value;
+    }, size);
+
+  /**
+   * The bar's bottom is at or above the toolbar's top, and the clear button is
+   * what a tap at its centre hits.
+   * @param {import('@playwright/test').Page} page
+   */
+  async function expectDocked(page) {
+    const own = await box(bar(page));
+    expect(own.y + own.height).toBeLessThanOrEqual((await box(toolbar(page))).y + 1);
+    const hit = await bar(page)
+      .getByRole('button', { name: 'Clear selection' })
+      .evaluate((button) => {
+        const r = button.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return top !== null && button.contains(top);
+      });
+    expect(hit).toBe(true);
+  }
+
+  test.describe('phone, touch', () => {
+    test.use({ hasTouch: true });
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 320, height: 568 },
+    ]) {
+      test(`at ${viewport.width}x${viewport.height} the bar docks above the toolbar`, async ({
+        page,
+      }) => {
+        await page.setViewportSize(viewport);
+        await seed(page, FOUR);
+        await page.goto('/');
+        await cell(page, NOON).tap();
+        await expect(bar(page)).toBeVisible();
+        const own = await box(bar(page));
+        expect(own.x).toBeGreaterThanOrEqual(0);
+        expect(own.y).toBeGreaterThanOrEqual(0);
+        expect(own.x + own.width).toBeLessThanOrEqual(viewport.width);
+        expect(own.y + own.height).toBeLessThanOrEqual(viewport.height);
+        await expectDocked(page);
+        // Showing it never moves focus into it.
+        expect(await bar(page).evaluate((el) => el.contains(document.activeElement))).toBe(false);
+
+        await bar(page).getByRole('button', { name: 'Clear selection' }).tap();
+        await expect(bar(page)).toBeHidden();
+        await expect(band(page)).toBeHidden();
+      });
+    }
+
+    test('at 320x568 with 200% text the bar stays above the wrapped toolbar', async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 568 });
+      await seed(page, FOUR);
+      await page.goto('/');
+      await rootFont(page, '200%');
+      await cell(page, NOON).tap();
+      await expect(bar(page)).toBeVisible();
+      await expectDocked(page);
+    });
+  });
+
+  test('seven zones at 390x844: the rows scroll clear of the bar; clearing gives the room back', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seed(page, SEVEN);
+    await page.goto('/');
+    const before = await shellPadding(page);
+    await clickAt(page, NOON, 0.05);
+    await expect(bar(page)).toBeVisible();
+    const own = await box(bar(page));
+    const tools = await box(toolbar(page));
+    expect(own.y + own.height <= tools.y + 1 || tools.y + tools.height <= own.y).toBe(true);
+    expect(await bar(page).evaluate((el) => el.contains(document.activeElement))).toBe(false);
+
+    await expect.poll(() => shellPadding(page)).not.toBe(before);
+    await page.evaluate(() => window.scrollTo(0, document.scrollingElement?.scrollHeight ?? 0));
+    const barTop = (await box(bar(page))).y;
+    const last = await box(row(page, 'America/Chicago'));
+    const everyone = await box(page.locator('.grid__row--everyone'));
+    expect(last.y + last.height).toBeLessThanOrEqual(barTop + 1);
+    expect(everyone.y + everyone.height).toBeLessThanOrEqual(barTop + 1);
+
+    await bar(page).getByRole('button', { name: 'Clear selection' }).click();
+    await expect(bar(page)).toBeHidden();
+    await expect.poll(() => shellPadding(page)).toBe(before);
+  });
+
+  // At 320x568 with 200% text the toolbar and the bar leave about 90px above
+  // them, less than any toast: there only the toast region (its foot) is checked.
+  for (const [viewport, fontSize] of /** @type {const} */ ([
+    [{ width: 390, height: 844 }, '100%'],
+    [{ width: 320, height: 844 }, '200%'],
+    [{ width: 320, height: 568 }, '200%'],
+  ])) {
+    test(`at ${viewport.width}x${viewport.height}, ${fontSize} text, the Undo toast sits above the bar`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await seed(page, FOUR);
+      await page.goto('/');
+      await rootFont(page, fontSize);
+      await clickAt(page, NOON, 0.05);
+      await expect(bar(page)).toBeVisible();
+      // At 200% the toolbar wraps taller than --toolbar-height (53px).
+      if (fontSize === '200%') expect((await box(toolbar(page))).height).toBeGreaterThan(53);
+      await row(page, 'America/New_York').locator('.grid__trigger:visible').click();
+      await page
+        .getByRole('group', { name: 'Time zone details' })
+        .getByRole('button', { name: 'Delete' })
+        .click();
+      const toast = page.locator('.toast');
+      await expect(toast).toBeVisible();
+      await expect(bar(page)).toBeVisible();
+      const barTop = (await box(bar(page))).y;
+      const region = await box(page.locator('.toast-region'));
+      expect(region.y + region.height).toBeLessThanOrEqual(barTop + 1);
+      const t = await box(toast);
+      if (viewport.height > 568) expect(t.y + t.height).toBeLessThanOrEqual(barTop + 1);
+    });
+  }
+
+  test('at 1440x900 the bar sits in the flow directly under the grid', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await seed(page, FOUR);
+    await page.goto('/');
+    await clickAt(page, NOON, 0.05);
+    await expect(bar(page)).toBeVisible();
+    expect(await bar(page).evaluate((el) => el.contains(document.activeElement))).toBe(false);
+    const own = await box(bar(page));
+    const g = await box(grid(page));
+    expect(own.y).toBeGreaterThanOrEqual(g.y + g.height - 0.5);
+    expect(own.y - (g.y + g.height)).toBeLessThan(24);
+    const placed = await bar(page).evaluate((el) => {
+      let prev = el.previousElementSibling;
+      while (prev && prev.getClientRects().length === 0) prev = prev.previousElementSibling;
+      return {
+        previous: prev?.getAttribute('role') ?? null,
+        position: getComputedStyle(el).position,
+      };
+    });
+    expect(placed).toEqual({ previous: 'grid', position: 'static' });
+  });
+
+  for (const [viewport, padding] of /** @type {const} */ ([
+    [{ width: 390, height: 844 }, '53px'],
+    [{ width: 1440, height: 900 }, '0px'],
+  ])) {
+    test(`with no selection at ${viewport.width}px the bar takes no space`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await seed(page, FOUR);
+      await page.goto('/');
+      await expect(grid(page)).toBeVisible();
+      await expect(bar(page)).toBeHidden();
+      expect(await shellPadding(page)).toBe(padding);
+    });
+  }
+});
+
 test.describe('accessibility', () => {
   for (const locale of ['en-GB', 'en-US']) {
     for (const viewport of [
-      { width: 1280, height: 720 },
+      { width: 1440, height: 900 },
       { width: 390, height: 844 },
+      { width: 320, height: 568 },
     ]) {
       for (const colorScheme of /** @type {const} */ (['light', 'dark'])) {
         test.describe(`${locale} at ${viewport.width} px, ${colorScheme}`, () => {

@@ -6,7 +6,7 @@ import { strings } from './strings.js';
 
 /** @typedef {import('./dom.js').Child} Child */
 
-/** @typedef {'alert' | 'gear' | 'grip' | 'location' | 'remove' | 'share'} IconName */
+/** @typedef {'alert' | 'gear' | 'grip' | 'location' | 'plus' | 'remove' | 'share'} IconName */
 
 /** SVG path data per icon, on a 24×24 grid. */
 const ICONS = /** @type {Record<IconName, string>} */ ({
@@ -17,6 +17,8 @@ const ICONS = /** @type {Record<IconName, string>} */ ({
   grip: 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z',
   location:
     'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z',
+  // A plain plus: Add city.
+  plus: 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z',
   // A filled circle with a minus bar: delete a row in Edit mode.
   remove: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 11H7v-2h10v2z',
   // A tray open at the top with an up arrow (the iOS Share button).
@@ -159,8 +161,8 @@ const WIDE = '(min-width: 40rem)';
 /**
  * Labelled native date input (`<input type="date">`), value "YYYY-MM-DD".
  * The label sits beside the input, so it fits the toolbar. Below --bp-md the
- * label shows the short date as a button, with the input laid over it
- * transparently: a tap opens the native picker.
+ * label is a button showing the short date (or the word, on today), with the
+ * input laid over it transparently: a tap opens the native picker.
  * @param {{ label: string, name: string, value: string, min?: string, max?: string }} options
  */
 export function dateField({ label, name, value, min, max }) {
@@ -196,15 +198,15 @@ export function dateField({ label, name, value, min, max }) {
       wordEl.textContent = text;
     },
     /**
-     * The short date shown below --bp-md. When it already says the label
-     * (today: "Today" and the date), the label word is left out there; otherwise it
-     * stays visually hidden, for the accessible name.
+     * The short date, shown below --bp-md with the label word visually hidden.
+     * With `wordOnly` (today) the button shows the word instead and the date is
+     * visually hidden; both stay in the accessible name.
      * @param {string} text
-     * @param {boolean} [replacesLabel]
+     * @param {boolean} [wordOnly]
      */
-    setShortDate(text, replacesLabel = false) {
+    setShortDate(text, wordOnly = false) {
       shortEl.textContent = text;
-      root.classList.toggle('date-field--short-only', replacesLabel);
+      root.classList.toggle('date-field--word-only', wordOnly);
     },
   };
 }

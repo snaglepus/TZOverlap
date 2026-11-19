@@ -215,8 +215,6 @@ the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--now-line-width` 2px (the timeline now line, ≥ 3:1 against every cell fill) ·
 `--selection-edge-width` 3px (the four sides of the selection band, in
 `--color-accent`) ·
-`--selection-bar-inset` 8px (the selection bar's inline padding below
-`--bp-md`; px, not rem, so large text keeps the room for its words) ·
 `--banner-inset-start` / `--banner-inset-end` `max(8px, 32px - var(--space-4))`
 / `max(8px, 24px - var(--space-3))` (the banner's inline padding below
 `--bp-md`: 16px / 12px at default text, 8px at 200%, so a 320px phone keeps
@@ -335,7 +333,8 @@ Icons: `gear` (Settings), `location` (a pin: the home row's symbol, wrapped as
 sheet) and `alert` (a warning triangle: the row header's clock-change badge,
 sized `--space-3`) and `grip` (three horizontal bars: a user row's drag
 handle) and `remove` (a circle with a minus bar: a user row's Delete button in
-Edit mode, in `--color-danger`). Add a name to the `IconName` union and its path data together.
+Edit mode, in `--color-danger`) and `plus` (a plain +: the Add city button in
+the Timelines card header). Add a name to the `IconName` union and its path data together.
 
 ### Input — `field()` · `.field`, `.input`
 
@@ -348,22 +347,24 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
 optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
-word; `setShortDate(text, replacesLabel)` sets the short date inside the label,
-shown only below `--bp-md`. From `--bp-md` the label word sits beside the input
-in `--font-size-sm`; when both don't fit (large text) the input wraps under the
-label and may shrink to the field's width.
+word; `setShortDate(text, wordOnly)` sets the short date inside the label,
+shown only below `--bp-md` unless `wordOnly`. From `--bp-md` the label word
+sits beside the input in `--font-size-sm`; when both don't fit (large text) the
+input wraps under the label and may shrink to the field's width.
 
 Below `--bp-md` the field is one compact button: the label, at least 44×44px
 with a `--color-border-strong` border, `--radius-md` and `--font-size-sm` text
-centred, shows the short date. When the short date already says the label
-("Today · Wed 18 Nov", `replacesLabel`) the word is left out; otherwise ("Wed
-18 Nov") the word stays visually hidden, so the accessible name is "Date Wed 18
-Nov". The date's spaces are no-break spaces, so in a narrow toolbar the text
-wraps after "Today ·" and never inside the date, and the button is never
-narrower than the date (`min-width: min-content`): if the row can't hold it,
-the toolbar wraps instead of the text running out of the button. The native
-input stays in the DOM with its value, `min` / `max` and handlers, laid over the
-whole button at `opacity: 0`, so a tap focuses it; its click handler also calls
+centred, shows one short line. On today (`wordOnly`,
+`.date-field--word-only`) it shows just "Today" and the short date is visually
+hidden, so the accessible name is "Today Wed 18 Nov"; on other dates it shows
+the short date ("Wed 15 July") and the word stays visually hidden, so the
+accessible name is "Date Wed 15 July". At default text the label is one line
+down to 320px. The date's spaces are no-break spaces, so large text never wraps
+inside the date, and the button is never narrower than its text
+(`min-width: min-content`): if the row can't hold it, the toolbar wraps instead
+of the text running out of the button. The native input stays in the DOM with
+its value, `min` / `max` and handlers, laid over the whole button at
+`opacity: 0`, so a tap focuses it; its click handler also calls
 `showPicker()` (feature-checked, in `try`/`catch`) while the phone layout is
 active, since desktop browsers open the picker only from its icon. The button
 takes the standard focus ring while the input has `:focus-visible`. Use for the
@@ -386,10 +387,12 @@ modifier (`.timelines`, added in `app.js`; `card()` is unchanged): no border,
 radius, shadow, background or padding, so the grid's own single edge spans the
 content width. Its `<h2>` is visually hidden there but still names the region
 (`aria-labelledby`). Its header and body are `display: contents`, and flex
-`order` places, with `--space-2` between them: Edit / Done alone on a line,
-right-aligned; the no-overlap message; the grid; the legend; then the
-popover, Add city (or the limit note or empty state) and the selection bar.
-The DOM, reading and tab order don't change.
+`order` places, with `--space-2` between them: Add city (or the limit note)
+and Edit / Done on one line, right-aligned (`.timelines__tools`; the note
+wraps above Edit when it doesn't fit beside it); the no-overlap message; the
+grid; the legend; then the popover and the first-run empty state. The
+selection bar is not in this flow: it docks above the toolbar (§Selection
+bar). The DOM, reading and tab order don't change.
 
 ### App shell — `appShell()` · `.shell`
 
@@ -424,10 +427,14 @@ and the shell pads its bottom to match. From `--bp-md` the title bar is as
 before: `--font-size-2xl` name over the tagline, and the toolbar in it at the
 end, with the filter on its own line under the other controls, right-aligned. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
-(`viewport-fit=cover`). Below `--bp-md` the shell's bottom padding is the
+(`viewport-fit=cover`). Below `--bp-md` the bottom of the viewport is one
+fixed stack, top to bottom: the content scrolling above it, the selection bar
+(while a selection exists) and the toolbar. The shell's bottom padding is the
 larger of `--toolbar-height` and the toolbar's measured height
-(`--toolbar-room`, set by `appShell()`), so at large text the end of the
-footer still scrolls clear of it. Toolbar controls are at least 44×44px. The
+(`--toolbar-room`, set by `appShell()`), plus the selection bar's measured
+height (`--selection-room`, set by `app.js`; 0 while nothing is selected), so
+at large text, or with a selection shown, the last grid row and the end of the
+footer still scroll clear of the stack. Toolbar controls are at least 44×44px. The
 footer pads `--space-2` above and below in `--font-size-xs` below `--bp-md`
 (`--space-4` and `--font-size-sm` from it). Every page renders inside exactly
 one shell.
@@ -476,8 +483,10 @@ optional ghost `sm` action. Shown in the shell's persistent
 `role="status"` polite region, fixed above the phone toolbar or near the bottom
 centre from `--bp-md`, so it never shifts layout. On phones the region is
 anchored to the toolbar's real top (CSS anchor positioning, `anchor-name:
---toolbar`; without it, `--toolbar-height` above the bottom), so a toolbar that
-large text wraps to more rows never sits under the toast. The region spans the
+--toolbar`; without it, the larger of `--toolbar-height` and `--toolbar-room`
+above the bottom), so a toolbar that large text wraps to more rows never sits
+under the toast. It adds `--selection-room`, so it sits above the docked
+selection bar too, never over it. The region spans the
 viewport above that line with `pointer-events: none`, and the toast sits at its
 foot (`align-items: safe flex-end`): if it were ever taller than the room left
 it would start at the top of the viewport instead and cover the toolbar's first
@@ -543,8 +552,8 @@ never relies on colour alone. A focused radio puts the standard focus ring on
 its segment (`:has(:focus-visible)`). Below `--bp-md` each segment takes its
 label's width plus `--segment-inset` on each side, and at least
 `--control-height` wide; in the toolbar the padding is `--space-1` and the text
-`--font-size-sm`, so the filter shares the one toolbar row with the date button
-and Now and leaves the date room for one line at 320px.
+`--font-size-sm`, so at default text the filter shares the one toolbar row
+with the one-line date button and Now, down to 320px.
 From `--bp-md` they size as a flex row with `--space-3` padding, and in the
 toolbar the filter takes its own line. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set
@@ -576,17 +585,26 @@ support). For a single bad input value, use the Input error message instead.
 
 ### Selection bar — `selectionBar()` · `.selection-bar`
 
-`src/ui/selection-bar.js`. The last child of the Timelines card, after the Add
-city row, limit note or empty state; hidden while nothing is selected. A
-`role="group"` labelled "Selected time" on `--color-surface` with a
-`--color-border-strong` hairline and `--radius-md`: the date and home time
+`src/ui/selection-bar.js`. In the Timelines card body directly after the grid
+(and its popover), before the first-run empty state; hidden while nothing is
+selected, taking no space. Below `--bp-md` it is docked by CSS alone, never
+moved in the DOM (reading and tab order stay those of the card): fixed, full
+viewport width, its bottom at the toolbar's top (the same expression as the
+shell's padding, so a toolbar wrapped by large text never covers it), at the
+toolbar's `z-index` 2, on `--color-surface` with a top `--color-border`
+hairline and no radius, padded inline by `--phone-gutter` plus the safe-area
+insets like the toolbar, so it reads as part of the bottom stack. `app.js`
+writes its measured height as `--selection-room` on the shell (0 while
+hidden), which the shell's bottom padding and the toast add. From `--bp-md`
+it sits in the flow directly under the grid, with a `--color-border-strong`
+hairline and `--radius-md`. A `role="group"` labelled "Selected time": the date and home time
 range in `--font-weight-medium` with tabular numerals (`.selection-bar__when`,
 "Wed 18 Nov, 09:00–10:00 Sydney", en dash; not mono, so the city name reads as
 text), a " · " separator (`aria-hidden`), the rating
 in words (`.selection-bar__rating`: "Best for all", "Good for all" or
 "Unsuitable for some") and a ghost `sm` "×" button named "Clear selection".
 From `--bp-md` it is one line where it fits, in `--font-size-md`. Below it the
-bar is `--font-size-sm` with `--selection-bar-inset` inline padding, the
+bar is `--font-size-sm`, the
 separator is hidden, the time range takes the whole first line (one line at
 390px in default text) and the rating the second, with the button at the end
 of the rating line, or under it when the two don't fit. With large text on a
@@ -598,11 +616,15 @@ hides it.
 
 ### Add city — `addCitySheet()` (`src/ui/add-city.js`) · `.add-city*`
 
-Page pattern, not a shared component. The Timelines card ends with an "Add
-city" row directly after the grid (outside `role="grid"`): a `secondary`
-button. With no user zones the row is the first-run Empty state ("Add the
-cities you work with", one sentence on the 7-zone limit) with the button as its
-`primary` action. At 7 stored zones the button gives way to a muted
+Page pattern, not a shared component. With user zones, "Add city" is a
+compact `secondary` button with the `plus` icon in the Timelines card header,
+just before Edit (`.timelines__tools`): `--space-2` inline padding like Edit,
+still `--control-height` tall. From `--bp-md` the two end the header row;
+below it they share one right-aligned line above the grid. With no user zones
+the header has no Add city button: the card body shows the first-run Empty
+state ("Add the cities you work with", one sentence on the 7-zone limit) after
+the grid, with a `primary` Add city button as its action. At 7 stored zones
+the button gives way, in the same place before Edit, to a muted
 `--font-size-sm` limit note ("Maximum of 7 time zones. Remove one to add
 another."). The button and the **A** key (outside text fields and open
 dialogs) open the Add city Sheet.
@@ -630,11 +652,11 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 112px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows in Edit mode only), a cardless Timelines region (hidden heading, Edit above the grid, the legend after it), 56px rows, one-row toolbar fixed to the bottom (date button, Now, filter), shorter footer, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                                                                                                                            |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 112px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows in Edit mode only), a cardless Timelines region (hidden heading, Add city and Edit above the grid, the legend after it), 56px rows, the selection bar docked above the toolbar while a selection exists, one-row toolbar fixed to the bottom (date button: "Today" or the short date; Now; filter), shorter footer, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                                                                                                                                                                                                                                         |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 Short viewports keep the phone row header. The wide row header (its inline
 details, the 64px rows, the wider header padding) needs height as well as

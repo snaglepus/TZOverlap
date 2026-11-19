@@ -52,6 +52,35 @@ const dateButton = (page) => page.locator('.toolbar .date-field__label');
 const shortDate = (page) => page.locator('.toolbar .date-field__short');
 
 /** @param {import('@playwright/test').Page} page */
+const dateWord = (page) => page.locator('.toolbar .date-field__word');
+
+/**
+ * The date button's visible text: its spans not clipped away. innerText would
+ * also hold the visually hidden span, on a line of its own.
+ * @param {import('@playwright/test').Page} page
+ */
+const visibleText = (page) =>
+  dateButton(page).evaluate((label) =>
+    [...label.querySelectorAll('span')]
+      .filter((span) => {
+        const b = span.getBoundingClientRect();
+        return b.width * b.height > 1;
+      })
+      .map((span) => span.innerText)
+      .join(' ')
+      .replaceAll('\u00a0', ' '),
+  );
+
+/**
+ * Whether a span is visually hidden: clipped to at most 1px.
+ * @param {import('@playwright/test').Locator} locator
+ */
+async function isClipped(locator) {
+  const b = await locator.boundingBox();
+  return !b || b.width * b.height <= 1;
+}
+
+/** @param {import('@playwright/test').Page} page */
 const settingsButtons = (page) => page.getByRole('button', { name: 'Settings', exact: true });
 
 /** @param {import('@playwright/test').Page} page */
@@ -142,19 +171,22 @@ test.describe('phone, 390×844', () => {
 
   test('the date button shows the short date and moves the anchor', async ({ page }) => {
     await page.goto('/');
-    await expect(shortDate(page)).toHaveText('Today · Wed 18 Nov');
-    await expect(page.locator('.toolbar .date-field__word')).toBeHidden();
-    await expect(dateButton(page)).toHaveText('Today · Wed 18 Nov', { useInnerText: true });
-    await expect(dateInput(page)).toHaveAccessibleName(/Today/);
+    // Today: just the word; the date stays in the accessible name, visually hidden.
+    await expect.poll(() => visibleText(page)).toBe('Today');
+    await expect(shortDate(page)).toHaveText('Wed\u00a018\u00a0Nov');
+    expect(await isClipped(shortDate(page))).toBe(true);
+    expect(await isClipped(dateWord(page))).toBe(false);
+    await expect(dateInput(page)).toHaveAccessibleName(/Today.*Wed.18.Nov/);
     await expect(dateInput(page)).toHaveAttribute('min', '1980-01-01');
     await expect(dateInput(page)).toHaveAttribute('max', '2099-12-31');
 
     await dateInput(page).fill('2026-07-15');
     await expect(shortDate(page)).toHaveText('Wed 15 July');
+    await expect.poll(() => visibleText(page)).toBe('Wed 15 July');
     // "Date" stays in the accessible name, visually hidden.
-    const word = await box(page.locator('.toolbar .date-field__word'));
-    expect(word.width * word.height).toBeLessThanOrEqual(1);
-    await expect(dateInput(page)).toHaveAccessibleName(/^Date\b/);
+    expect(await isClipped(dateWord(page))).toBe(true);
+    expect(await isClipped(shortDate(page))).toBe(false);
+    await expect(dateInput(page)).toHaveAccessibleName(/^Date\b.*Wed.15.July/);
     // 14 Jul 00:00 AEST: the day before the new anchor.
     await expect.poll(() => firstHomeStart(page)).toBe('2026-07-13T14:00:00.000Z');
     await expect(dateInput(page)).toHaveAttribute('min', '1980-01-01');
@@ -189,7 +221,8 @@ test.describe('phone, 390×844', () => {
     await expect(todayButton(page)).toBeHidden();
     await page.getByRole('button', { name: 'Go to now' }).click();
     await expect(dateInput(page)).toHaveValue('2026-11-18');
-    await expect(shortDate(page)).toHaveText('Today · Wed 18 Nov');
+    await expect.poll(() => visibleText(page)).toBe('Today');
+    expect(await isClipped(shortDate(page))).toBe(true);
     await expect.poll(() => firstHomeStart(page)).toBe('2026-11-16T13:00:00.000Z');
   });
 
@@ -281,42 +314,55 @@ test.describe('phone, 390×844', () => {
 });
 
 /**
- * Line tops of the date in the date button's text (after "Today · " on today).
+ * Line tops of the date button's visible text: the spans not clipped away.
  * @param {import('@playwright/test').Page} page
  */
-const dateLineTops = (page) =>
-  shortDate(page).evaluate((el) => {
-    const text = /** @type {Text} */ (el.firstChild);
-    const dot = text.data.indexOf('· ');
-    const range = document.createRange();
-    range.setStart(text, dot < 0 ? 0 : dot + 2);
-    range.setEnd(text, text.data.length);
-    return [...new Set([...range.getClientRects()].map((r) => Math.round(r.top)))];
+const visibleLineTops = (page) =>
+  dateButton(page).evaluate((label) => {
+    const tops = new Set();
+    for (const span of label.querySelectorAll('span')) {
+      const b = span.getBoundingClientRect();
+      if (b.width * b.height <= 1) continue;
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      for (const r of range.getClientRects()) tops.add(Math.round(r.top));
+    }
+    return [...tops];
   });
 
-test('320×568: one toolbar row, no sideways scroll, big controls', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto('/');
-  // 30 Sept is among the widest short dates.
-  for (const [date, text] of /** @type {const} */ ([
-    [null, 'Today · Wed 18 Nov'],
-    ['2026-07-15', 'Wed 15 July'],
-    ['2026-09-30', 'Wed 30 Sept'],
-  ])) {
-    if (date) await dateInput(page).fill(date);
-    await expect(shortDate(page)).toHaveText(text);
-    await expectOneRow(page);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth === document.documentElement.clientWidth,
-      ),
-    ).toBe(true);
-    await expectBigControls(page);
-    // The date never breaks inside itself, and never runs out of the button.
-    expect(await dateLineTops(page)).toHaveLength(1);
-    expect(await dateButton(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  }
-});
+for (const size of [
+  { width: 320, height: 568 },
+  { width: 375, height: 667 },
+]) {
+  test(`${size.width}×${size.height}: a one-line date button, one toolbar row, big controls`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+    await page.goto('/');
+    // 30 Sept is among the widest short dates.
+    for (const [date, text] of /** @type {const} */ ([
+      [null, 'Today'],
+      ['2026-07-15', 'Wed 15 July'],
+      ['2026-09-30', 'Wed 30 Sept'],
+    ])) {
+      if (date) await dateInput(page).fill(date);
+      await expect.poll(() => visibleText(page)).toBe(text);
+      await expectOneRow(page);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth === document.documentElement.clientWidth,
+        ),
+      ).toBe(true);
+      await expectBigControls(page);
+      // One line box, and the text never runs out of the button.
+      expect(await visibleLineTops(page)).toHaveLength(1);
+      expect(await dateButton(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    await page.getByRole('button', { name: 'Go to now' }).click();
+    await expect.poll(() => visibleText(page)).toBe('Today');
+    expect(await visibleLineTops(page)).toHaveLength(1);
+  });
+}
 
 for (const viewport of [
   { width: 1440, height: 900 },

@@ -258,8 +258,8 @@ export function mountApp(
     now,
     announce,
     focusTarget: () =>
-      timelinesCard.body.querySelector('.add-city-button') ??
-      timelinesCard.body.querySelector('[role="grid"]'),
+      timelinesCard.root.querySelector('.add-city-button') ??
+      timelinesCard.root.querySelector('[role="grid"]'),
     focusRow: (id) => view?.focusRow(id) ?? false,
   });
 
@@ -310,9 +310,13 @@ export function mountApp(
   }
 
   // --- Timelines card --------------------------------------------------------
+  // Add city (or the limit note), filled by showGrid(), then Edit.
+  const tools = h('div', { class: 'timelines__tools' }, [editButton]);
+  /** The Add city button or limit note in `tools`. @type {HTMLElement | null} */
+  let addItem = null;
   const timelinesCard = card({
     title: strings.timelines.cardTitle,
-    actions: [legend(), editButton],
+    actions: [legend(), tools],
   });
   // Below --bp-md it loses its card look (app.css).
   timelinesCard.root.classList.add('timelines');
@@ -333,6 +337,12 @@ export function mountApp(
       view?.root.focus({ preventScroll: true });
     },
   });
+  // Below --bp-md the bar docks above the toolbar: the shell reserves its
+  // measured height (0 while hidden), as it does the toolbar's.
+  new ResizeObserver(() => {
+    const height = bar.root.getBoundingClientRect().height;
+    shell.root.style.setProperty('--selection-room', String(Math.ceil(height)));
+  }).observe(bar.root);
   /** The zones of the rows shown, home first. */
   let rowZones = /** @type {import('../lib/grid.js').GridZone[]} */ ([]);
 
@@ -462,10 +472,10 @@ export function mountApp(
   /** Label, short date and Today button against today's date at `current`. @param {Date} current */
   function syncDate(current) {
     const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
-    // No-break spaces: the phone date button may wrap after the word Today, never inside the date.
+    // No-break spaces: large text may wrap the phone date button, never inside the date.
     const date = anchorShortDate(anchor).replaceAll(' ', '\u00a0');
     dateControl.setLabel(isToday ? strings.date.today : strings.date.other);
-    dateControl.setShortDate(isToday ? strings.date.todayShort(date) : date, isToday);
+    dateControl.setShortDate(date, isToday);
     todayButton.hidden = isToday;
   }
 
@@ -601,14 +611,17 @@ export function mountApp(
     });
     view.setSelection(selection.get());
     syncBar();
-    const body = [view.root, view.popover];
+    const body = [view.root, view.popover, bar.root];
     addButton = null;
+    addItem?.remove();
+    addItem = null;
     if (zones.length >= MAX_EXTRA_ZONES) {
-      body.push(h('p', { class: 'add-city-limit', text: strings.addCity.limit(MAX_EXTRA_ZONES) }));
+      addItem = h('p', { class: 'add-city-limit', text: strings.addCity.limit(MAX_EXTRA_ZONES) });
     } else {
       addButton = button({
         label: strings.addCity.button,
         variant: shown.length === 0 ? 'primary' : 'secondary',
+        icon: shown.length === 0 ? undefined : 'plus',
         onClick: () => addCity.open(),
       });
       addButton.classList.add('add-city-button');
@@ -621,10 +634,10 @@ export function mountApp(
           }),
         );
       } else {
-        body.push(h('div', { class: 'add-city-row' }, [addButton]));
+        addItem = addButton;
       }
     }
-    body.push(bar.root);
+    if (addItem) editButton.before(addItem);
     timelinesCard.body.replaceChildren(...body);
     editButton.hidden = shown.length === 0;
     if (shown.length === 0) setEditing(false, hadDeleteFocus);

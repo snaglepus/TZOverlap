@@ -28,14 +28,15 @@ to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
 On phones (below 40rem) the title bar is a slim app bar (the name and a
 Settings gear) and the toolbar is one row fixed to the bottom: a compact date
-button ("Today · Wed 18 Nov", opening the native picker), Now and All / Good /
-Best. From 40rem the toolbar sits in the title bar with Today, the 24-hour
+button (opening the native picker; "Today" on today with the date visually
+hidden, else the short date, "Wed 15 July"), Now and All / Good / Best. From 40rem the toolbar sits in the title bar with Today, the 24-hour
 toggle (from 64rem) and its own Settings gear.
 
 Clicking, tapping or pressing Enter on a slot selects it (snapped to 15
 minutes, `settings.defaultDuration` long): an outlined band crosses every row,
 each row header shows that zone's selected time, and a selection bar gives the
-date, home time range and rating, with × or Esc to clear. Selection state and
+date, home time range and rating, with × or Esc to clear. On phones the bar is
+docked above the bottom toolbar; from 40rem it sits under the grid. Selection state and
 its derived per-zone times and ratings are pure lib modules
 (`src/lib/selection.js`, `src/lib/selection-details.js`).
 
@@ -181,11 +182,13 @@ src/                    the app (served as-is in dev; bundled for prod)
                         emptyState, errorState, sheet, popover, createToaster (toast), createBanner,
                         radioGroup, segmentedControl, switchControl
     theme.js            light/dark controller
-    app.js              the timelines page: grid, Add city button, first-run prompt, limit note,
+    app.js              the timelines page: grid, Add city button and limit note (card header,
+                        before Edit), first-run prompt,
                         the toolbar, the date control and its short date, the two Settings gears
                         (app bar below 40rem, toolbar from it) and focus after a layout change;
                         the All / Good / Best filter (toolbar, keys 1/2/3) and the no-overlap message;
-                        the selection state, selection bar and Esc to clear; announce(), the
+                        the selection state, selection bar (after the grid; --selection-room,
+                        its measured height, for the phone dock) and Esc to clear; announce(), the
                         one writer of the polite live region (one batched write per action,
                         with the Everyone summary when it or the filter changed);
                         Edit mode (Edit / Done button, delete and handle focus, auto end, Esc order);
@@ -206,7 +209,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         Treat weekends as unavailable, Install and Reset all data
     install.js          install guidance: beforeinstallprompt capture, hint card, iOS sheet,
                         Settings → Install section
-    selection-bar.js    selectionBar(): the selected time range, rating in words and clear button
+    selection-bar.js    selectionBar(): the selected time range, rating in words and clear button;
+                        docked above the phone toolbar by CSS (app.css), under the grid from 40rem
     strings.js          all user-visible text (en-AU), short/long variants
   styles/
     tokens.css          ALL design tokens (the only place for raw values)
