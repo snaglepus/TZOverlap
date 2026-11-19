@@ -21,6 +21,12 @@ user row shows a Delete button and an enlarged grab handle for quick tidying.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
 to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
+On phones (below 40rem) the title bar is a slim app bar (the name and a
+Settings gear) and the toolbar is one row fixed to the bottom: a compact date
+button ("Today · Wed 18 Nov", opening the native picker), Now and All / Good /
+Best. From 40rem the toolbar sits in the title bar with Today, the 24-hour
+toggle (from 64rem) and its own Settings gear.
+
 Clicking, tapping or pressing Enter on a slot selects it (snapped to 15
 minutes, `settings.defaultDuration` long): an outlined band crosses every row,
 each row header shows that zone's selected time, and a selection bar gives the
@@ -143,7 +149,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     updates.js          registerServiceWorker(): registration and the update-ready handshake
     city-data.js        loadCityData(): cached dynamic import() of data/cities.js;
                         cityDataIfLoaded(): the data once loaded, else null
-    row-header.js       row header text: names, day difference, dates, abbreviation and offset line
+    row-header.js       row header text: names, day difference, dates, abbreviation and offset line;
+                        anchorShortDate() (the phone date button's "Wed 18 Nov")
     search.js           zone search: fixed offsets, abbreviations, cities, IANA IDs
     dst.js              DST badges status, clock changes between dates, banner sentences
     home.js             device-zone tracker: decides home changes, lastHomeTz saves and the travel toast
@@ -167,6 +174,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         radioGroup, segmentedControl, switchControl
     theme.js            light/dark controller
     app.js              the timelines page: grid, Add city button, first-run prompt, limit note,
+                        the toolbar, the date control and its short date, the two Settings gears
+                        (app bar below 40rem, toolbar from it) and focus after a layout change;
                         the All / Good / Best filter (toolbar, keys 1/2/3) and the no-overlap message;
                         the selection state, selection bar, announcements and Esc to clear;
                         Edit mode (Edit / Done button, delete focus, auto end, Esc order);

@@ -201,9 +201,9 @@ the trigger and the drag handle don't fit on one line, the handle wraps) ·
 `--edit-handle-icon-size` 1.5rem (24px: its grip icon) ·
 `--lift-scale` 1.02 (the dragged row's scale; `1` under reduced motion) ·
 `--sheet-max-width` 32rem (sheets from `--bp-md`,
-toasts) · `--toolbar-height` 157px (phone bottom toolbar before the safe-area
-inset: three `--control-height` rows, two `--space-2` row gaps, `--space-1`
-padding above and below, and the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
+toasts) · `--toolbar-height` 53px (phone bottom toolbar before the safe-area
+inset: one `--control-height` row, `--space-1` padding above and below, and
+the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
 `--weekend-band-width` 4px (top band on weekend hour cells) ·
 `--day-divider-width` 2px (midnight divider line) ·
@@ -265,7 +265,8 @@ lifted row.
   `<html data-theme="light|dark">` before first paint so there is no flash.
   `tokens.css` also applies dark tokens via `prefers-color-scheme` when no
   `data-theme` is set (no-JS fallback).
-- Users choose in Settings → Appearance (gear button in the toolbar): "System
+- Users choose in Settings → Appearance (gear button in the app bar on phones,
+  in the toolbar from `--bp-md`): "System
   default" follows the OS live, with no reload; "Light" and "Dark" are saved to
   `settings.theme` and hold under any OS setting. Reset all data returns to
   System default.
@@ -342,12 +343,25 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
 optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
-text. The label sits beside the input in `--font-size-sm`; when both don't fit
-(large text on a phone) the input wraps under the label and may shrink to the
-field's width. In the bottom
-toolbar (below `--bp-md`) the field takes the whole first row, so the buttons
-fit the second row at 320px. Use for the toolbar's date control (labelled
-"Today" while the timelines show today, "Date" otherwise).
+word; `setShortDate(text, replacesLabel)` sets the short date inside the label,
+shown only below `--bp-md`. From `--bp-md` the label word sits beside the input
+in `--font-size-sm`; when both don't fit (large text) the input wraps under the
+label and may shrink to the field's width.
+
+Below `--bp-md` the field is one compact button: the label, at least 44×44px
+with a `--color-border-strong` border, `--radius-md` and `--font-size-xs` text
+centred, shows the short date. When the short date already says the label
+("Today · Wed 18 Nov", `replacesLabel`) the word is left out; otherwise ("Wed
+18 Nov") the word stays visually hidden, so the accessible name is "Date Wed 18
+Nov". The text may wrap onto two or three lines in a narrow toolbar. The native
+input stays in the DOM with its value, `min` / `max` and handlers, laid over the
+whole button at `opacity: 0`, so a tap focuses it; its click handler also calls
+`showPicker()` (feature-checked, in `try`/`catch`) while the phone layout is
+active, since desktop browsers open the picker only from its icon. The button
+takes the standard focus ring while the input has `:focus-visible`. Use for the
+toolbar's date control (labelled "Today" while the timelines show today, "Date"
+otherwise; the short date comes from `anchorShortDate()` in
+`src/lib/row-header.js`, en-AU, so "Wed 15 July").
 
 ### Card — `card()` · `.card`
 
@@ -361,30 +375,43 @@ Do not nest cards.
 
 ### App shell — `appShell()` · `.shell`
 
-Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline),
-toolbar, `<main id="main">` constrained to `--content-max-width` and opening
-with the page's one banner region (returned as `banner`), footer, and the
-page's one toast region (returned as `toaster`). The toolbar
-(`role="group"`, "Toolbar") holds the `actions` (on the timelines page: the Date
-field, a ghost "Today" button that is hidden while the date shown is today, the
-"24-hour" toggle (a ghost pressed-state Button, pressed while 24-hour times
-show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`, where the toolbar is
-in the title bar), a ghost **Now** button, named "Go to now", Settings, then
-the "Filter" Segmented control: All, Good, Best), comes right after the brand
-in DOM order, and is omitted when there are none.
-Below `--bp-md` it is fixed to the bottom of the viewport on a surface with a
-top hairline, wraps its controls onto three rows (the Date field first, the
-buttons right-aligned below, then the filter across the full width with the
-segments sharing it), is padded by the bottom, left and right safe-area
-insets, and the shell pads its bottom to match; from `--bp-md` it sits in the
-title bar at the end, with the filter on its own line under the other
-controls, right-aligned. The title bar pads its top by
+Page frame: skip link, title bar (`<header>`: app name as `<h1>` and tagline,
+then the `barActions`), toolbar, `<main id="main">` constrained to
+`--content-max-width` and opening with the page's one banner region (returned
+as `banner`), footer, and the page's one toast region (returned as `toaster`).
+The toolbar (`role="group"`, "Toolbar") holds the `actions` (on the timelines
+page: the Date field, a ghost "Today" button that is hidden while the date
+shown is today, the "24-hour" toggle (a ghost pressed-state Button, pressed
+while 24-hour times show, `aria-keyshortcuts="T"`; shown only from `--bp-lg`,
+where the toolbar is in the title bar), a ghost **Now** button, named "Go to
+now", Settings, then the "Filter" Segmented control: All, Good, Best), comes
+right after the brand and the `barActions` in DOM order, and is omitted when
+there are none.
+
+Below `--bp-md` the title bar is a slim app bar, at most 52px at default text
+(`--space-1` above and below a 44px control): the `<h1>` in `--font-size-lg`,
+no tagline (`display: none`), and the timelines page's `barActions`, a second
+ghost Settings gear. The toolbar's own gear is hidden there and the app bar's
+from `--bp-md`, so exactly one Settings button shows at any width; if the
+layout changes while Settings is open (a phone rotating), closing it focuses
+the gear that shows now. The toolbar is fixed to the bottom of the viewport on
+a surface with a top hairline, one row at default text: the compact Date field
+button (it takes the room left), Now (`--space-2` inline padding), then the
+filter, all in `--font-size-sm` with `--space-1` gaps, stretched to the tallest
+control. The Today button is not shown there (Now and the picker cover going
+back) and the 24-hour toggle is hidden below `--bp-lg`. At large text it wraps
+onto more rows. It is padded by the bottom, left and right safe-area insets,
+and the shell pads its bottom to match. From `--bp-md` the title bar is as
+before: `--font-size-2xl` name over the tagline, and the toolbar in it at the
+end, with the filter on its own line under the other controls, right-aligned. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
 (`viewport-fit=cover`). Below `--bp-md` the shell's bottom padding is the
 larger of `--toolbar-height` and the toolbar's measured height
 (`--toolbar-room`, set by `appShell()`), so at large text the end of the
-footer still scrolls clear of it. Toolbar controls are at least 44×44px. Every page
-renders inside exactly one shell.
+footer still scrolls clear of it. Toolbar controls are at least 44×44px. The
+footer pads `--space-2` above and below in `--font-size-xs` below `--bp-md`
+(`--space-4` and `--font-size-sm` from it). Every page renders inside exactly
+one shell.
 
 ### Sheet — `sheet()` · `.sheet`
 
@@ -411,10 +438,9 @@ there is no room) and keeps it inside the viewport and above the phone's fixed
 bottom toolbar, following page scroll and resize; it is never taller than the
 room above that toolbar (the viewport without one), and scrolls when its
 content is; positions go in as `--popover-left` / `--popover-top`, the room as
-`--popover-room`. At 320×568 with 200% text the four-row phone toolbar leaves
-about 110px above it, so the popover shows one action and scrolls to the rest:
-a deliberate trade-off that keeps the toolbar uncovered, until the toolbar's
-large-text layout is reworked (TZO-26). Esc closes it and
+`--popover-room`. At 320×568 with 200% text the phone toolbar wraps to two
+rows (the date button and Now, then the filter), so the room above it is
+smaller and a long popover scrolls rather than covering the toolbar. Esc closes it and
 returns focus to the anchor; a click outside closes it. The anchor gets
 `aria-expanded`; give it `aria-controls` with the popover's id, and in its click
 handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One
@@ -434,9 +460,9 @@ anchored to the toolbar's real top (CSS anchor positioning, `anchor-name:
 --toolbar`; without it, `--toolbar-height` above the bottom), so a toolbar that
 large text wraps to more rows never sits under the toast. The region spans the
 viewport above that line with `pointer-events: none`, and the toast sits at its
-foot (`align-items: safe flex-end`): when it is taller than the room left
-(320×568 at 200% text) it starts at the top of the viewport instead and covers
-the toolbar's first row while it shows. It dismisses itself after 6s
+foot (`align-items: safe flex-end`): if it were ever taller than the room left
+it would start at the top of the viewport instead and cover the toolbar's first
+row while it shows. It dismisses itself after 6s
 (pausing while hovered or focused). Use to confirm something that happened
 outside the user's view, e.g. "All data was reset." A toast with an Undo action (a deleted
 row) passes `duration` 5000 and keeps only the latest deletion undoable.
@@ -493,11 +519,11 @@ with `--font-weight-medium` text on `--color-surface`. The checked segment gets
 the `--color-surface-sunken` fill, a second inset `--color-border-strong`
 border and `--font-weight-bold` text, like the pressed Button, so the state
 never relies on colour alone. A focused radio puts the standard focus ring on
-its segment (`:has(:focus-visible)`). Below `--bp-md` the segments share the
-toolbar row equally (a grid of `minmax(max-content, 1fr)` columns, inline
-padding `--segment-inset`), but a segment never gets narrower than its label:
-at large text it takes its label's width and the others share the rest. From
-`--bp-md` they size as a flex row with `--space-3` padding. Arrow keys move the choice natively and
+its segment (`:has(:focus-visible)`). Below `--bp-md` each segment takes its
+label's width plus `--segment-inset` on each side, in `--font-size-sm` in the
+toolbar, so the filter shares the one toolbar row with the date button and Now.
+From `--bp-md` they size as a flex row with `--space-3` padding, and in the
+toolbar the filter takes its own line. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set
 `aria-keyshortcuts`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a short, always-visible view mode switched often, e.g. the
@@ -581,11 +607,11 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                                                                                              |
-| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                                                                                              |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                               |
+| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                    |
+| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, one-row toolbar fixed to the bottom (date button, Now, filter), shorter footer, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                  |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                     |
 
 Short viewports keep the phone row header. The wide row header (its inline
 details, the 64px rows, the wider header padding) needs height as well as
@@ -607,9 +633,9 @@ one-line ellipsis. The no-overlap message's button lets its label wrap rather
 than widen the page, with its padding shrunk to `--phone-gutter`; the Popover
 is never taller than the room above the phone toolbar (it scrolls); the Date
 field, Sheet headers and Add city results wrap rather than run past the
-screen edge. At 320×568 with 200% text the phone toolbar wraps to four rows,
-which leaves less room above it than a toast needs; the toast then covers the
-toolbar's first row until it goes.
+screen edge. At 200% text the phone toolbar wraps onto more rows (at 320×568:
+the date button and Now, then the filter), and the shell reserves its measured
+height.
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
