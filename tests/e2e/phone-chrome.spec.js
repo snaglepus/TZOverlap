@@ -1,7 +1,7 @@
 // E2E: the phone chrome (TZO-28): the slim app bar with its Settings gear, the
 // one-row bottom toolbar, the compact date button and the shorter footer; and
-// the title bar from --bp-md, unchanged. Device in Sydney, clock fixed at 12:00
-// on Wed 18 Nov 2026.
+// the top bar from --bp-md, holding the toolbar. Device in Sydney, clock fixed
+// at 12:00 on Wed 18 Nov 2026.
 
 import { expect, test } from '@playwright/test';
 
@@ -368,10 +368,12 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 820, height: 1180 },
 ]) {
-  test(`${viewport.width}px: the title bar is unchanged`, async ({ page }) => {
+  test(`${viewport.width}px: the top bar holds the toolbar`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto('/');
-    await expect(page.locator('.shell__tagline')).toBeVisible();
+    // The tagline shows beside the title from --bp-lg only.
+    if (viewport.width === 1440) await expect(page.locator('.shell__tagline')).toBeVisible();
+    else await expect(page.locator('.shell__tagline')).toBeHidden();
     await expect(header(page).getByRole('group', { name: 'Toolbar' })).toBeVisible();
     await expect(toolbar(page)).not.toHaveCSS('position', 'fixed');
     await expect(settingsButtons(page)).toHaveCount(1);

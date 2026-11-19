@@ -388,13 +388,15 @@ test.describe('placement', () => {
     { width: 820, height: 1180 },
     { width: 1280, height: 800 },
   ]) {
-    test(`${viewport.width}px: its own line in the title bar, under Settings`, async ({ page }) => {
+    test(`${viewport.width}px: in the top bar's row, just before Settings`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto('/');
       expect(await filterGroup(page).evaluate((el) => el.closest('header') !== null)).toBe(true);
       const group = await box(filterGroup(page));
       const settings = await box(page.getByRole('button', { name: 'Settings' }));
-      expect(group.y).toBeGreaterThanOrEqual(settings.y + settings.height);
+      const centre = (/** @type {{ y: number, height: number }} */ b) => b.y + b.height / 2;
+      expect(Math.abs(centre(group) - centre(settings))).toBeLessThanOrEqual(4);
+      expect(group.x + group.width).toBeLessThanOrEqual(settings.x);
       expect(group.y + group.height).toBeLessThanOrEqual((await box(page.locator('main'))).y);
       await expectBigSegments(page);
     });
