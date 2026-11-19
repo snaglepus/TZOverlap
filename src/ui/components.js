@@ -159,8 +159,8 @@ const WIDE = '(min-width: 40rem)';
 /**
  * Labelled native date input (`<input type="date">`), value "YYYY-MM-DD".
  * The label sits beside the input, so it fits the toolbar. Below --bp-md the
- * label shows the short date as a button, with the input laid over it
- * transparently: a tap opens the native picker.
+ * label is a button showing the short date (or the word, on today), with the
+ * input laid over it transparently: a tap opens the native picker.
  * @param {{ label: string, name: string, value: string, min?: string, max?: string }} options
  */
 export function dateField({ label, name, value, min, max }) {
@@ -196,15 +196,15 @@ export function dateField({ label, name, value, min, max }) {
       wordEl.textContent = text;
     },
     /**
-     * The short date shown below --bp-md. When it already says the label
-     * (today: "Today" and the date), the label word is left out there; otherwise it
-     * stays visually hidden, for the accessible name.
+     * The short date, shown below --bp-md with the label word visually hidden.
+     * With `wordOnly` (today) the button shows the word instead and the date is
+     * visually hidden; both stay in the accessible name.
      * @param {string} text
-     * @param {boolean} [replacesLabel]
+     * @param {boolean} [wordOnly]
      */
-    setShortDate(text, replacesLabel = false) {
+    setShortDate(text, wordOnly = false) {
       shortEl.textContent = text;
-      root.classList.toggle('date-field--short-only', replacesLabel);
+      root.classList.toggle('date-field--word-only', wordOnly);
     },
   };
 }
