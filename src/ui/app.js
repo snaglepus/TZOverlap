@@ -521,7 +521,7 @@ export function mountApp(
       return;
     }
     const next = button({
-      label: strings.filter.nextDay,
+      label: strings.filter.nextDay.long,
       variant: 'secondary',
       onClick: () => {
         const found = nextQualifyingDay(dayOptions());
@@ -535,10 +535,24 @@ export function mountApp(
         view?.root.focus({ preventScroll: true });
       },
     });
+    next.replaceChildren(...shortAndLong(strings.filter.nextDay));
     noOverlap.replaceChildren(
-      h('p', { class: 'no-overlap__message', text: strings.filter.noOverlap }),
+      h('p', { class: 'no-overlap__message' }, shortAndLong(strings.filter.noOverlap)),
       next,
     );
+  }
+
+  /**
+   * Both wordings of a no-overlap line. Below --bp-md CSS shows the short one,
+   * hidden from assistive tech, and visually hides the long one, so the name and
+   * the live region's announcement keep the full wording; from --bp-md just the long.
+   * @param {{ long: string, short: string }} text
+   */
+  function shortAndLong(text) {
+    return [
+      h('span', { class: 'no-overlap__short', text: text.short, attrs: { 'aria-hidden': 'true' } }),
+      h('span', { class: 'no-overlap__long', text: text.long }),
+    ];
   }
 
   /**
