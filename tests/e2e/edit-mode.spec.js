@@ -199,7 +199,12 @@ for (const viewport of [DESKTOP, PHONE]) {
       await seedZones(page, seeded(THREE));
       await page.goto('/');
       await expectNotEditing(page);
-      const handlesBefore = await Promise.all([A, B, C].map((z) => box(handle(page, z))));
+      // Below --bp-md the handles show only in Edit mode.
+      const phone = viewport.width < 640;
+      if (phone) await expect(page.locator('.grid__handle:visible')).toHaveCount(0);
+      const handlesBefore = phone
+        ? []
+        : await Promise.all([A, B, C].map((z) => box(handle(page, z))));
       const homeBefore = await box(row(page, HOME));
       const everyoneBefore = await box(row(page, 'everyone'));
 
@@ -213,11 +218,13 @@ for (const viewport of [DESKTOP, PHONE]) {
         expect(r.width).toBeGreaterThanOrEqual(44);
         expect(r.height).toBeGreaterThanOrEqual(44);
         const h = await box(handle(page, zone));
-        const before = /** @type {Box} */ (handlesBefore[i]);
         expect(h.width).toBeGreaterThanOrEqual(44);
         expect(h.height).toBeGreaterThanOrEqual(44);
-        expect(h.width).toBeGreaterThan(before.width);
-        expect(h.height).toBeGreaterThan(before.height);
+        if (!phone) {
+          const before = /** @type {Box} */ (handlesBefore[i]);
+          expect(h.width).toBeGreaterThan(before.width);
+          expect(h.height).toBeGreaterThan(before.height);
+        }
         expect(Math.round(h.width)).toBe(52);
         expect(Math.round(h.height)).toBe(52);
       }
@@ -231,6 +238,10 @@ for (const viewport of [DESKTOP, PHONE]) {
       await doneButton(page).click();
       await expectNotEditing(page);
       await expect(page.locator('.grid__delete:visible')).toHaveCount(0);
+      if (phone) {
+        await expect(page.locator('.grid__handle:visible')).toHaveCount(0);
+        return;
+      }
       for (const [i, zone] of [A, B, C].entries()) {
         const h = await box(handle(page, zone));
         const before = /** @type {Box} */ (handlesBefore[i]);
@@ -323,6 +334,20 @@ for (const viewport of [DESKTOP, PHONE]) {
       await page.keyboard.press('Escape');
       await expectNotEditing(page);
       await expect(editButton(page)).toBeFocused();
+
+      // Focus on a handle: below --bp-md it hides, so focus goes to the Edit
+      // button; from --bp-md it stays on the handle.
+      await editButton(page).click();
+      await handle(page, A).focus();
+      await page.keyboard.press('Escape');
+      await expectNotEditing(page);
+      if (viewport.width < 640) {
+        await expect(handle(page, A)).toBeHidden();
+        await expect(editButton(page)).toBeFocused();
+      } else {
+        await expect(handle(page, A)).toBeVisible();
+        await expect(handle(page, A)).toBeFocused();
+      }
     });
 
     test('AC-8: a tap or click on the trigger or handle still opens the details', async ({
@@ -365,7 +390,7 @@ test.describe('phone layout', () => {
     const { rows } = await headerLayout(page);
     expect(rows).toHaveLength(3);
     for (const [i, { header, trigger, remove, handle: grip }] of rows.entries()) {
-      expect(Math.round(header.width)).toBe(144);
+      expect(Math.round(header.width)).toBe(112);
       for (const part of [trigger, remove, grip]) expectInside(part, header);
       expect(remove.top).toBeGreaterThanOrEqual(trigger.bottom);
       expect(grip.top).toBeGreaterThanOrEqual(trigger.bottom);
@@ -416,47 +441,36 @@ test.describe('large text', () => {
   }
 });
 
-/** The card header's and the Edit button's boxes, relative to the header. @param {Page} page */
-const cardHeader = (page) =>
-  page.locator('.card__header').evaluate((el) => {
-    const header = el.getBoundingClientRect();
-    const legend = /** @type {Element} */ (el.querySelector('.legend')).getBoundingClientRect();
-    const toggle = /** @type {Element} */ (
-      el.querySelector('.edit-toggle')
-    ).getBoundingClientRect();
-    // Whether the legend and the button fit side by side depends on the
-    // fonts installed (DejaVu Sans on Linux CI is wider than SF or Roboto).
-    const fits = legend.width + parseFloat(getComputedStyle(el).columnGap) + toggle.width;
-    return {
-      height: header.height,
-      button: { x: toggle.x - header.x, y: toggle.y - header.y, width: toggle.width },
-      sameLine: toggle.top <= legend.bottom && toggle.bottom >= legend.top,
-      roomForBoth: fits <= el.clientWidth,
-    };
+/**
+ * The Edit / Done button's box and its label's line count. Below --bp-md the
+ * card header has no box of its own (display: contents).
+ * @param {Page} page
+ */
+const editToggle = (page) =>
+  page.locator('.edit-toggle').evaluate((el) => {
+    const { x, y, width, height } = el.getBoundingClientRect();
+    const label = /** @type {Element} */ (el.querySelector('.edit-toggle__label'));
+    return { x, y, width, height, lines: label.getClientRects().length };
   });
 
-test.describe('card header', () => {
+test.describe('Edit button', () => {
   for (const viewport of [PHONE, { width: 320, height: 740 }]) {
     for (const size of ['100%', '200%']) {
-      test(`Edit and Done keep the header's layout at ${viewport.width} px, ${size} text`, async ({
+      test(`Edit and Done keep the button's place and width at ${viewport.width} px, ${size} text`, async ({
         page,
       }) => {
         await page.setViewportSize(viewport);
         await seedZones(page, seeded(THREE));
         await page.goto('/');
         await setRootFontSize(page, size);
-        const before = await cardHeader(page);
+        const before = await editToggle(page);
+        expect(before.lines).toBe(1);
         await editButton(page).click();
         await expectEditing(page);
-        expect(await cardHeader(page)).toEqual(before);
+        expect(await editToggle(page)).toEqual(before);
         await doneButton(page).click();
         await expectNotEditing(page);
-        expect(await cardHeader(page)).toEqual(before);
-        // At 390 px with default text the button shares the legend's line
-        // whenever the two fit side by side.
-        if (viewport.width === PHONE.width && size === '100%') {
-          expect(before.sameLine).toBe(before.roomForBoth);
-        }
+        expect(await editToggle(page)).toEqual(before);
       });
     }
   }

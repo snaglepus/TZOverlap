@@ -288,19 +288,25 @@ export function mountApp(
 
   /**
    * Turn Edit mode on or off and announce it. Focus on a Delete button when it
-   * ends (`refocus`) goes to the Edit button, or Add city while that is hidden.
+   * ends (`refocus`), or on a handle that hides with it (phones), goes to the
+   * Edit button, or Add city while that is hidden.
    * @param {boolean} on
    * @param {boolean} [refocus]
    */
   function setEditing(on, refocus = deleteFocused()) {
     if (on === editing) return;
+    const focused = document.activeElement;
     editing = on;
     editButton.toggleAttribute('data-editing', on);
     editButton.setAttribute('aria-label', on ? strings.edit.doneLabel : strings.edit.editLabel);
     view?.setEditing(on);
     view?.refresh();
     announce(on ? strings.edit.on : strings.edit.off);
-    if (!on && refocus) (editButton.hidden ? addButton : editButton)?.focus();
+    const handleHidden =
+      focused instanceof HTMLElement &&
+      focused.classList.contains('grid__handle') &&
+      focused.getClientRects().length === 0;
+    if (!on && (refocus || handleHidden)) (editButton.hidden ? addButton : editButton)?.focus();
   }
 
   // --- Timelines card --------------------------------------------------------
@@ -308,6 +314,8 @@ export function mountApp(
     title: strings.timelines.cardTitle,
     actions: [legend(), editButton],
   });
+  // Below --bp-md it loses its card look (app.css).
+  timelinesCard.root.classList.add('timelines');
   // Between the card header and its body, which showGrid() replaces.
   const noOverlap = h('div', {
     class: 'no-overlap',

@@ -90,14 +90,14 @@
   --slot-height: 3.5rem;
   --slot-height-wide: 4rem;
   /* Row header widths. At large text each is capped at 40% of the viewport
-     (PRD 6.7); at default text the cap never bites, so the widths stay 144,
+     (PRD 6.7); at default text the cap never bites, so the widths stay 112,
      180 and 220px. */
   --row-header-width: min(11.25rem, 40vw);
-  /* 144px at default text fits the drag handle beside the clock line; the rem
-     term wins from about 130% text. The cap's second term falls from 144px at
-     100% text to 0 at 200%, so a 320px phone keeps 144px (45%) at default text
-     and gets 40% at 200%. */
-  --row-header-width-compact: min(max(7rem, 144px), max(40vw, 288px - 9rem));
+  /* 112px at default text: the handle shows only in Edit mode below --bp-md,
+     so the header fits the name and clock, and a 390px phone keeps 244px of
+     hours (6 columns). Edit mode's Delete and handle line (108px) still fits.
+     At 200% text the 40vw cap bites (128px at 320px, 156px at 390px). */
+  --row-header-width-compact: min(7rem, 40vw);
   --row-header-width-wide: min(13.75rem, 40vw);
   --grid-header-width: var(--row-header-width-compact);
   --icon-size: 1.25rem;

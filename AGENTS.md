@@ -17,8 +17,9 @@ hours) or unacceptable in each zone, and an Everyone row at the bottom shows the
 overlap and says its answer ("Best 10:00–17:00", "No shared hours"). When the
 date has no slot the filter allows (under All: no Best or Good slot), a
 no-overlap message offers the next day that works.
-Rows can be dragged into a new order by their grab handle (or a long press on
-the header on touch), or moved with Move up / Move down in the row's popover.
+Rows can be dragged into a new order by their grab handle (on phones it shows
+in Edit mode only; a long press anywhere on the header works on touch), or
+moved with Move up / Move down in the row's popover.
 An Edit button in the Timelines card turns on Edit mode (in memory only): every
 user row shows a Delete button and an enlarged grab handle for quick tidying.
 Settings → Install, a one-time install hint and a one-time iOS sheet explain how
@@ -186,7 +187,7 @@ src/                    the app (served as-is in dev; bundled for prod)
                         the selection state, selection bar and Esc to clear; announce(), the
                         one writer of the polite live region (one batched write per action,
                         with the Everyone summary when it or the filter changed);
-                        Edit mode (Edit / Done button, delete focus, auto end, Esc order);
+                        Edit mode (Edit / Done button, delete and handle focus, auto end, Esc order);
                         re-checks the home zone on launch, focus, visibility and each minute
     add-city.js         the Add city sheet: lazy city data, popular list, search, duplicates
     grid.js             timeline grid DOM (role="grid"), header clocks, scrolling inputs, now line,

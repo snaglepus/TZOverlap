@@ -270,11 +270,11 @@
 }
 
 /* The Timelines card's Edit / Done button: both labels in one cell, the
-   inactive one invisible, so its width doesn't change between them. Narrow
-   padding keeps it on the legend's line at 390px. */
+   inactive one invisible, so its width doesn't change between them. */
 .edit-toggle {
   display: inline-grid;
   padding-inline: var(--space-2);
+  white-space: nowrap;
 }
 
 .edit-toggle__label {
@@ -284,6 +284,83 @@
 .edit-toggle:not([data-editing]) .edit-toggle__label--done,
 .edit-toggle[data-editing] .edit-toggle__label:not(.edit-toggle__label--done) {
   visibility: hidden;
+}
+
+/* ---------- Timelines card ---------- */
+/* Below --bp-md no card look: the grid runs the content width. The heading is
+   visually hidden (it still names the region), and the header and body join
+   one column, without DOM changes: Edit / Done alone and right-aligned, the
+   no-overlap message, the grid, then the legend and the rest in DOM order. */
+.timelines {
+  gap: var(--space-2);
+  padding: var(--space-0);
+  background: transparent;
+  border: none;
+  border-radius: var(--space-0);
+  box-shadow: none;
+}
+
+.timelines > .card__header,
+.timelines > .card__body {
+  display: contents;
+}
+
+.timelines .card__title {
+  position: absolute;
+  width: var(--hairline);
+  height: var(--hairline);
+  margin: calc(var(--hairline) * -1);
+  padding: var(--space-0);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: var(--space-0);
+}
+
+.timelines .edit-toggle {
+  order: -3;
+  align-self: flex-end;
+}
+
+.timelines > .no-overlap {
+  order: -2;
+}
+
+.timelines .grid {
+  order: -1;
+}
+
+@media (min-width: 40rem) {
+  .timelines {
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .timelines > .card__header,
+  .timelines > .card__body {
+    display: flex;
+  }
+
+  .timelines .card__title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: var(--space-0);
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .timelines .edit-toggle,
+  .timelines > .no-overlap,
+  .timelines .grid {
+    order: 0;
+    align-self: auto;
+  }
 }
 
 /* ---------- Timeline grid ---------- */
@@ -415,6 +492,18 @@
 .grid__handle:hover,
 .grid__handle[aria-expanded='true'] {
   background: var(--color-surface);
+}
+
+/* Below --bp-md (width only) the handle shows in Edit mode only; a long press
+   on the header still lifts the row. */
+.grid:not([data-editing]) .grid__handle {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .grid:not([data-editing]) .grid__handle {
+    display: inline-flex;
+  }
 }
 
 /* A user row's Delete button: shown only in Edit mode. */
