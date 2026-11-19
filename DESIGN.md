@@ -204,7 +204,9 @@ the trigger and the drag handle don't fit on one line, the handle wraps) ·
 `--edit-handle-icon-size` 1.5rem (24px: its grip icon) ·
 `--lift-scale` 1.02 (the dragged row's scale; `1` under reduced motion) ·
 `--sheet-max-width` 32rem (sheets from `--bp-md`,
-toasts) · `--toolbar-height` 53px (phone bottom toolbar before the safe-area
+toasts) · `--no-overlap-min-width` 12rem (the phone no-overlap message's
+minimum width beside Edit / Done, capped at the content width: it fits beside
+Edit at default text on 320px and wraps above it at 200%) · `--toolbar-height` 53px (phone bottom toolbar before the safe-area
 inset: one `--control-height` row, `--space-1` padding above and below, and
 the top border) · `--min-viewport-height` 100dvh · `--hatch-size` 6px ·
 `--best-edge-width` 3px (inner edge on Everyone Best segments) ·
@@ -387,10 +389,12 @@ The Timelines card has no card look below `--bp-md`, through a page-level
 modifier (`.timelines`, added in `app.js`; `card()` is unchanged): no border,
 radius, shadow, background or padding, so the grid's own single edge spans the
 content width. Its `<h2>` is visually hidden there but still names the region
-(`aria-labelledby`). Its header and body are `display: contents`, and flex
-`order` places, with `--space-2` between them: Edit / Done alone on a line,
-right-aligned; the no-overlap message; the grid; the legend; then the
-popover, Add city (or the limit note or empty state) and the selection bar.
+(`aria-labelledby`). Its header and body are `display: contents` in a
+wrapping flex row, and flex `order` places, with `--space-2` between lines:
+Edit / Done right-aligned on the first line, with the no-overlap message (when
+shown) sharing that line on its left; the grid; the legend; then the popover,
+Add city (or the limit note or empty state) and the selection bar, each on a
+line of its own. At large text the message takes its own line above Edit's.
 The DOM, reading and tab order don't change.
 
 ### App shell — `appShell()` · `.shell`
@@ -652,8 +656,10 @@ Large text (PRD 6.7): the row header column is at most 40% of the viewport
 (the `--row-header-width*` tokens, §3.6), rows grow taller, and nothing clips.
 A header time wider than the header (12-hour times at 200% in a 128px header)
 wraps between words ("12:00 / pm"), never inside one; city names keep their
-one-line ellipsis. The no-overlap message's button lets its label wrap rather
-than widen the page, with its padding shrunk to `--phone-gutter`; the Popover
+one-line ellipsis. Below `--bp-md` at 200% the no-overlap message takes its
+own full-width line above Edit / Done rather than squeezing beside it, and its
+button still lets its label wrap rather than widen the page, with its padding
+shrunk to `--phone-gutter`; the Popover
 is never taller than the room above the phone toolbar (it scrolls); the Date
 field, Sheet headers and Add city results wrap rather than run past the
 screen edge. At 200% text the phone toolbar wraps onto more rows (at 320×568:
@@ -894,14 +900,17 @@ new window.
 
 No-overlap message: page pattern, not a shared component. A persistent
 `.no-overlap` polite `role="status"` region sits in the Timelines card between
-its header and the grid (below `--bp-md`, between the Edit button and the
-grid), mounted empty and taking no space while empty. After
+its header and the grid, mounted empty and taking no space while empty. After
 every build and filter change, under every filter, if the anchor date (the
 date in the toolbar) has no qualifying slot (no Best under Best, no Best or
 Good under Good and All), it shows "No time works for everyone
 today" (`--font-weight-medium`) and a `secondary` "Show next day that works"
-button, on `--color-surface-sunken` with a `--color-border-strong` hairline and
-`--radius-md`. The button finds the first later date, up to 14 days on and not
+button. From `--bp-md` it is a box on `--color-surface-sunken` with a
+`--color-border-strong` hairline and `--radius-md`. Below `--bp-md` it shares
+the Edit / Done line, to its left, filling the width beside it with a
+`--space-2` gap: no box (no background, border, radius or padding),
+`--font-size-sm`, and the first line and the button side by side in halves,
+each wrapping between words. The button finds the first later date, up to 14 days on and not
 past the last date the date control accepts, with a qualifying slot, and moves
 there as picking that date does; if there is none, the date stays and the
 button gives way to "No time works for everyone in the next 14 days either.".
