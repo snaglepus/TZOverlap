@@ -1,12 +1,8 @@
 /* Page-specific layout: Add city, Settings, legend, timeline grid. Tokens only. */
 
 /* ---------- Add city ---------- */
-.add-city-row {
-  margin-block-start: var(--space-4);
-}
-
 .add-city-limit {
-  margin-block-start: var(--space-4);
+  margin: var(--space-0);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
@@ -269,6 +265,21 @@
   border: var(--border-width) solid var(--color-border-strong);
 }
 
+/* The Timelines card's tools: Add city (or the limit note), then Edit. */
+.timelines__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Compact, like Edit next to it; still a 44px target. */
+.timelines__tools .add-city-button {
+  padding-inline: var(--space-2);
+  white-space: nowrap;
+}
+
 /* The Timelines card's Edit / Done button: both labels in one cell, the
    inactive one invisible, so its width doesn't change between them. */
 .edit-toggle {
@@ -289,8 +300,9 @@
 /* ---------- Timelines card ---------- */
 /* Below --bp-md no card look: the grid runs the content width. The heading is
    visually hidden (it still names the region), and the header and body join
-   one column, without DOM changes: Edit / Done alone and right-aligned, the
-   no-overlap message, the grid, then the legend and the rest in DOM order. */
+   one column, without DOM changes: Add city (or the limit note) and Edit /
+   Done on one right-aligned line, the no-overlap message, the grid, then the
+   legend and the rest in DOM order. The selection bar docks above the toolbar. */
 .timelines {
   gap: var(--space-2);
   padding: var(--space-0);
@@ -317,9 +329,8 @@
   border: var(--space-0);
 }
 
-.timelines .edit-toggle {
+.timelines .timelines__tools {
   order: -3;
-  align-self: flex-end;
 }
 
 .timelines > .no-overlap {
@@ -355,7 +366,7 @@
     white-space: normal;
   }
 
-  .timelines .edit-toggle,
+  .timelines .timelines__tools,
   .timelines > .no-overlap,
   .timelines .grid {
     order: 0;
@@ -869,19 +880,29 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 /* ---------- Selection bar ---------- */
-/* Phone: the time range takes the whole first line; the rating and the clear
-   button share the second, and the button wraps below the rating when both
-   don't fit. Text breaks between words; only a word wider than the whole bar
-   (large text on a narrow phone) is hyphenated. */
+/* Phone: docked full width directly above the fixed toolbar (its measured
+   height, as .shell--toolbar reserves), part of the bottom stack; it stays in
+   the card in the DOM. The shell and the toast add its height
+   (--selection-room, set by app.js). The time range takes the whole first
+   line; the rating and the clear button share the second, and the button wraps
+   below the rating when both don't fit. Text breaks between words; only a word
+   wider than the whole bar (large text on a narrow phone) is hyphenated. */
 .selection-bar {
+  position: fixed;
+  inset-inline: var(--space-0);
+  bottom: max(
+    calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
+    calc(var(--toolbar-room, 0) * var(--hairline))
+  );
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
   min-width: var(--space-0);
-  padding: var(--space-2) var(--selection-bar-inset);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-md);
+  padding: var(--space-2) calc(var(--phone-gutter) + env(safe-area-inset-right)) var(--space-2)
+    calc(var(--phone-gutter) + env(safe-area-inset-left));
+  border-top: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
   font-size: var(--font-size-sm);
 }
@@ -998,10 +1019,13 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 @media (min-width: 40rem) {
-  /* One line where it fits. */
+  /* Under the grid, in the flow; one line where it fits. */
   .selection-bar {
+    position: static;
     gap: var(--space-1);
-    padding-inline: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-md);
     font-size: var(--font-size-md);
   }
 

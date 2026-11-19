@@ -9,11 +9,15 @@
 
 /* Room for the fixed bottom toolbar on phones, so the footer is never hidden:
    its measured height (--toolbar-room, px, set by appShell()) when large text
-   wraps it taller than --toolbar-height. */
+   wraps it taller than --toolbar-height, plus the docked selection bar's
+   (--selection-room, px, set by app.js; 0 while nothing is selected). */
 .shell--toolbar {
-  padding-block-end: max(
-    calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
-    calc(var(--toolbar-room, 0) * var(--hairline))
+  padding-block-end: calc(
+    max(
+        calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
+        calc(var(--toolbar-room, 0) * var(--hairline))
+      ) +
+      var(--selection-room, 0) * var(--hairline)
   );
 }
 
@@ -640,10 +644,17 @@
   position: fixed;
   inset-inline: var(--space-0);
   top: env(safe-area-inset-top);
-  bottom: calc(var(--toolbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  bottom: calc(
+    max(
+        calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
+        calc(var(--toolbar-room, 0) * var(--hairline))
+      ) +
+      var(--selection-room, 0) * var(--hairline) + var(--space-2)
+  );
   /* The toolbar's real top: large text can wrap it to more rows than
-     --toolbar-height allows for. Without anchor positioning, the line above holds. */
-  bottom: calc(anchor(--toolbar top) + var(--space-2));
+     --toolbar-height allows for; above the docked selection bar too. Without
+     anchor positioning, the line above holds. */
+  bottom: calc(anchor(--toolbar top) + var(--selection-room, 0) * var(--hairline) + var(--space-2));
   z-index: 2;
   display: flex;
   align-items: safe flex-end;

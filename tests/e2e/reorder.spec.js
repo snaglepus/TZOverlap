@@ -598,9 +598,11 @@ test.describe('auto-scroll at 390 × 600', () => {
     const before = await page.evaluate(() => window.scrollY);
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
-    // Back over the grid's last row, then release.
-    const last = await centre(row(page, 'Asia/Singapore').locator('[role="rowheader"]'));
-    await touch.move({ x: grab.x, y: last.y }, 4);
+    // Back over the grid's last row, its part above the toolbar, then release.
+    const last = await row(page, 'Asia/Singapore').locator('[role="rowheader"]').boundingBox();
+    if (!last) throw new Error('no last row');
+    const y = (last.y + Math.min(last.y + last.height, toolbar.y)) / 2;
+    await touch.move({ x: grab.x, y }, 4);
     await touch.end();
     await expect.poll(async () => (await storedIds(page)).indexOf('a')).toBeGreaterThan(0);
   });

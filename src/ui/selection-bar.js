@@ -1,6 +1,6 @@
-// The selection bar at the end of the timelines card: the selected date and
-// home time range, the rating in words and a clear button. Hidden while
-// nothing is selected.
+// The selection bar under the grid in the timelines card (docked above the
+// toolbar below --bp-md, by CSS only): the selected date and home time range,
+// the rating in words and a clear button. Hidden while nothing is selected.
 
 import { button } from './components.js';
 import { h } from './dom.js';
