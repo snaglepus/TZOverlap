@@ -421,10 +421,14 @@ const cardHeader = (page) =>
     const toggle = /** @type {Element} */ (
       el.querySelector('.edit-toggle')
     ).getBoundingClientRect();
+    // Whether the legend and the button fit side by side depends on the
+    // fonts installed (DejaVu Sans on Linux CI is wider than SF or Roboto).
+    const fits = legend.width + parseFloat(getComputedStyle(el).columnGap) + toggle.width;
     return {
       height: header.height,
       button: { x: toggle.x - header.x, y: toggle.y - header.y, width: toggle.width },
       sameLine: toggle.top <= legend.bottom && toggle.bottom >= legend.top,
+      roomForBoth: fits <= el.clientWidth,
     };
   });
 
@@ -445,8 +449,11 @@ test.describe('card header', () => {
         await doneButton(page).click();
         await expectNotEditing(page);
         expect(await cardHeader(page)).toEqual(before);
-        // At 390 px with default text the button shares the legend's line.
-        if (viewport.width === PHONE.width && size === '100%') expect(before.sameLine).toBe(true);
+        // At 390 px with default text the button shares the legend's line
+        // whenever the two fit side by side.
+        if (viewport.width === PHONE.width && size === '100%') {
+          expect(before.sameLine).toBe(before.roomForBoth);
+        }
       });
     }
   }

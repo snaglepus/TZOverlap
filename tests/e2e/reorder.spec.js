@@ -157,6 +157,12 @@ async function aboveMid(page, mids, dragged, grabY, grabTop, target, by = 12) {
 /** No row lifted, shifted or transformed. @param {Page} page */
 async function expectRowsAtRest(page) {
   await expect(page.locator('.grid__row--lifted')).toHaveCount(0);
+  // A cancel can land while a shift is still transitioning: let it settle.
+  await page
+    .locator('[role="row"]')
+    .evaluateAll((els) =>
+      Promise.all(els.flatMap((el) => el.getAnimations().map((a) => a.finished.catch(() => {})))),
+    );
   const transforms = await page
     .locator('[role="row"]')
     .evaluateAll((els) =>
