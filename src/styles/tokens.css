@@ -120,7 +120,6 @@
   --everyone-rule-width: 2px;
   --now-line-width: 2px;
   --selection-edge-width: 3px;
-  --selection-bar-inset: 8px;
   /* The banner's inline padding below --bp-md: --space-4 and --space-3 at
      default text, falling to 8px at 200%, so large text keeps room for two lines. */
   --banner-inset-start: max(8px, 32px - var(--space-4));

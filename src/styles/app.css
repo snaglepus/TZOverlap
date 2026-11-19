@@ -1,12 +1,8 @@
 /* Page-specific layout: Add city, Settings, legend, timeline grid. Tokens only. */
 
 /* ---------- Add city ---------- */
-.add-city-row {
-  margin-block-start: var(--space-4);
-}
-
 .add-city-limit {
-  margin-block-start: var(--space-4);
+  margin: var(--space-0);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
@@ -269,6 +265,21 @@
   border: var(--border-width) solid var(--color-border-strong);
 }
 
+/* The Timelines card's tools: Add city (or the limit note), then Edit. */
+.timelines__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Compact, like Edit next to it; still a 44px target. */
+.timelines__tools .add-city-button {
+  padding-inline: var(--space-2);
+  white-space: nowrap;
+}
+
 /* The Timelines card's Edit / Done button: both labels in one cell, the
    inactive one invisible, so its width doesn't change between them. */
 .edit-toggle {
@@ -290,9 +301,11 @@
 /* Below --bp-md no card look: the grid runs the content width. The heading is
    visually hidden (it still names the region), and the header and body join
    one wrapping row, without DOM changes: the no-overlap message (when shown)
-   and Edit / Done share the first line, Edit right-aligned; then the grid, the
-   legend and the rest in DOM order, each on a line of its own. The message's
-   minimum width scales with text, so at large text it wraps above Edit. */
+   and the tools (Add city or the limit note, then Edit / Done) share the first
+   line, the tools right-aligned; then the grid, the legend and the rest in DOM
+   order, each on a line of its own. The message's minimum width scales with
+   text, so at large text it wraps above the tools. The selection bar docks
+   above the toolbar. */
 .timelines {
   flex-flow: row wrap;
   gap: var(--space-2);
@@ -331,9 +344,9 @@
   min-inline-size: min(100%, var(--no-overlap-min-width));
 }
 
-.timelines .edit-toggle {
+.timelines .timelines__tools {
   order: -2;
-  flex: none;
+  flex: 0 1 auto;
   margin-inline-start: auto;
   align-self: center;
 }
@@ -378,12 +391,12 @@
     min-inline-size: auto;
   }
 
-  .timelines .edit-toggle {
+  .timelines .timelines__tools {
     flex: 0 1 auto;
     margin-inline-start: var(--space-0);
   }
 
-  .timelines .edit-toggle,
+  .timelines .timelines__tools,
   .timelines > .no-overlap,
   .timelines .grid {
     order: 0;
@@ -915,19 +928,29 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 /* ---------- Selection bar ---------- */
-/* Phone: the time range takes the whole first line; the rating and the clear
-   button share the second, and the button wraps below the rating when both
-   don't fit. Text breaks between words; only a word wider than the whole bar
-   (large text on a narrow phone) is hyphenated. */
+/* Phone: docked full width directly above the fixed toolbar (its measured
+   height, as .shell--toolbar reserves), part of the bottom stack; it stays in
+   the card in the DOM. The shell and the toast add its height
+   (--selection-room, set by app.js). The time range takes the whole first
+   line; the rating and the clear button share the second, and the button wraps
+   below the rating when both don't fit. Text breaks between words; only a word
+   wider than the whole bar (large text on a narrow phone) is hyphenated. */
 .selection-bar {
+  position: fixed;
+  inset-inline: var(--space-0);
+  bottom: max(
+    calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
+    calc(var(--toolbar-room, 0) * var(--hairline))
+  );
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
   min-width: var(--space-0);
-  padding: var(--space-2) var(--selection-bar-inset);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-md);
+  padding: var(--space-2) calc(var(--phone-gutter) + env(safe-area-inset-right)) var(--space-2)
+    calc(var(--phone-gutter) + env(safe-area-inset-left));
+  border-top: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
   font-size: var(--font-size-sm);
 }
@@ -1044,10 +1067,13 @@ button.grid__warning[aria-expanded='true'] {
 }
 
 @media (min-width: 40rem) {
-  /* One line where it fits. */
+  /* Under the grid, in the flow; one line where it fits. */
   .selection-bar {
+    position: static;
     gap: var(--space-1);
-    padding-inline: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--color-border-strong);
+    border-radius: var(--radius-md);
     font-size: var(--font-size-md);
   }
 
