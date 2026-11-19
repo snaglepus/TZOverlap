@@ -43,6 +43,24 @@ test.beforeEach(async ({ page }) => {
   }, ZONES);
 });
 
+/**
+ * Seed four zones that share hours with Sydney, so the no-overlap message stays
+ * empty and the layout checks measure the grid alone. Runs after the default
+ * seed above and replaces its zones.
+ * @param {import('@playwright/test').Page} page
+ */
+async function seedOverlap(page) {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('overlap')) return;
+    sessionStorage.setItem('overlap', '1');
+    const state = JSON.parse(localStorage.getItem('tzoverlap.state') ?? '{}');
+    state.zones = ['Asia/Tokyo', 'Asia/Singapore', 'Pacific/Auckland', 'Australia/Brisbane'].map(
+      (tz, i) => ({ id: `z${i}`, kind: 'iana', tz, label: tz.split('/')[1] }),
+    );
+    localStorage.setItem('tzoverlap.state', JSON.stringify(state));
+  });
+}
+
 /** @typedef {import('@playwright/test').Page} Page */
 /** @typedef {import('@playwright/test').Locator} Locator */
 
@@ -108,9 +126,11 @@ test.describe('phone, 390×844', () => {
   test('AC-1, AC-2: six hour columns beside the header; the home row near the top', async ({
     page,
   }) => {
+    await seedOverlap(page);
     await page.goto('/');
     const home = row(page, HOME);
     await expect(home).toBeVisible();
+    await expect(page.locator('.no-overlap')).toBeEmpty();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const g = await box(grid(page));
     const header = await box(home.locator('[role="rowheader"]'));
@@ -267,8 +287,10 @@ test.describe('320×568', () => {
   test.use({ viewport: SMALL });
 
   test('AC-3, AC-4: 300 px of grid between the bars; Edit on one line', async ({ page }) => {
+    await seedOverlap(page);
     await page.goto('/');
     await expect(row(page, HOME)).toBeVisible();
+    await expect(page.locator('.no-overlap')).toBeEmpty();
     const g = await box(grid(page));
     const bar = await box(page.locator('header.shell__header'));
     const toolbar = await box(page.getByRole('group', { name: 'Toolbar' }));
