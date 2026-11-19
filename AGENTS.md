@@ -74,6 +74,11 @@ Config is read by `config/env.js`. Precedence: CLI flag > environment variable
 > `.env` > default. Variables are documented in `.env.example`: `PORT`, `HOST`,
 > `SERVE_DIR`, `BUILD_OUT_DIR`. `PORT=0` picks a free port.
 
+**Deploying.** Pushes to `main` deploy to GitHub Pages once CI passes
+(`.github/workflows/deploy.yml`); it can also be run by hand from the Actions
+tab. One-off setup: in the repo's Settings → Pages, set Source to "GitHub
+Actions". Any other static host works too: serve `dist/` over HTTPS.
+
 **Service worker.** Only production builds register one (`npm run preview`,
 the perf tests); dev from `src/` has none. A worker installed by
 `npm run preview` keeps controlling that origin, so before running
@@ -200,6 +205,8 @@ DESIGN.md               design system: the source of truth for UI
 perf-budget.json        performance budgets (city data has its own cityData budget)
 playwright.config.js    e2e config;  playwright.perf.config.js: perf config
 .github/workflows/ci.yml  runs npm run check on every push and PR
+.github/workflows/deploy.yml
+                        builds dist/ and deploys it to GitHub Pages after CI passes on main
 ```
 
 ## Design and UI rules
