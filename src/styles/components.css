@@ -631,10 +631,17 @@
   position: fixed;
   inset-inline: var(--space-0);
   top: env(safe-area-inset-top);
-  bottom: calc(var(--toolbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  /* Above the pinned Everyone row too (--everyone-pin-room, src/ui/pin.js). */
+  bottom: max(
+    calc(var(--toolbar-height) + env(safe-area-inset-bottom) + var(--space-2)),
+    calc(var(--everyone-pin-room, 0) * var(--hairline) + var(--space-2))
+  );
   /* The toolbar's real top: large text can wrap it to more rows than
      --toolbar-height allows for. Without anchor positioning, the line above holds. */
-  bottom: calc(anchor(--toolbar top) + var(--space-2));
+  bottom: max(
+    calc(anchor(--toolbar top) + var(--space-2)),
+    calc(var(--everyone-pin-room, 0) * var(--hairline) + var(--space-2))
+  );
   z-index: 2;
   display: flex;
   align-items: safe flex-end;
@@ -668,7 +675,10 @@
 
 @media (min-width: 40rem) {
   .toast-region {
-    bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+    bottom: max(
+      calc(var(--space-5) + env(safe-area-inset-bottom)),
+      calc(var(--everyone-pin-room, 0) * var(--hairline) + var(--space-2))
+    );
   }
 
   .toast {

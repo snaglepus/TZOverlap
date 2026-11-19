@@ -8,6 +8,7 @@
 // keyboard slots), selects a slot: the band and the headers' selected times.
 // Each user row's header has a drag handle; src/ui/reorder.js reorders rows.
 // In Edit mode (data-editing on the root) it also shows a Delete button.
+// src/ui/pin.js keeps the Everyone row in view at the bottom of the screen.
 
 import { changeSentence, describeChange, dstStatus } from '../lib/dst.js';
 import { greyedSpans, qualifies } from '../lib/filter.js';
@@ -37,6 +38,7 @@ import { formatTime } from '../lib/time-format.js';
 import { zoneLocalParts } from '../lib/zones.js';
 import { button, icon, popover } from './components.js';
 import { append, h } from './dom.js';
+import { attachPin } from './pin.js';
 import { attachReorder } from './reorder.js';
 import { strings } from './strings.js';
 
@@ -783,6 +785,7 @@ export function timelineGrid({
       if (zone) actions.reorder(zone, position);
     },
   });
+  const pin = attachPin({ root, row: everyone, home: /** @type {HTMLElement} */ (homeRow) });
 
   // Filter masks: after each track's cells, before its midnight dividers.
   function placeMasks() {
@@ -1295,9 +1298,10 @@ export function timelineGrid({
       summaryShort.textContent = text.short;
       summaryLong.textContent = text.long;
     },
-    /** Stop lazy extension, label fitting, reordering and the breakpoint listeners. */
+    /** Stop lazy extension, label fitting, reordering, pinning and the breakpoint listeners. */
     destroy() {
       reorder.destroy();
+      pin.destroy();
       wide.removeEventListener('change', onWide);
       handles.removeEventListener('change', onHandles);
       window.removeEventListener('resize', watch);

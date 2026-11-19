@@ -397,6 +397,17 @@
    border: the grid's own border closes the row. */
 .grid__row--everyone > * {
   border-block-start: var(--everyone-rule-width) solid var(--color-border-strong);
+  /* Raised to stay in view while the grid runs past the screen (src/ui/pin.js).
+     On the children, not the row: a transformed row would be a stacking context
+     and drop its sticky header under the other rows' headers. */
+  transform: translateY(calc(var(--everyone-lift, 0) * var(--hairline) * -1));
+}
+
+/* Opaque, and later in the tree than the zone rows: pinned, it covers their
+   fills, masks, labels and dividers, under the band and now line. */
+.grid__row--everyone > .grid__track {
+  z-index: 1;
+  background: var(--color-surface-sunken);
 }
 
 /* The name, then the summary on its own line under it. */
