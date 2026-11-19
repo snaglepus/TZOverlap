@@ -1,6 +1,6 @@
 // E2E: the phone grid (TZO-33): below --bp-md the Timelines card has no card
 // look, the heading is visually hidden, Edit / Done sits above the grid (with
-// the no-overlap message on its line, TZO-36), the legend follows the grid,
+// the no-overlap message on its line in short wording, TZO-36), the legend follows the grid,
 // headers are 112 px and the drag handles show in Edit mode only; focus leaves
 // a handle that hides. The grid limits hold with and without the message. From
 // --bp-md (and a phone in landscape) nothing changes. Device in Sydney, clock
@@ -92,6 +92,30 @@ const message = (page) => page.locator('.no-overlap');
 /** @param {Page} page */
 const nextDay = (page) => page.getByRole('button', { name: 'Show next day that works' });
 
+/**
+ * The message and its button show the short wording (or, with `long`, the full
+ * one, the short one hidden); the full one is visually hidden on phones, and
+ * either way the accessibility tree has only the full wording.
+ * @param {Page} page
+ * @param {boolean} [long]
+ */
+async function expectWording(page, long = false) {
+  const short = message(page).locator('.no-overlap__short');
+  const full = message(page).locator('.no-overlap__long');
+  await expect(short).toHaveText(['No time works today', 'Next day']);
+  await expect(full).toHaveText(['No time works for everyone today', 'Show next day that works']);
+  for (const el of await (long ? full : short).all()) {
+    expect((await box(el)).width).toBeGreaterThan(1);
+  }
+  for (const el of await (long ? short : full).all()) {
+    expect((await el.boundingBox())?.width ?? 0).toBeLessThanOrEqual(1);
+  }
+  const tree = await message(page).ariaSnapshot();
+  expect(tree).toContain('No time works for everyone today');
+  expect(tree).not.toContain('No time works today');
+  expect(tree).toContain('button "Show next day that works"');
+}
+
 /** @param {Page} page */
 const dateInput = (page) => page.locator('.toolbar input[type="date"]');
 
@@ -153,19 +177,21 @@ const SEEDS = [
     expectMessage: async (page) => {
       await expect(message(page)).toContainText('No time works for everyone today');
       await expect(nextDay(page)).toBeVisible();
+      await expectWording(page);
     },
   },
 ];
 
 /**
  * The no-overlap message and its button sit on Edit's line, left of it, above
- * the grid; the button gives way to the none-found line and focuses the grid.
+ * the grid, in the short wording; the button gives way to the none-found line
+ * and focuses the grid.
  * @param {Page} page
  */
 async function expectMessageBesideEdit(page) {
   await page.goto('/');
   await expect(message(page)).toContainText('No time works for everyone today');
-  await expect(nextDay(page)).toBeVisible();
+  await expectWording(page);
   const bar = await box(page.locator('header.shell__header'));
   const g = await box(grid(page));
   const b = await box(nextDay(page));
@@ -470,6 +496,7 @@ test('TZO-36: at 1440×900 the no-overlap message keeps its box between the head
   await page.setViewportSize(DESKTOP);
   await page.goto('/');
   await expect(message(page)).toContainText('No time works for everyone today');
+  await expectWording(page, true);
   const m = await box(message(page));
   const header = await box(region(page).locator('.card__header'));
   expect(m.y).toBeGreaterThanOrEqual(header.y + header.height);
