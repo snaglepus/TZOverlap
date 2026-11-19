@@ -702,8 +702,10 @@ changes it, the polite announcer says "Everyone: …" once, joined to that
 action's own message ("Added Tokyo. Everyone: …"); a filter change says
 "Filter: Good. Everyone: …". While the grid runs below the visible area, the
 Everyone row is pinned to its bottom: just above the phone toolbar below
-`--bp-md`, the viewport bottom from it. It is never raised over the home row,
-and it settles back continuously, with no jump, as the grid's end scrolls into
+`--bp-md`, the viewport bottom from it. It is never raised over the home row:
+when it doesn't fit between the home row and the visible bottom (a short
+screen with large text), it isn't pinned at all and stays in its place. It
+settles back continuously, with no jump, as the grid's end scrolls into
 view. `position: sticky` can't do this (the grid's `overflow-x: auto` makes it
 the sticky container), so `src/ui/pin.js` positions it by script inside the
 scroller: one rAF-coalesced read per frame (on page scroll, resize and size
