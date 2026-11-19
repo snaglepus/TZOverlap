@@ -848,7 +848,7 @@ button.grid__warning[aria-expanded='true'] {
   flex: 1 1 auto;
   min-width: var(--space-0);
   font-weight: var(--font-weight-medium);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Its button's label wraps when the button alone is wider than the message
@@ -858,7 +858,7 @@ button.grid__warning[aria-expanded='true'] {
   min-width: var(--space-0);
   padding-inline: var(--phone-gutter);
   white-space: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* The none-found line replaces the button: under the first line, one block.
@@ -889,7 +889,7 @@ button.grid__warning[aria-expanded='true'] {
 .selection-bar__when,
 .selection-bar__rating {
   min-width: var(--space-0);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   hyphens: auto;
 }
 
