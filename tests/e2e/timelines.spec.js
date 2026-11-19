@@ -157,7 +157,8 @@ test('keyboard: skip link first, everything reachable, focus is visible', async 
   // The date control (one stop per date part), the 24-hour toggle, then Settings:
   // Today is hidden.
   await page.keyboard.press('Tab');
-  const date = page.getByLabel('Today', { exact: true });
+  const date = page.locator('.toolbar input[type="date"]');
+  await expect(date).toHaveAccessibleName('Today');
   await expect(date).toBeFocused();
   for (let i = 0; i < 5 && (await date.evaluate((el) => el === document.activeElement)); i++) {
     await page.keyboard.press('Tab');

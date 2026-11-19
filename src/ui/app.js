@@ -21,7 +21,7 @@ import {
   todayAnchor,
 } from '../lib/grid.js';
 import { createHomeTracker } from '../lib/home.js';
-import { rowName, shortDate } from '../lib/row-header.js';
+import { anchorShortDate, rowName, shortDate } from '../lib/row-header.js';
 import { canMove, deleteFocusTarget, dropTarget, moveTarget } from '../lib/row-order.js';
 import { createSelectionState } from '../lib/selection.js';
 import { describeSelection, selectionSummary } from '../lib/selection-details.js';
@@ -112,13 +112,27 @@ export function mountApp(
       if (hadFocus) view?.root.focus({ preventScroll: true });
     },
   });
-  const settingsButton = button({
-    label: strings.app.settings,
-    icon: 'gear',
-    iconOnly: true,
-    variant: 'ghost',
-    onClick: () => settings.open(settingsButton),
-  });
+  // Two Settings gears, one shown per layout (app.css): the toolbar's from
+  // --bp-md, the app bar's below it.
+  /** The gear that last opened Settings. @type {HTMLButtonElement | null} */
+  let settingsOpener = null;
+  /** @param {string} className */
+  const settingsGear = (className) => {
+    const gear = button({
+      label: strings.app.settings,
+      icon: 'gear',
+      iconOnly: true,
+      variant: 'ghost',
+      onClick: () => {
+        settingsOpener = gear;
+        settings.open(gear);
+      },
+    });
+    gear.classList.add(className);
+    return gear;
+  };
+  const settingsButton = settingsGear('toolbar-settings');
+  const barSettingsButton = settingsGear('bar-settings');
   // The anchor date (home zone) and the days shown either side of it; the
   // first render sets both.
   const homeZone = () => /** @type {Zone} */ ({ kind: 'iana', tz: home.current() });
@@ -140,6 +154,7 @@ export function mountApp(
       dateControl.input.focus();
     },
   });
+  todayButton.classList.add('today-button');
   todayButton.hidden = true;
   dateControl.input.addEventListener('change', () => {
     const next = parseAnchor(dateControl.input.value, homeZone());
@@ -173,6 +188,7 @@ export function mountApp(
   const shell = appShell({
     title: strings.app.title,
     tagline: strings.app.tagline,
+    barActions: [barSettingsButton],
     actions: [
       dateControl.root,
       todayButton,
@@ -185,6 +201,14 @@ export function mountApp(
   });
   const install = installController({ store, kind: installKind, main: shell.main });
   const settings = settingsSheet({ store, theme, toaster: shell.toaster, install });
+  // After the sheet's own focus restore: when the layout changed while it was
+  // open (a phone rotating), the gear that opened it may be hidden now.
+  settings.root.addEventListener('close', () => {
+    const opener = settingsOpener;
+    settingsOpener = null;
+    if (!opener || opener.getClientRects().length > 0) return;
+    [settingsButton, barSettingsButton].find((gear) => gear.getClientRects().length > 0)?.focus();
+  });
 
   const addCity = addCitySheet({
     store,
@@ -382,10 +406,13 @@ export function mountApp(
   /** @type {HTMLButtonElement | null} */
   let addButton = null;
 
-  /** Label and Today button against today's date at `current`. @param {Date} current */
+  /** Label, short date and Today button against today's date at `current`. @param {Date} current */
   function syncDate(current) {
     const isToday = sameAnchor(todayAnchor(homeZone(), current), anchor);
+    // No-break spaces: the phone date button may wrap after the word Today, never inside the date.
+    const date = anchorShortDate(anchor).replaceAll(' ', '\u00a0');
     dateControl.setLabel(isToday ? strings.date.today : strings.date.other);
+    dateControl.setShortDate(isToday ? strings.date.todayShort(date) : date, isToday);
     todayButton.hidden = isToday;
   }
 

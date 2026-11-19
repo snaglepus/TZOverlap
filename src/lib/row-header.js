@@ -7,6 +7,7 @@ import { zoneAbbreviation, zoneLocalParts, zoneOffsetLabel, zoneOffsetMinutes } 
 
 /**
  * @typedef {import('./zones.js').Zone} Zone
+ * @typedef {import('./grid.js').Anchor} Anchor
  * @typedef {import('../data/cities.js').City} City
  */
 
@@ -94,6 +95,14 @@ function joinParts(format, day, order) {
  */
 export function shortDate(zone, date) {
   return joinParts(shortDateFormat, localDay(zone, date), ['weekday', 'day', 'month']);
+}
+
+/**
+ * "Wed 18 Nov": an anchor date, for the phone toolbar's date button.
+ * @param {Anchor} anchor
+ */
+export function anchorShortDate({ year, month, day }) {
+  return joinParts(shortDateFormat, Date.UTC(year, month - 1, day), ['weekday', 'day', 'month']);
 }
 
 /**

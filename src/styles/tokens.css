@@ -107,8 +107,8 @@
   /* A user row header's trigger before it grows: room for "10:30 pm" at any text size. */
   --row-header-trigger-basis: 4.5rem;
   --sheet-max-width: 32rem;
-  /* Three control rows, the two row gaps, the block padding and the top border. */
-  --toolbar-height: calc(3 * var(--control-height) + 3 * var(--space-2) + var(--border-width));
+  /* The phone toolbar's one control row, its block padding and the top border. */
+  --toolbar-height: calc(var(--control-height) + 2 * var(--space-1) + var(--border-width));
   --min-viewport-height: 100dvh;
   --hatch-size: 6px;
   --best-edge-width: 3px;

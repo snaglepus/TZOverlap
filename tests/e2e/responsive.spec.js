@@ -145,6 +145,8 @@ const textReport = (page) =>
     for (const el of document.body.querySelectorAll('*')) {
       if (!(el instanceof HTMLElement)) continue;
       if (el.closest('.visually-hidden, .grid__name')) continue;
+      // Visually hidden by clipping, as the phone date button's "Date" is.
+      if (getComputedStyle(el).clipPath === 'inset(50%)') continue;
       const own = [...el.childNodes].some(
         (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
       );
@@ -372,11 +374,6 @@ for (const viewport of VIEWPORTS) {
             await expectTwoLinesAtMost(page.locator('.toast__message'));
           }
 
-          // At 320×568 with 200% text the toolbar wraps to four rows and
-          // leaves less room above it than the toast needs, so while the toast
-          // shows it covers the page above the toolbar and the toolbar's first
-          // row (a follow-up: the toolbar needs a large-text layout). There
-          // the toast's own controls are checked now, the page's once it goes.
           // Reachability and hit targets don't depend on the theme, so they
           // run on the Light load only: at 320 px at both text sizes, at 820
           // and 1440 px at default text.
@@ -384,15 +381,7 @@ for (const viewport of VIEWPORTS) {
             colorScheme === 'dark' || (viewport.controls === 'page' && fontSize !== '100%')
               ? 'none'
               : viewport.controls;
-          const crowded = controls !== 'none' && viewport.width === 320 && fontSize === '200%';
-          if (crowded) {
-            const [t, bar] = await Promise.all([
-              toast(page).boundingBox(),
-              page.getByRole('group', { name: 'Toolbar' }).boundingBox(),
-            ]);
-            expect(t && bar && t.y + t.height > bar.y).toBe(true);
-            await expectReachable(toast(page), { size: false });
-          } else if (controls !== 'none') {
+          if (controls !== 'none') {
             // AC-12: every control on the page, row headers included (from
             // --bp-md the wide triggers and the home row's clock-change button).
             await expectReachable(page.locator('body'), { size: fontSize === '100%' });
@@ -428,12 +417,6 @@ for (const viewport of VIEWPORTS) {
 
           if (controls !== 'all') return;
           const size = fontSize === '100%';
-          if (crowded) {
-            // Undo takes the toast away (and puts Paris back).
-            await toast(page).getByRole('button', { name: 'Undo' }).click();
-            await expect(toast(page)).toBeHidden();
-            await expectReachable(page.locator('body'), { size });
-          }
           // The rest of the controls at 320 px: a row popover, Edit mode, then
           // the sheets, opened from the keyboard.
           await row(page, 'Asia/Kathmandu').locator('.grid__trigger:visible').focus();
@@ -452,7 +435,7 @@ for (const viewport of VIEWPORTS) {
 
           await page.getByRole('button', { name: 'Edit time zones', exact: true }).focus();
           await page.keyboard.press('Enter');
-          await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(crowded ? 5 : 4);
+          await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(4);
           await expectReachable(page.getByRole('grid'), { size });
           await expectReachable(page.locator('.card__header'), { size });
           expect(await pageOverflow(page)).toBe(0);

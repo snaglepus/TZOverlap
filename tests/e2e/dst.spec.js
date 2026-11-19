@@ -100,7 +100,7 @@ test.describe('DST banner', () => {
     await expect(banners.filter({ hasText: /clock change|clocks go/ })).toHaveCount(0);
 
     await pickDate(page, '2026-03-20');
-    await expect(page.locator('.toolbar .date-field label')).toHaveText('Date');
+    await expect(page.locator('.toolbar .date-field__word')).toHaveText('Date');
     await expect(banners.filter({ hasText: /clock change|clocks go/ })).toHaveCount(0);
   });
 

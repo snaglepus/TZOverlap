@@ -42,12 +42,13 @@
     calc(var(--phone-gutter) + env(safe-area-inset-right));
 }
 
+/* Below --bp-md a slim app bar: the name and the Settings gear. */
 .shell__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding-block: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-5);
+  padding-block: calc(var(--space-1) + env(safe-area-inset-top)) var(--space-1);
 }
 
 .shell__brand {
@@ -57,26 +58,29 @@
 }
 
 .shell__title {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-lg);
   letter-spacing: var(--letter-spacing-tight);
 }
 
 .shell__tagline {
+  display: none;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
-/* Toolbar: fixed to the bottom on phones, in the header from --bp-md. */
+/* Toolbar: fixed to the bottom on phones, one row unless large text wraps it:
+   small text and tight gaps, and the controls stretch to the tallest (the date
+   button, when its text takes two or three lines). In the header from --bp-md. */
 .toolbar {
   position: fixed;
   inset-inline: var(--space-0);
   bottom: var(--space-0);
   z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: calc(var(--toolbar-height) + env(safe-area-inset-bottom));
   padding: var(--space-1) calc(var(--phone-gutter) + env(safe-area-inset-right))
     calc(var(--space-1) + env(safe-area-inset-bottom))
@@ -85,6 +89,13 @@
   border-top: var(--border-width) solid var(--color-border);
   /* The toast sits above it (anchor positioning). */
   anchor-name: --toolbar;
+}
+
+/* Now: a ghost button, so its tight padding doesn't show; still a 44px target. */
+.toolbar > .btn:not(.btn--icon) {
+  min-width: var(--control-height);
+  padding-inline: var(--space-1);
+  font-size: var(--font-size-sm);
 }
 
 .shell__main {
@@ -96,10 +107,10 @@
 }
 
 .shell__footer {
-  padding-block: var(--space-4);
+  padding-block: var(--space-2);
   border-top: var(--border-width) solid var(--color-border);
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 @media (min-width: 40rem) {
@@ -110,16 +121,41 @@
       calc(var(--space-6) + env(safe-area-inset-right));
   }
 
+  .shell__header {
+    padding-block: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-5);
+  }
+
+  .shell__title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .shell__tagline {
+    display: block;
+  }
+
+  .shell__footer {
+    padding-block: var(--space-4);
+    font-size: var(--font-size-sm);
+  }
+
   .shell--toolbar {
     padding-block-end: var(--space-0);
   }
 
   .toolbar {
     position: static;
+    align-items: center;
+    gap: var(--space-2);
     min-height: auto;
     padding: var(--space-0);
     background: transparent;
     border-top: none;
+  }
+
+  .toolbar > .btn:not(.btn--icon) {
+    min-width: auto;
+    padding-inline: var(--space-4);
+    font-size: inherit;
   }
 }
 
@@ -253,10 +289,13 @@
 }
 
 /* ---------- Date field ---------- */
-/* The label beside the input; when both don't fit (large text on a phone), the
-   input wraps under the label. Below --bp-md the field takes the bottom
-   toolbar's first row, so the buttons on the second row fit 320px. */
+/* Below --bp-md one compact button: the label shows the short date ("Today ·
+   Wed 18 Nov", or "Wed 18 Nov" with the word "Date" visually hidden), and the
+   native input lies over it transparently, so a tap opens the picker. From
+   --bp-md the label word beside the input; when both don't fit, the input
+   wraps under the label. */
 .date-field {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -264,26 +303,121 @@
   min-width: var(--space-0);
 }
 
+/* Never narrower than its longest unbreakable line ("Wed 15 July" stays
+   together), so the text never runs out of the button. */
 .toolbar > .date-field {
-  flex-basis: 100%;
+  flex: 1 1 var(--control-height);
+  min-width: min-content;
 }
 
 .date-field__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: var(--space-0) var(--space-1);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-tight);
+  text-align: center;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.date-field:hover .date-field__label {
+  background: var(--color-surface-sunken);
+}
+
+.date-field:has(.date-field__input:focus-visible) .date-field__label {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Visually hidden (base.css .visually-hidden), still in the accessible name. */
+.date-field__word {
+  position: absolute;
+  width: var(--hairline);
+  height: var(--hairline);
+  margin: calc(var(--hairline) * -1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.date-field--short-only .date-field__word {
+  display: none;
 }
 
 .date-field__input {
-  width: auto;
-  min-width: var(--space-0);
-  max-width: 100%;
-  padding-inline: var(--space-2);
+  position: absolute;
+  inset: var(--space-0);
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
 
 @media (min-width: 40rem) {
+  .date-field {
+    position: static;
+  }
+
   .toolbar > .date-field {
-    flex-basis: auto;
+    flex: initial;
+    min-width: var(--space-0);
+  }
+
+  .date-field__label {
+    display: block;
+    flex: initial;
+    font-size: var(--font-size-sm);
+    min-width: auto;
+    min-height: auto;
+    padding: var(--space-0);
+    background: transparent;
+    border: none;
+    border-radius: var(--space-0);
+    text-align: start;
+    transition: none;
+  }
+
+  .date-field:hover .date-field__label {
+    background: transparent;
+  }
+
+  .date-field:has(.date-field__input:focus-visible) .date-field__label {
+    outline: none;
+  }
+
+  .date-field__word,
+  .date-field--short-only .date-field__word {
+    position: static;
+    display: inline;
+    width: auto;
+    height: auto;
+    margin: var(--space-0);
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .date-field__short {
+    display: none;
+  }
+
+  .date-field__input {
+    position: static;
+    width: auto;
+    min-width: var(--space-0);
+    max-width: 100%;
+    height: auto;
+    padding-inline: var(--space-2);
+    opacity: 1;
+    cursor: auto;
   }
 }
 
@@ -625,11 +759,10 @@
 
 /* ---------- Segmented control: native radios as one bordered strip ---------- */
 /* Each segment carries its own border, overlapping its neighbour's by one, so
-   a segment is a full --control-height tall. Below --bp-md the toolbar's
-   filter takes a whole row and the segments share it equally, except that a
-   segment never gets narrower than its label (large text): then it takes its
-   label's width and the others share the rest. From --bp-md it is a line of
-   its own at the end of the title bar toolbar. */
+   a segment is a full --control-height tall. Below --bp-md each segment takes
+   its label's width plus --segment-inset, so the filter shares the toolbar's
+   one row. From --bp-md it is a line of its own at the end of the title bar
+   toolbar. */
 .segmented {
   display: flex;
   justify-content: flex-end;
@@ -639,15 +772,8 @@
   border: none;
 }
 
-.toolbar > .segmented {
-  flex-basis: 100%;
-}
-
 .segmented__options {
-  display: grid;
-  flex: 1;
-  grid-auto-columns: minmax(max-content, 1fr);
-  grid-auto-flow: column;
+  display: flex;
   min-width: var(--space-0);
 }
 
@@ -668,6 +794,13 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Tighter than --segment-inset, so the date button keeps room for its date on
+   one line; the segment is still at least --control-height wide. */
+.toolbar .segmented__option {
+  padding-inline: var(--space-1);
+  font-size: var(--font-size-sm);
 }
 
 .segmented__option + .segmented__option {
@@ -702,13 +835,18 @@
 }
 
 @media (min-width: 40rem) {
+  .toolbar > .segmented {
+    flex-basis: 100%;
+  }
+
   .segmented__options {
-    display: flex;
     flex: none;
   }
 
-  .segmented__option {
+  .segmented__option,
+  .toolbar .segmented__option {
     padding-inline: var(--space-3);
+    font-size: inherit;
   }
 }
 
