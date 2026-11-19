@@ -121,9 +121,13 @@
   .more-link:hover { text-decoration: underline; }
   .card.rejected .feature { text-decoration: line-through; text-decoration-color: var(--faint); }
   .flag.wait { color: var(--changes); }
-  .card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  /* Ticket and PR on the left; the flag wraps under them when the column is narrow. */
+  .card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-bottom: 4px; }
   .num { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .card-top .num { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-top .links { min-width: 0; white-space: nowrap; overflow: hidden; }
+  .job-id { font-size: 11px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card.compact .job-id { margin-bottom: 1px; }
+  .paused { color: var(--changes); }
   .pulse {
     width: 7px; height: 7px; border-radius: 50%; background: var(--active);
     animation: pulse 1.6s ease-in-out infinite;
@@ -259,7 +263,7 @@
   /* History */
   .history { padding: 20px 32px 40px; }
   .history[hidden], .board[hidden] { display: none; }
-  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 2fr); gap: 12px; margin-bottom: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 1.6fr); gap: 12px; margin-bottom: 18px; }
   .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
   .stat h4 {
     margin: 0 0 4px; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
@@ -298,6 +302,8 @@
   .jobs td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .jobs td.num, .jobs td.r { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
   .jobs td.r, .jobs th.r { text-align: right; }
+  .jobs .tok > span { display: block; white-space: nowrap; }
+  .jobs .tok > span + span { color: var(--muted); }
   .jobs th.r button { text-align: right; }
   .jobs tr.row { cursor: pointer; }
   .jobs tr.row:hover td { background: var(--card); }
@@ -371,7 +377,7 @@
     .file { width: auto; white-space: nowrap; }
     .file .rn { display: inline; white-space: pre; }
     .doc { padding: 18px 16px 48px; }
-    /* History rows become cards: title, then outcome · risk · cost · time, then stages and models. */
+    /* History rows become cards: title, then outcome · risk · cost · time, then stages, models and tokens. */
     .table-wrap { overflow: visible; border: 0; border-radius: 0; }
     .jobs { min-width: 0; display: block; }
     .jobs > thead { display: none; }
@@ -386,10 +392,14 @@
     .jobs > tbody > tr.row > td:nth-child(2) { grid-column: 1; grid-row: 2; }
     .jobs > tbody > tr.row > td:nth-child(3) { grid-column: 2; grid-row: 2; }
     .jobs > tbody > tr.row > td:nth-child(6) { grid-column: 4; grid-row: 2; }
-    .jobs > tbody > tr.row > td:nth-child(7) { grid-column: 5; grid-row: 2; }
+    .jobs > tbody > tr.row > td:nth-child(8) { grid-column: 5; grid-row: 2; }
     .jobs > tbody > tr.row > td:nth-child(4),
     .jobs > tbody > tr.row > td:nth-child(5) { grid-column: 1 / -1; }
-    .jobs > tbody > tr.row > td:nth-child(8) { display: none; }
+    /* Tokens get their own line under the models: "412k in · 18k out". */
+    .jobs > tbody > tr.row > td:nth-child(7) { grid-column: 1 / -1; text-align: left; }
+    .jobs .tok > span { display: inline; }
+    .jobs .tok > span + span::before { content: "· "; }
+    .jobs > tbody > tr.row > td:nth-child(9) { display: none; }
     .jobs > tbody > tr.detail { display: block; margin-top: -8px; }
     .jobs > tbody > tr.detail > td {
       display: block; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px;
@@ -553,10 +563,42 @@ function specRow(job) {
   return `<div class="round"><span class="r">SR</span>${cells.join('') || '<span class="chip">·</span>'}</div>`
 }
 
+// Working time: the clock stops while a job waits on a person. Mirrors bin/job's
+// active_seconds(): each history stage lasts until the next transition, the last
+// one until now unless it's terminal. Jobs from before 0.2.14 count the stretch
+// before their first recorded transition as working time.
+const PAUSED = new Set(['needs-info', 'needs-human'])
+function activeMs(job, now = Date.now()) {
+  const h = job.history || []
+  if (!h.length) return Math.max(0, (job.ended ? new Date(job.ended) : now) - new Date(job.started))
+  let total = Math.max(0, new Date(h[0].at) - new Date(job.started))
+  h.forEach((e, i) => {
+    const next = h[i + 1]
+    if (PAUSED.has(e.stage) || (!next && DONE.has(e.stage))) return
+    total += Math.max(0, (next ? new Date(next.at) : now) - new Date(e.at))
+  })
+  return total
+}
+
 function elapsed(job) {
-  const end = job.ended ? new Date(job.ended) : new Date()
-  const min = Math.max(0, Math.floor((end - new Date(job.started)) / 60000))
-  return min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m` : `${min}m`
+  const min = Math.max(0, Math.floor(activeMs(job) / 60000))
+  const t = min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m` : `${min}m`
+  return PAUSED.has(job.stage) ? `⏸ ${t}` : t
+}
+// The time as markup, with a tooltip while the clock is stopped.
+const timeSpan = (job) => PAUSED.has(job.stage)
+  ? `<span class="paused" title="Timer paused while the job waits on a person">${elapsed(job)}</span>`
+  : `<span>${elapsed(job)}</span>`
+
+// Every input token, cached and uncached, and every output token, across models.
+// null when the job has no per-model breakdown (synced before 0.2.14).
+function tokenTotals(job) {
+  const rows = Object.values(job.cost_by_model || {})
+  if (!rows.length) return Number(job.cost_usd) > 0 ? null : { in: 0, out: 0, uncached: 0, cached: 0 }
+  const sum = (f) => rows.reduce((s, r) => s + (f(r) || 0), 0)
+  const uncached = sum((r) => r.input)
+  const cached = sum((r) => r.cache_read) + sum((r) => r.cache_write)
+  return { in: uncached + cached, out: sum((r) => r.output), uncached, cached }
 }
 
 // The example jobs keep their issue and PR numbers but have no URLs.
@@ -573,15 +615,16 @@ function links(job) {
 const money = (job) => `$${Number(job.cost_usd).toFixed(2)}${(job.cost_unpriced || []).length ? '+' : ''}`
 
 // A finished job as one short card: no round chips (the history view has them).
-// Just the job number on top; the slug repeats the title, which gets two lines.
+// Ticket and PR on top, then the job number (the slug repeats the title, which gets two lines).
 function compactCard(job) {
   const [num] = job.id.split('-')
   const flag = job.stage === 'rejected' ? '<span class="flag wait">rejected</span>' : ''
   return `
     <article class="card done compact ${job.stage}" data-job="${esc(job.id)}" tabindex="0" title="${esc(job.id)}: ${esc(job.title)}">
-      <div class="card-top"><span class="num">${esc(num)}</span>${flag}</div>
+      <div class="card-top"><div class="links">${links(job)}</div>${flag}</div>
+      <div class="num job-id">${esc(num)}</div>
       <p class="feature">${esc(job.title)}</p>
-      <div class="meta">${job.pr ? link(job.pr_url, `PR #${job.pr}`) : ''}<span>${money(job)}</span><span>${elapsed(job)}</span></div>
+      <div class="meta"><span>${money(job)}</span>${timeSpan(job)}</div>
     </article>`
 }
 
@@ -611,18 +654,18 @@ function card(job, rounds) {
     risk ? `<span class="risk-${esc(risk)}">${esc(risk)}</span>` : '',
     job.depends_on?.length ? `<span>after ${esc(job.depends_on.join(', '))}</span>` : '',
     `<span>${money(job)}</span>`,
-    `<span>${elapsed(job)}</span>`,
+    timeSpan(job),
   ].join('')
   return `
     <article class="card ${live ? 'live' : ''} ${human ? 'human' : ''} ${done ? 'done' : ''} ${job.stage}"
              data-job="${esc(job.id)}" tabindex="0">
       <div class="card-top">
         ${live ? '<span class="pulse" aria-label="running"></span>' : ''}
-        <span class="num">${esc(num)} · ${esc(slug.join('-'))}</span>
+        <div class="links">${links(job)}</div>
         ${flag}
       </div>
+      <div class="num job-id">${esc(num)} · ${esc(slug.join('-'))}</div>
       <p class="feature">${esc(job.title)}</p>
-      <div class="links">${links(job)}</div>
       ${rounds.length ? `<div class="rounds">${rounds.join('')}</div>` : ''}
       <div class="meta">${meta}</div>
       ${human ? `<div class="hint">${job.pr ? `merge PR #${job.pr} to approve<br>or give` : 'give'} feedback: /factory &lt;anything&gt;</div>` : ''}
@@ -669,7 +712,8 @@ async function render() {
   }
   const running = jobs.filter((j) => LIVE.has(j.stage)).length
   const cost = jobs.reduce((sum, j) => sum + Number(j.cost_usd), 0)
-  $('totals').textContent = `${running} running · $${cost.toFixed(2)} API-equivalent`
+  const tok = jobs.map(tokenTotals).filter(Boolean).reduce((s, t) => s + t.in + t.out, 0)
+  $('totals').textContent = `${running} running · $${cost.toFixed(2)} API-equivalent · ${fmtTokens(tok)} tokens`
   renderHistory()
 }
 
@@ -711,7 +755,6 @@ const hist = {
 let lastHistory = ''
 const RISK_RANK = { low: 1, medium: 2, high: 3 }
 
-const durationMs = (job) => (job.ended ? new Date(job.ended) : new Date()) - new Date(job.started)
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 const fmtTokens = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n || 0)
 const fmtUsd = (x) => x === null || x === undefined ? 'unpriced' : x > 0 && x < 0.005 ? '<$0.01' : `$${x.toFixed(2)}`
@@ -780,7 +823,8 @@ const SORTS = {
   outcome: (j) => j.stage,
   risk: (j) => RISK_RANK[j.intake?.risk] || 0,
   cost: (j) => Number(j.cost_usd),
-  time: durationMs,
+  tokens: (j) => { const t = tokenTotals(j); return t ? t.in + t.out : -1 },
+  time: (j) => activeMs(j),
   finished: (j) => j.ended || j.started,
 }
 
@@ -808,8 +852,16 @@ function statsHtml(list) {
   const total = list.reduce((s, j) => s + Number(j.cost_usd), 0)
   const plus = list.some((j) => (j.cost_unpriced || []).length) ? '+' : ''
   const perMerged = merged.length ? merged.reduce((s, j) => s + Number(j.cost_usd), 0) / merged.length : null
-  const med = median(merged.map(durationMs))
+  const med = median(merged.map((j) => activeMs(j)))
   const rounds = merged.length ? merged.reduce((s, j) => s + (j.round || 0), 0) / merged.length : null
+
+  const counted = list.map(tokenTotals).filter(Boolean)
+  const tokIn = counted.reduce((s, t) => s + t.in, 0)
+  const tokOut = counted.reduce((s, t) => s + t.out, 0)
+  const perJob = counted.map((t) => t.in + t.out)
+  const tokAvg = perJob.length ? perJob.reduce((s, x) => s + x, 0) / perJob.length : null
+  const tokMed = median(perJob)
+  const uncounted = list.length - counted.length
 
   const byModel = new Map()
   let missing = 0
@@ -830,10 +882,15 @@ function statsHtml(list) {
   return `
     <div class="stat"><h4>Jobs</h4><div class="big">${list.length}</div>
       <div class="sub">${merged.length} merged · ${rejected.length} rejected${hist.filter === 'all' ? ` · ${list.length - merged.length - rejected.length} open` : ''}</div></div>
+    <div class="stat"><h4>Median time</h4><div class="big">${med === null ? '—' : fmtMin(med)}</div>
+      <div class="sub" title="Time waiting on a person (needs-info, needs-human) isn't counted">start to merge, excl. waits</div></div>
     <div class="stat"><h4>Total cost</h4><div class="big">$${total.toFixed(2)}${plus}</div><div class="sub">API-equivalent</div></div>
     <div class="stat"><h4>Per merged PR</h4><div class="big">${perMerged === null ? '—' : `$${perMerged.toFixed(2)}`}</div>
       <div class="sub">${rounds === null ? '' : `${rounds.toFixed(1)} build rounds avg`}</div></div>
-    <div class="stat"><h4>Median time</h4><div class="big">${med === null ? '—' : fmtMin(med)}</div><div class="sub">start to merge</div></div>
+    <div class="stat"><h4>Total tokens</h4><div class="big">${counted.length ? fmtTokens(tokIn + tokOut) : '—'}</div>
+      <div class="sub" title="Input counts cached and uncached tokens">${counted.length ? `${fmtTokens(tokIn)} in · ${fmtTokens(tokOut)} out` : ''}${uncounted ? `${counted.length ? ' · ' : ''}${uncounted} not counted` : ''}</div></div>
+    <div class="stat"><h4>Tokens per job</h4><div class="big">${tokAvg === null ? '—' : fmtTokens(Math.round(tokAvg))}</div>
+      <div class="sub">${tokMed === null ? '' : `average · median ${fmtTokens(Math.round(tokMed))}`}</div></div>
     <div class="stat wide"><h4>Cost by model</h4>${bars}${note}</div>`
 }
 
@@ -886,9 +943,17 @@ const COLS = [
   { key: null, label: 'Stages' },
   { key: null, label: 'Models' },
   { key: 'cost', label: 'Cost', r: true },
+  { key: 'tokens', label: 'Tokens', r: true },
   { key: 'time', label: 'Time', r: true },
   { key: 'finished', label: 'Finished', r: true },
 ]
+
+function tokensCell(job) {
+  const t = tokenTotals(job)
+  if (!t) return '<span class="tok" title="No per-model breakdown: synced before 0.2.14">—</span>'
+  const title = `input ${t.in.toLocaleString()} (${t.uncached.toLocaleString()} uncached, ${t.cached.toLocaleString()} cached) · output ${t.out.toLocaleString()}`
+  return `<span class="tok" title="${title}"><span>${fmtTokens(t.in)} in</span> <span>${fmtTokens(t.out)} out</span></span>`
+}
 
 function renderHistory() {
   if (document.body.dataset.view !== 'history') return
@@ -910,7 +975,8 @@ function renderHistory() {
         <td>${trail(j)}</td>
         <td>${modelsCell(j)}</td>
         <td class="r">${money(j)}</td>
-        <td class="r">${elapsed(j)}</td>
+        <td class="r">${tokensCell(j)}</td>
+        <td class="r">${timeSpan(j)}</td>
         <td class="r">${j.ended && DONE.has(j.stage) ? fmtDate(j.ended) : '—'}</td>
       </tr>${open ? `<tr class="detail"><td colspan="${COLS.length}">${detailHtml(j)}</td></tr>` : ''}`
   }).join('') || `<tr><td colspan="${COLS.length}" class="empty">${jobs.length ? 'No jobs match.' : 'No jobs yet.'}</td></tr>`

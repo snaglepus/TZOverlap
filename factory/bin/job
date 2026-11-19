@@ -1210,26 +1210,68 @@ def cmd_agents(job, spec):
     save(job)
 
 
+def parse_time(iso):
+    return datetime.fromisoformat(iso.replace("Z", "+00:00"))
+
+
+def active_seconds(job, at=None):
+    """Working time: from start to now (or the end), not counting waits on a person.
+
+    Walks `history`: each stage lasts until the next transition, and the last
+    one until `at` unless it is terminal. Time in needs-info and needs-human
+    doesn't count. Jobs created before 0.2.14 have no history before their
+    first transition after the update; that stretch counts as working time.
+    The dashboard's activeMs() mirrors this.
+    """
+    at = at or datetime.now(timezone.utc)
+    hist = job.get("history") or []
+    if not hist:
+        end = parse_time(job["ended"]) if job.get("ended") else at
+        return max(0.0, (end - parse_time(job["started"])).total_seconds())
+    total = max(0.0, (parse_time(hist[0]["at"]) - parse_time(job["started"])).total_seconds())
+    for entry, nxt in zip(hist, hist[1:] + [None]):
+        if entry["stage"] in WAITING or (nxt is None and entry["stage"] in TERMINAL):
+            continue
+        end = parse_time(nxt["at"]) if nxt else at
+        total += max(0.0, (end - parse_time(entry["at"])).total_seconds())
+    return total
+
+
 def elapsed(job):
-    start = datetime.fromisoformat(job["started"].replace("Z", "+00:00"))
-    end = datetime.fromisoformat(job["ended"].replace("Z", "+00:00")) if job["ended"] else datetime.now(timezone.utc)
-    minutes = int((end - start).total_seconds() // 60)
-    return f"{minutes // 60}h{minutes % 60:02d}m" if minutes >= 60 else f"{minutes}m"
+    minutes = int(active_seconds(job) // 60)
+    text = f"{minutes // 60}h{minutes % 60:02d}m" if minutes >= 60 else f"{minutes}m"
+    return f"{text} (paused)" if job["stage"] in WAITING else text
+
+
+def tokens(job):
+    """(input, output) tokens across every model; input counts cached and uncached."""
+    rows = (job.get("cost_by_model") or {}).values()
+    return (sum(r["input"] + r["cache_read"] + r["cache_write"] for r in rows),
+            sum(r["output"] for r in rows))
+
+
+def fmt_tokens(n):
+    return f"{n / 1e6:.2f}M" if n >= 1e6 else f"{round(n / 1e3)}k" if n >= 1e3 else str(n)
 
 
 def cmd_summary(args):
     jobs = [resolve(a) for a in args] if args else all_jobs()
-    rows = [("job", "ticket", "stage", "spec-review", "round", "pr", "cost", "time")]
+    rows = [("job", "ticket", "stage", "spec-review", "round", "pr", "cost", "tokens in/out", "time")]
     for j in jobs:
         sync(j)  # for display only; the orchestrator owns the saved state
         sr = j["spec_review"]
         srs = f"{sr['round']}/{sr['limit']}" if sr["limit"] else "-"
+        tin, tout = tokens(j)
         rows.append((j["id"], f"{j['source']} {j['ticket']}", j["stage"], srs, str(j["round"]),
-                     f"#{j['pr']}" if j["pr"] else "-", f"${j['cost_usd']:.2f}" + ("+" if j.get("cost_unpriced") else ""), elapsed(j)))
+                     f"#{j['pr']}" if j["pr"] else "-", f"${j['cost_usd']:.2f}" + ("+" if j.get("cost_unpriced") else ""),
+                     f"{fmt_tokens(tin)}/{fmt_tokens(tout)}", elapsed(j)))
     widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
     for r in rows:
         print("  ".join(c.ljust(w) for c, w in zip(r, widths)).rstrip())
-    print(f"total ${sum(j['cost_usd'] for j in jobs):.2f} (API-equivalent: factory agents and Codex spec reviews)")
+    tin, tout = (sum(t) for t in zip(*(tokens(j) for j in jobs))) if jobs else (0, 0)
+    print(f"total ${sum(j['cost_usd'] for j in jobs):.2f} (API-equivalent: factory agents and Codex spec reviews), "
+          f"tokens {fmt_tokens(tin)} in / {fmt_tokens(tout)} out")
+    print("time excludes waits on a person (needs-info, needs-human)")
     unpriced = sorted({m for j in jobs for m in j.get("cost_unpriced", [])})
     if unpriced:
         print(f"not counted: no price for {', '.join(unpriced)} in config.json prices_usd_per_mtok")
