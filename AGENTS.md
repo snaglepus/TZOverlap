@@ -24,8 +24,8 @@ to install it as an app (`src/lib/install.js`, `src/ui/install.js`).
 
 On phones (below 40rem) the title bar is a slim app bar (the name and a
 Settings gear) and the toolbar is one row fixed to the bottom: a compact date
-button ("Today · Wed 18 Nov", opening the native picker), Now and All / Good /
-Best. From 40rem the toolbar sits in the title bar with Today, the 24-hour
+button (opening the native picker; "Today" on today with the date visually
+hidden, else the short date, "Wed 15 July"), Now and All / Good / Best. From 40rem the toolbar sits in the title bar with Today, the 24-hour
 toggle (from 64rem) and its own Settings gear.
 
 Clicking, tapping or pressing Enter on a slot selects it (snapped to 15

@@ -361,8 +361,9 @@ accessible name is "Date Wed 15 July". At default text the label is one line
 down to 320px. The date's spaces are no-break spaces, so large text never wraps
 inside the date, and the button is never narrower than its text
 (`min-width: min-content`): if the row can't hold it, the toolbar wraps instead
-of the text running out of the button. The native input stays in the DOM with its value, `min` / `max` and handlers, laid over the
-whole button at `opacity: 0`, so a tap focuses it; its click handler also calls
+of the text running out of the button. The native input stays in the DOM with
+its value, `min` / `max` and handlers, laid over the whole button at
+`opacity: 0`, so a tap focuses it; its click handler also calls
 `showPicker()` (feature-checked, in `try`/`catch`) while the phone layout is
 active, since desktop browsers open the picker only from its icon. The button
 takes the standard focus ring while the input has `:focus-visible`. Use for the
