@@ -38,6 +38,43 @@ export function contrast(a, b) {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
+/**
+ * HSL hue in degrees and HSL saturation (0-1).
+ * @param {string} hex
+ */
+function hsl(hex) {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const light = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * light - 1));
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === r) hue = ((g - b) / delta) % 6;
+    else if (max === g) hue = (b - r) / delta + 2;
+    else hue = (r - g) / delta + 4;
+  }
+  return { hue: (hue * 60 + 360) % 360, saturation };
+}
+
+/**
+ * OKLCH chroma of an sRGB hex colour (Björn Ottosson's OKLab matrices).
+ * @param {string} hex
+ */
+function chroma(hex) {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return Math.hypot(a, bb);
+}
+
 /** [foreground, background, minimum ratio] */
 const PAIRS = /** @type {const} */ ([
   ['--color-text', '--color-bg', 4.5],
@@ -61,7 +98,9 @@ const PAIRS = /** @type {const} */ ([
   ['--color-focus', '--color-surface-sunken', 3],
   // Text on Best cells, and the inner edge on Everyone Best segments (needs 3:1).
   ['--color-best-ink', '--color-best', 4.5],
-  // Good: greenest step, reddest step, the no-color-mix middle step and the hatch.
+  // Best stays distinct from the strongest Good step.
+  ['--color-best', '--color-heat-near', 1.2],
+  // Good: text on the near, mid and far steps and on the hatch.
   ['--color-heat-ink', '--color-heat-near', 4.5],
   ['--color-heat-ink', '--color-heat-far', 4.5],
   ['--color-heat-ink', '--color-heat-mid', 4.5],
@@ -116,6 +155,46 @@ for (const [name, vars] of Object.entries(themes)) {
         assert.ok(ratio >= min, `${ratio.toFixed(2)}:1 is below ${min}:1`);
       });
     }
+
+    // The Good hatch: visible on every step, but quieter than the old 1.71:1.
+    for (const step of ['--color-heat-near', '--color-heat-mid', '--color-heat-far']) {
+      it(`--color-heat-hatch on ${step} is between 1.15:1 and 1.55:1`, () => {
+        const ratio = contrast(vars['--color-heat-hatch'] ?? '', vars[step] ?? '');
+        assert.ok(ratio >= 1.15 && ratio <= 1.55, `${ratio.toFixed(2)}:1 is out of range`);
+      });
+    }
+
+    // Red and orange are kept for errors: no heat colour has a hue in 0-60°.
+    for (const token of [
+      '--color-best',
+      '--color-heat-near',
+      '--color-heat-mid',
+      '--color-heat-far',
+      '--color-heat-hatch',
+      '--color-heat-ink',
+    ]) {
+      it(`${token} has no red or orange hue`, () => {
+        const hex = vars[token];
+        assert.ok(hex, `missing ${token} in ${name} theme`);
+        const { hue, saturation } = hsl(hex);
+        assert.ok(saturation < 0.1 || hue > 60, `hue ${hue.toFixed(0)}° is in 0-60°`);
+      });
+    }
+
+    // Loudness follows usefulness: Best > Good near > mid > far >= Unsuitable.
+    it('OKLCH chroma falls from Best through the Good steps to Unsuitable', () => {
+      const [best = 0, near = 0, mid = 0, far = 0, unsuitable = 0] = [
+        '--color-best',
+        '--color-heat-near',
+        '--color-heat-mid',
+        '--color-heat-far',
+        '--color-unsuitable',
+      ].map((token) => chroma(vars[token] ?? ''));
+      assert.ok(
+        best > near && near > mid && mid > far && far >= unsuitable,
+        `chroma ${[best, near, mid, far, unsuitable].map((c) => c.toFixed(4)).join(', ')}`,
+      );
+    });
   });
 }
 
