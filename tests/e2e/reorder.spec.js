@@ -600,7 +600,11 @@ test.describe('large text', () => {
           });
           return { headers, handles, visible: root.clientWidth - (headers[0] ?? 0) };
         });
-        for (const width of report.headers) expect(Math.abs(width - 224)).toBeLessThanOrEqual(2);
+        // At most 40% of the viewport (PRD 6.7), every header as wide as home's.
+        for (const width of report.headers) {
+          expect(width).toBeLessThanOrEqual(viewport.width * 0.4);
+          expect(Math.abs(width - (report.headers[0] ?? 0))).toBeLessThanOrEqual(2);
+        }
         if (viewport.width === 390) expect(report.visible).toBeGreaterThan(0);
         expect(report.handles).toHaveLength(4);
         for (const box of report.handles) {

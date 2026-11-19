@@ -7,9 +7,14 @@
   min-height: var(--min-viewport-height);
 }
 
-/* Room for the fixed bottom toolbar on phones, so the footer is never hidden. */
+/* Room for the fixed bottom toolbar on phones, so the footer is never hidden:
+   its measured height (--toolbar-room, px, set by appShell()) when large text
+   wraps it taller than --toolbar-height. */
 .shell--toolbar {
-  padding-block-end: calc(var(--toolbar-height) + env(safe-area-inset-bottom));
+  padding-block-end: max(
+    calc(var(--toolbar-height) + env(safe-area-inset-bottom)),
+    calc(var(--toolbar-room, 0) * var(--hairline))
+  );
 }
 
 .shell__skip {
@@ -33,8 +38,8 @@
   width: 100%;
   max-width: var(--content-max-width);
   margin-inline: auto;
-  padding-inline: calc(var(--space-4) + env(safe-area-inset-left))
-    calc(var(--space-4) + env(safe-area-inset-right));
+  padding-inline: calc(var(--phone-gutter) + env(safe-area-inset-left))
+    calc(var(--phone-gutter) + env(safe-area-inset-right));
 }
 
 .shell__header {
@@ -73,11 +78,13 @@
   justify-content: flex-end;
   gap: var(--space-2);
   min-height: calc(var(--toolbar-height) + env(safe-area-inset-bottom));
-  padding: var(--space-1) calc(var(--space-4) + env(safe-area-inset-right))
+  padding: var(--space-1) calc(var(--phone-gutter) + env(safe-area-inset-right))
     calc(var(--space-1) + env(safe-area-inset-bottom))
-    calc(var(--space-4) + env(safe-area-inset-left));
+    calc(var(--phone-gutter) + env(safe-area-inset-left));
   background: var(--color-surface);
   border-top: var(--border-width) solid var(--color-border);
+  /* The toast sits above it (anchor positioning). */
+  anchor-name: --toolbar;
 }
 
 .shell__main {
@@ -179,8 +186,10 @@
   border-color: var(--color-border-strong);
 }
 
+/* Smaller type and padding, the same 44px target. */
 .btn--sm {
-  min-height: var(--control-height-sm);
+  min-width: var(--control-height);
+  min-height: var(--control-height);
   padding-inline: var(--space-2);
   font-size: var(--font-size-sm);
 }
@@ -244,12 +253,14 @@
 }
 
 /* ---------- Date field ---------- */
-/* The label beside the input. Below --bp-md the field takes the bottom
+/* The label beside the input; when both don't fit (large text on a phone), the
+   input wraps under the label. Below --bp-md the field takes the bottom
    toolbar's first row, so the buttons on the second row fit 320px. */
 .date-field {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   min-width: var(--space-0);
 }
 
@@ -265,6 +276,8 @@
 
 .date-field__input {
   width: auto;
+  min-width: var(--space-0);
+  max-width: 100%;
   padding-inline: var(--space-2);
 }
 
@@ -389,6 +402,7 @@
 
 .sheet__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -396,7 +410,15 @@
 }
 
 .sheet__title {
+  min-width: var(--space-0);
   font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
+}
+
+/* When the title and Close don't fit one line (large text), Close wraps to
+   the end of a second line. */
+.sheet__header > .btn {
+  margin-inline-start: auto;
 }
 
 .sheet__body {
@@ -418,13 +440,18 @@
 
 /* ---------- Popover ---------- */
 /* Native popover in the top layer. JS sets --popover-left / --popover-top in px
-   (unitless, so multiplied by --hairline) to anchor it inside the viewport. */
+   (unitless, so multiplied by --hairline) to anchor it inside the viewport, and
+   --popover-room, the height above the phone's fixed toolbar (else the
+   viewport's), which caps it. */
 .popover {
   position: fixed;
   inset: auto;
   left: calc(var(--popover-left, 0) * var(--hairline));
   top: calc(var(--popover-top, 0) * var(--hairline));
   max-width: min(var(--sheet-max-width), 100%);
+  /* Never taller than its room (large text on a short phone): it scrolls. */
+  max-height: calc(var(--popover-room) * var(--hairline));
+  overflow-y: auto;
   margin: var(--space-0);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
@@ -463,13 +490,20 @@
 }
 
 /* ---------- Toast ---------- */
-/* Fixed, so it never shifts layout. Above the bottom toolbar on phones. */
+/* Fixed, so it never shifts layout. Above the bottom toolbar on phones. The
+   region spans the viewport above that line, letting clicks through; the toast
+   sits at its foot, or at its top when it is taller than the room left. */
 .toast-region {
   position: fixed;
   inset-inline: var(--space-0);
+  top: env(safe-area-inset-top);
   bottom: calc(var(--toolbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  /* The toolbar's real top: large text can wrap it to more rows than
+     --toolbar-height allows for. Without anchor positioning, the line above holds. */
+  bottom: calc(anchor(--toolbar top) + var(--space-2));
   z-index: 2;
   display: flex;
+  align-items: safe flex-end;
   justify-content: center;
   padding-inline: calc(var(--space-2) + env(safe-area-inset-left))
     calc(var(--space-2) + env(safe-area-inset-right));
@@ -520,7 +554,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  padding-block: var(--space-3);
+  padding-inline: var(--banner-inset-start) var(--banner-inset-end);
   background: var(--color-surface);
   color: var(--color-text);
   border: var(--border-width) solid var(--color-border-strong);
@@ -545,6 +580,10 @@
 }
 
 @media (min-width: 40rem) {
+  .banner__inner {
+    padding-inline: var(--space-4) var(--space-3);
+  }
+
   .banner__short {
     display: none;
   }
@@ -587,8 +626,10 @@
 /* ---------- Segmented control: native radios as one bordered strip ---------- */
 /* Each segment carries its own border, overlapping its neighbour's by one, so
    a segment is a full --control-height tall. Below --bp-md the toolbar's
-   filter takes a whole row and the segments share it; from --bp-md it is a
-   line of its own at the end of the title bar toolbar. */
+   filter takes a whole row and the segments share it equally, except that a
+   segment never gets narrower than its label (large text): then it takes its
+   label's width and the others share the rest. From --bp-md it is a line of
+   its own at the end of the title bar toolbar. */
 .segmented {
   display: flex;
   justify-content: flex-end;
@@ -603,8 +644,10 @@
 }
 
 .segmented__options {
-  display: flex;
+  display: grid;
   flex: 1;
+  grid-auto-columns: minmax(max-content, 1fr);
+  grid-auto-flow: column;
   min-width: var(--space-0);
 }
 
@@ -616,7 +659,7 @@
   justify-content: center;
   min-width: var(--control-height);
   min-height: var(--control-height);
-  padding-inline: var(--space-3);
+  padding-inline: var(--segment-inset);
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border-strong);
   color: var(--color-text);
@@ -660,7 +703,12 @@
 
 @media (min-width: 40rem) {
   .segmented__options {
+    display: flex;
     flex: none;
+  }
+
+  .segmented__option {
+    padding-inline: var(--space-3);
   }
 }
 

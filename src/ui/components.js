@@ -300,7 +300,8 @@ export function sheet({ title, children = [] }) {
 
 /**
  * Popover: one non-modal panel (native `popover="auto"`) anchored below or
- * above the element passed to open(), kept inside the viewport. Esc and a
+ * above the element passed to open(), kept inside the viewport and above the
+ * phone's fixed bottom toolbar. Esc and a
  * click outside close it; Esc returns focus to the anchor. Fill `body` before
  * opening. The anchor gets `aria-expanded`; give it `aria-controls: root.id`.
  * In the anchor's click handler, close() when isOpenFor(anchor), else open().
@@ -328,13 +329,22 @@ export function popover({ label, onClose }) {
   function place() {
     if (!anchor) return;
     const a = anchor.getBoundingClientRect();
-    const { width, height } = root.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    const left = Math.max(0, Math.min(a.left, vw - width));
-    const below = a.bottom + height <= vh || a.top < height;
-    const top = below ? Math.min(a.bottom, Math.max(0, vh - height)) : a.top - height;
+    // Above the phone's fixed bottom toolbar, so it never lies over it; taller
+    // than that room, it scrolls.
+    const toolbar = document.querySelector('.toolbar');
+    const vh =
+      toolbar && getComputedStyle(toolbar).position === 'fixed'
+        ? toolbar.getBoundingClientRect().top
+        : document.documentElement.clientHeight;
+    root.style.setProperty('--popover-room', String(Math.floor(vh)));
+    const left = Math.max(0, Math.min(a.left, vw - root.getBoundingClientRect().width));
     root.style.setProperty('--popover-left', String(Math.round(left)));
+    // Measured at its new left: less room on the right can wrap its actions.
+    const { height } = root.getBoundingClientRect();
+    const below = a.bottom + height <= vh || a.top < height;
+    // Never past the room's bottom, even when the anchor is under the toolbar.
+    const top = Math.max(0, Math.min(below ? a.bottom : a.top - height, vh - height));
     root.style.setProperty('--popover-top', String(Math.round(top)));
   }
 
@@ -669,6 +679,13 @@ export function appShell({ title, tagline, actions = [], footer = [] }) {
   ]);
   const toaster = createToaster();
   const hasToolbar = actions.length > 0;
+  const toolbar = hasToolbar
+    ? h(
+        'div',
+        { class: 'toolbar', attrs: { role: 'group', 'aria-label': strings.app.toolbar } },
+        actions,
+      )
+    : null;
   const root = h('div', { class: `shell${hasToolbar ? ' shell--toolbar' : ''}` }, [
     h('a', { class: 'shell__skip', text: strings.app.skipLink, attrs: { href: '#main' } }),
     h('header', { class: 'shell__header' }, [
@@ -676,17 +693,18 @@ export function appShell({ title, tagline, actions = [], footer = [] }) {
         h('h1', { class: 'shell__title', text: title }),
         tagline ? h('p', { class: 'shell__tagline', text: tagline }) : null,
       ]),
-      hasToolbar
-        ? h(
-            'div',
-            { class: 'toolbar', attrs: { role: 'group', 'aria-label': strings.app.toolbar } },
-            actions,
-          )
-        : null,
+      toolbar,
     ]),
     main,
     h('footer', { class: 'shell__footer' }, footer),
     toaster.root,
   ]);
+  // Large text can wrap the phone toolbar taller than --toolbar-height: the
+  // shell reserves its measured height, so the footer's end is never under it.
+  if (toolbar)
+    new ResizeObserver(() => {
+      const height = toolbar.getBoundingClientRect().height;
+      root.style.setProperty('--toolbar-room', String(Math.ceil(height)));
+    }).observe(toolbar);
   return { root, main, toaster, banner };
 }

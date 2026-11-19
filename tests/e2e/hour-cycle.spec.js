@@ -3,7 +3,7 @@
 // labels that don't fit at large text.
 
 import { expect, test } from '@playwright/test';
-import { addZone, expectNoA11yViolations, openSettings } from './helpers.js';
+import { addZone, expectNoA11yViolations, openSettings, setRootFontSize } from './helpers.js';
 
 // 09:30 in London (BST) on Monday 15 June 2026.
 const CLOCK = new Date('2026-06-15T08:30:00Z');
@@ -316,12 +316,6 @@ const labelReport = (page) =>
     }
     return { overlaps, oddShown, evenHidden, sizes };
   });
-
-/** @param {import('@playwright/test').Page} page @param {string} size */
-const setRootFontSize = (page, size) =>
-  page.evaluate((s) => {
-    document.documentElement.style.fontSize = s;
-  }, size);
 
 /** @param {import('@playwright/test').Page} page */
 const sideways = (page) =>

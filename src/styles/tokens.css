@@ -86,15 +86,19 @@
   /* Layout sizes */
   --content-max-width: 72rem;
   --control-height: 2.75rem;
-  --control-height-sm: 2rem;
   --slot-width: 48px;
   --slot-height: 3.5rem;
   --slot-height-wide: 4rem;
-  --row-header-width: 11.25rem;
+  /* Row header widths. At large text each is capped at 40% of the viewport
+     (PRD 6.7); at default text the cap never bites, so the widths stay 144,
+     180 and 220px. */
+  --row-header-width: min(11.25rem, 40vw);
   /* 144px at default text fits the drag handle beside the clock line; the rem
-     term wins from about 130% text, so large text keeps the 7rem width. */
-  --row-header-width-compact: max(7rem, 144px);
-  --row-header-width-wide: 13.75rem;
+     term wins from about 130% text. The cap's second term falls from 144px at
+     100% text to 0 at 200%, so a 320px phone keeps 144px (45%) at default text
+     and gets 40% at 200%. */
+  --row-header-width-compact: min(max(7rem, 144px), max(40vw, 288px - 9rem));
+  --row-header-width-wide: min(13.75rem, 40vw);
   --grid-header-width: var(--row-header-width-compact);
   --icon-size: 1.25rem;
   /* Edit mode: a user row's enlarged drag handle and its grip icon. */
@@ -113,6 +117,15 @@
   --now-line-width: 2px;
   --selection-edge-width: 3px;
   --selection-bar-inset: 8px;
+  /* The banner's inline padding below --bp-md: --space-4 and --space-3 at
+     default text, falling to 8px at 200%, so large text keeps room for two lines. */
+  --banner-inset-start: max(8px, 32px - var(--space-4));
+  --banner-inset-end: max(8px, 24px - var(--space-3));
+  /* Phone page gutters (title bar, main, footer, bottom toolbar) and the
+     toolbar filter segments' inline padding: --space-4 and --space-3 at
+     default text, 8px and 4px at 200%, so large text keeps room for words. */
+  --phone-gutter: max(8px, 32px - var(--space-4));
+  --segment-inset: max(4px, 20px - var(--space-2));
   --hairline: 1px;
   --opacity-disabled: 0.55;
   /* The row being dragged grows slightly. */
@@ -205,6 +218,15 @@
 @media (min-width: 64rem) {
   :root {
     --grid-header-width: var(--row-header-width-wide);
+  }
+}
+
+/* Increased contrast: every border takes the strong border colour. */
+@media (prefers-contrast: more) {
+  :root,
+  :root[data-theme='dark'],
+  :root:not([data-theme]) {
+    --color-border: var(--color-border-strong);
   }
 }
 

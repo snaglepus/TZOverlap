@@ -167,6 +167,10 @@ gutters use 4 on small screens and 6 above `--bp-md`.
 | `--shadow-sm`                                | themed        | Cards                      |
 | `--shadow-md`                                | themed        | Sheets, toasts, lifted row |
 
+Under `prefers-contrast: more`, `tokens.css` sets `--color-border` to the
+theme's `--color-border-strong` (light, explicit dark and system dark), so
+every hairline border strengthens. No other token changes.
+
 ### 3.5 Motion
 
 `--duration-fast` 120ms (hover, press), `--duration-base` 200ms (theme change,
@@ -176,16 +180,20 @@ durations become `0ms` (handled in `tokens.css`).
 
 ### 3.6 Layout sizes
 
-`--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target) ·
+`--content-max-width` 72rem · `--control-height` 2.75rem (44px touch target,
+also the minimum of `sm` buttons) ·
 `--slot-width` 48px · `--slot-height` 3.5rem (56px, phone rows) ·
 `--slot-height-wide` 4rem (64px, rows from `--bp-md`) ·
-`--row-header-width-compact` `max(7rem, 144px)` (144px, phone: room for the
-44px drag handle beside the "10:30 pm" clock line at default text; the rem term
-wins from about 130% text, so large text keeps the 7rem width, 224px at 200%,
-and loses no timeline) · `--row-header-width`
-11.25rem (180px, from `--bp-md`) · `--row-header-width-wide` 13.75rem (220px,
-from `--bp-lg`) · `--grid-header-width` (the current row header width) ·
-`--control-height-sm` 2rem ·
+`--row-header-width-compact` `min(max(7rem, 144px), max(40vw, 288px - 9rem))`
+(144px, phone: room for the 44px drag handle beside the "10:30 pm" clock line
+at default text; the rem term wins from about 130% text. The cap's second term
+falls from 144px at 100% text to 0 at 200%, so a 320px phone keeps 144px at
+default text and every phone gets at most 40% of the viewport at 200%) ·
+`--row-header-width` `min(11.25rem, 40vw)` (180px, from `--bp-md`) ·
+`--row-header-width-wide` `min(13.75rem, 40vw)` (220px, from `--bp-lg`) ·
+`--grid-header-width` (the current row header width). At large text the row
+header column is never wider than 40% of the viewport (PRD 6.7); at default
+text the cap never bites ·
 `--icon-size` 1.25rem · `--row-header-trigger-basis` 4.5rem (a user row
 header's trigger before it grows: room for "10:30 pm" at any text size; when
 the trigger and the drag handle don't fit on one line, the handle wraps) ·
@@ -204,6 +212,15 @@ padding above and below, and the top border) · `--min-viewport-height` 100dvh �
 `--color-accent`) ·
 `--selection-bar-inset` 8px (the selection bar's inline padding below
 `--bp-md`; px, not rem, so large text keeps the room for its words) ·
+`--banner-inset-start` / `--banner-inset-end` `max(8px, 32px - var(--space-4))`
+/ `max(8px, 24px - var(--space-3))` (the banner's inline padding below
+`--bp-md`: 16px / 12px at default text, 8px at 200%, so a 320px phone keeps
+room for a two-line message) · `--phone-gutter`
+`max(8px, 32px - var(--space-4))` and `--segment-inset`
+`max(4px, 20px - var(--space-2))` (below `--bp-md`: the page gutters of the
+title bar, main and footer and the bottom toolbar's inline padding, and the
+toolbar filter segments' inline padding: 16px and 12px at default text, 8px and
+4px at 200%, so large text on a phone keeps room for its words) ·
 `--hairline` 1px (sub-pixel geometry such as the visually-hidden utility and the
 gap between grid cells).
 
@@ -211,8 +228,9 @@ gap between grid cells).
 fixed 48px, not rem, on purpose: columns don't widen with the text size, so
 more hours stay in view at large text, and labels that no longer fit trigger
 the alternate-label rule (§7).
-`--slot-height` is the minimum height of a grid row below `--bp-md` and
-`--slot-height-wide` from it. Row headers are `--grid-header-width` wide:
+`--slot-height` is the minimum height of a grid row below `--bp-md`, and on
+short viewports (under `40rem` tall) at any width, and `--slot-height-wide`
+from `--bp-md` on viewports at least `40rem` tall (§7). Row headers are `--grid-header-width` wide:
 `--row-header-width-compact`, `--row-header-width` from `--bp-md` and
 `--row-header-width-wide` from `--bp-lg` (switched in `tokens.css`, so the
 headers and the now line read the same value). The grid sets unitless
@@ -289,8 +307,8 @@ ad hoc in `app.css`. Do not add a component without adding it here.
 Variants: `primary` (accent fill: the one main action in a view, e.g. "Add
 city"), `secondary` (bordered surface: other actions such as "Try again"),
 `ghost` (no border: toolbar and in-row actions, e.g. Settings, row actions).
-Size `sm` for in-row actions only; `sm` buttons still meet a 24px minimum target
-(WCAG 2.5.8). Always a real `<button>` with a text label. `icon` adds an Icon
+Size `sm` for in-row actions only: smaller type and padding, but the same
+44px (`--control-height`) minimum width and height as every other button. Always a real `<button>` with a text label. `icon` adds an Icon
 (below) before the label; with `iconOnly: true` the label
 becomes the `aria-label`, no text shows, and `.btn--icon` makes the button at
 least `--control-height` (44px) square. Disabled buttons use the `disabled`
@@ -324,7 +342,9 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
 optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
-text. The label sits beside the input in `--font-size-sm`. In the bottom
+text. The label sits beside the input in `--font-size-sm`; when both don't fit
+(large text on a phone) the input wraps under the label and may shrink to the
+field's width. In the bottom
 toolbar (below `--bp-md`) the field takes the whole first row, so the buttons
 fit the second row at 320px. Use for the toolbar's date control (labelled
 "Today" while the timelines show today, "Date" otherwise).
@@ -360,13 +380,18 @@ insets, and the shell pads its bottom to match; from `--bp-md` it sits in the
 title bar at the end, with the filter on its own line under the other
 controls, right-aligned. The title bar pads its top by
 `env(safe-area-inset-top)` and all gutters add the left and right insets
-(`viewport-fit=cover`). Toolbar controls are at least 44×44px. Every page
+(`viewport-fit=cover`). Below `--bp-md` the shell's bottom padding is the
+larger of `--toolbar-height` and the toolbar's measured height
+(`--toolbar-room`, set by `appShell()`), so at large text the end of the
+footer still scrolls clear of it. Toolbar controls are at least 44×44px. Every page
 renders inside exactly one shell.
 
 ### Sheet — `sheet()` · `.sheet`
 
 A native modal `<dialog>` (`showModal()`) labelled by its `<h2>` title, with a
-ghost "Close" button in its header and a scrolling body. Below `--bp-md` it is a
+ghost "Close" button in its header and a scrolling body. When the title and
+Close don't fit one line (large text), Close wraps to the end of a second line
+and the title wraps between words. Below `--bp-md` it is a
 full-width bottom sheet with rounded top corners and a safe-area bottom pad;
 from `--bp-md` a centred modal up to `--sheet-max-width`. Height is capped at
 every width. Solid `--color-surface`, hairline border, `--shadow-md`;
@@ -382,8 +407,14 @@ A small non-modal panel on the native `popover="auto"` attribute (top layer, no
 backdrop), labelled by `label` (`role="group"`). Solid `--color-surface`,
 hairline border, `--radius-md`, `--shadow-md`, `sm` text with an optional
 `.popover__title` line. `open(anchor)` places it below the anchor (above when
-there is no room) and keeps it inside the viewport, following page scroll and
-resize; positions go in as `--popover-left` / `--popover-top`. Esc closes it and
+there is no room) and keeps it inside the viewport and above the phone's fixed
+bottom toolbar, following page scroll and resize; it is never taller than the
+room above that toolbar (the viewport without one), and scrolls when its
+content is; positions go in as `--popover-left` / `--popover-top`, the room as
+`--popover-room`. At 320×568 with 200% text the four-row phone toolbar leaves
+about 110px above it, so the popover shows one action and scrolls to the rest:
+a deliberate trade-off that keeps the toolbar uncovered, until the toolbar's
+large-text layout is reworked (TZO-26). Esc closes it and
 returns focus to the anchor; a click outside closes it. The anchor gets
 `aria-expanded`; give it `aria-controls` with the popover's id, and in its click
 handler `close()` when `isOpenFor(anchor)`, else fill `body` and `open()`. One
@@ -398,7 +429,14 @@ home row's popover is details only. Not for tasks: use a Sheet.
 One short message at a time, at most two lines and never truncated, with an
 optional ghost `sm` action. Shown in the shell's persistent
 `role="status"` polite region, fixed above the phone toolbar or near the bottom
-centre from `--bp-md`, so it never shifts layout. It dismisses itself after 6s
+centre from `--bp-md`, so it never shifts layout. On phones the region is
+anchored to the toolbar's real top (CSS anchor positioning, `anchor-name:
+--toolbar`; without it, `--toolbar-height` above the bottom), so a toolbar that
+large text wraps to more rows never sits under the toast. The region spans the
+viewport above that line with `pointer-events: none`, and the toast sits at its
+foot (`align-items: safe flex-end`): when it is taller than the room left
+(320×568 at 200% text) it starts at the top of the viewport instead and covers
+the toolbar's first row while it shows. It dismisses itself after 6s
 (pausing while hovered or focused). Use to confirm something that happened
 outside the user's view, e.g. "All data was reset." A toast with an Undo action (a deleted
 row) passes `duration` 5000 and keeps only the latest deletion undoable.
@@ -412,8 +450,10 @@ modal; while empty it takes no space. It is a `role="status"` polite live
 region, mounted empty by the shell. `show({ message, action })` renders the
 message and a secondary `sm` button; there is no timer and toasts never replace
 it, so it stays until the user acts. `hide()` empties it. Surface, strong
-hairline border, `--radius-md`, `--shadow-sm`. Use for something the user must
-act on eventually but not right now; for passing confirmations use a Toast.
+hairline border, `--radius-md`, `--shadow-sm`; inline padding
+`--banner-inset-start` / `--banner-inset-end` below `--bp-md`, `--space-4` /
+`--space-3` from it. Use for something the user must act on eventually but not
+right now; for passing confirmations use a Toast.
 
 `message` is a string ("Update available") or `{ long, short, compact? }`: the
 `.banner__short` text shows below `--bp-md` and `.banner__long` from it. With
@@ -453,7 +493,11 @@ with `--font-weight-medium` text on `--color-surface`. The checked segment gets
 the `--color-surface-sunken` fill, a second inset `--color-border-strong`
 border and `--font-weight-bold` text, like the pressed Button, so the state
 never relies on colour alone. A focused radio puts the standard focus ring on
-its segment (`:has(:focus-visible)`). Arrow keys move the choice natively and
+its segment (`:has(:focus-visible)`). Below `--bp-md` the segments share the
+toolbar row equally (a grid of `minmax(max-content, 1fr)` columns, inline
+padding `--segment-inset`), but a segment never gets narrower than its label:
+at large text it takes its label's width and the others share the rest. From
+`--bp-md` they size as a flex row with `--space-3` padding. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set
 `aria-keyshortcuts`. `onChange` fires on user change; `setValue()` updates it
 silently. Use for a short, always-visible view mode switched often, e.g. the
@@ -523,7 +567,8 @@ over a muted secondary line (country or full abbreviation name), then local
 time and offset in fixed-width, end-aligned columns of `--font-mono` tabular
 numerals, so they line up down the list. Below `--bp-md` the name takes the
 full first line and the Added marker, time and offset share a second line
-under it. A zone already on the board
+under it (the time and offset at minimum widths, so they still line up); when
+they don't fit (large text) the offset wraps to its own line at the end. A zone already on the board
 (stored or home) shows a pill "Added" marker that is part of its accessible
 name; choosing it changes nothing and a polite note says so. On desktop
 (`(hover: hover) and (pointer: fine)`) the search field gets focus on open;
@@ -536,11 +581,35 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                                                                |
-| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| base      | 0         | Single column, `--space-4` gutters, compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                                                                |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                 |
+| Name      | Min width | Changes                                                                                                                                                                                                                                                              |
+| --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), compact 144px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows), 56px rows, toolbar fixed to the bottom, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar, sheets are centred modals                                                                                              |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                               |
+
+Short viewports keep the phone row header. The wide row header (its inline
+details, the 64px rows, the wider header padding) needs height as well as
+width, so `app.css` applies it under `(min-width: 40rem) and (min-height:
+40rem)`, reusing the `--bp-md` value as a height; `src/ui/grid.js` `WIDE`
+matches the same query, so focus, the popover anchor and the close on a change
+follow the visible trigger. A phone in landscape (844×390) is wider than
+`--bp-md` but under `40rem` tall: it keeps the phone header button, the 56px
+rows and the popover for details, and so shows more hours rather than taller
+rows (PRD 6.3). Everything else from `--bp-md` (gutters, the toolbar in the
+title bar, the 180px `--grid-header-width`, the one-line selection bar, centred
+sheets) still follows width alone.
+
+Large text (PRD 6.7): the row header column is at most 40% of the viewport
+(the `--row-header-width*` tokens, §3.6), rows grow taller, and nothing clips.
+A header time wider than the header (12-hour times at 200% in a 128px header)
+wraps between words ("12:00 / pm"), never inside one; city names keep their
+one-line ellipsis. The no-overlap message's button lets its label wrap rather
+than widen the page, with its padding shrunk to `--phone-gutter`; the Popover
+is never taller than the room above the phone toolbar (it scrolls); the Date
+field, Sheet headers and Add city results wrap rather than run past the
+screen edge. At 320×568 with 200% text the phone toolbar wraps to four rows,
+which leaves less room above it than a toast needs; the toast then covers the
+toolbar's first row until it goes.
 
 The timeline grid (`src/ui/grid.js`) is one horizontal scroll container
 (`overflow-x: auto`, `role="grid"`, `tabindex="0"`) holding every row: home,
@@ -573,7 +642,8 @@ is plain text. From `--bp-md` "DST" is visible text in the meta line, and the
 warning is a bordered chip ("29 Mar") with the alert icon. On user rows it sits
 inside the wide trigger, named by visually hidden "Clocks change Sun 29 Mar",
 and the trigger's Popover adds the change's sentence. On the home row it is a
-button (named "Clocks change Sun 29 Mar", at least 24×24 px) that opens the
+button (named "Clocks change Sun 29 Mar", at least `--control-height`, 44×44 px)
+that opens the
 details popover with the full name and the change's sentence. Each row's track
 is window hours × `--slot-width` wide and clips
 cells that overhang the window. Hour cells are positioned by absolute time, so
