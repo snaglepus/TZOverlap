@@ -234,10 +234,10 @@ export function mountApp(
     actions: [
       dateControl.root,
       todayButton,
-      hourToggle,
       nowButton,
-      settingsButton,
+      hourToggle,
       filterControl.root,
+      settingsButton,
     ],
     footer: [h('p', { text: strings.app.footer }), announcer],
   });
@@ -318,7 +318,7 @@ export function mountApp(
     title: strings.timelines.cardTitle,
     actions: [legend(), tools],
   });
-  // Below --bp-md it loses its card look (app.css).
+  // It has no card look at any width (app.css).
   timelinesCard.root.classList.add('timelines');
   // Between the card header and its body, which showGrid() replaces.
   const noOverlap = h('div', {

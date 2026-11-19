@@ -297,13 +297,13 @@
   visibility: hidden;
 }
 
-/* ---------- Timelines card ---------- */
-/* Below --bp-md no card look: the grid runs the content width. The heading is
-   visually hidden (it still names the region), and the header and body join
-   one wrapping row, without DOM changes: the no-overlap message (when shown)
-   and the tools (Add city or the limit note, then Edit / Done) share the first
-   line, the tools right-aligned; then the grid, the legend and the rest in DOM
-   order, each on a line of its own. The message's minimum width scales with
+/* ---------- Timelines region ---------- */
+/* No card look at any width: the grid's border is the only edge. The heading
+   is visually hidden (it still names the region), and the header and body join
+   one wrapping row, without DOM changes. Below --bp-md the no-overlap message
+   (when shown) and the tools (Add city or the limit note, then Edit / Done)
+   share the first line, the tools right-aligned; then the grid, the legend and
+   the rest in DOM order, each on a line of its own. The message's minimum width scales with
    text, so at large text it wraps above the tools. The selection bar docks
    above the toolbar. */
 .timelines {
@@ -355,52 +355,25 @@
   order: -1;
 }
 
+/* From --bp-md the legend, aligned with the hour area, and the tools share the
+   first line; then the no-overlap message (when shown), the grid and the rest
+   in DOM order. At large text the tools wrap under the legend. */
 @media (min-width: 40rem) {
-  .timelines {
-    flex-flow: column nowrap;
-    gap: var(--space-4);
-    padding: var(--space-5);
-    background: var(--color-surface);
-    border: var(--border-width) solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .timelines > .card__header,
-  .timelines > .card__body {
-    display: flex;
-  }
-
-  .timelines .card__title {
-    position: static;
-    width: auto;
-    height: auto;
-    margin: var(--space-0);
-    overflow: visible;
-    clip-path: none;
-    white-space: normal;
-  }
-
-  .timelines > .card__header > *,
-  .timelines > .card__body > * {
-    flex-basis: auto;
-  }
-
-  .timelines > .no-overlap {
+  .timelines .legend {
+    order: -4;
     flex: 0 1 auto;
-    min-inline-size: auto;
+    margin-inline-start: calc(var(--grid-header-width) + var(--border-width));
+    align-self: center;
   }
 
   .timelines .timelines__tools {
-    flex: 0 1 auto;
-    margin-inline-start: var(--space-0);
+    order: -3;
   }
 
-  .timelines .timelines__tools,
-  .timelines > .no-overlap,
-  .timelines .grid {
-    order: 0;
-    align-self: auto;
+  .timelines > .no-overlap {
+    order: -2;
+    flex: 0 1 100%;
+    min-inline-size: auto;
   }
 }
 

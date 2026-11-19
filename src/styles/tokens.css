@@ -84,6 +84,9 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /* Layout sizes */
+  /* The page: the top bar, the timelines and the footer's rule. */
+  --page-max-width: 120rem;
+  /* The measure for text in the page: banners, the install hint, footer text. */
   --content-max-width: 72rem;
   --control-height: 2.75rem;
   --slot-width: 48px;

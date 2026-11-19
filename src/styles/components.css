@@ -40,7 +40,7 @@
 .shell__main,
 .shell__footer {
   width: 100%;
-  max-width: var(--content-max-width);
+  max-width: var(--page-max-width);
   margin-inline: auto;
   padding-inline: calc(var(--phone-gutter) + env(safe-area-inset-left))
     calc(var(--phone-gutter) + env(safe-area-inset-right));
@@ -126,16 +126,28 @@
       calc(var(--space-6) + env(safe-area-inset-right));
   }
 
+  /* One slim top bar: the brand, then the toolbar on the same row; at most
+     two rows below --bp-lg (large text may wrap it further). */
   .shell__header {
-    padding-block: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-5);
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    padding-block: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-3);
   }
 
   .shell__title {
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-xl);
   }
 
-  .shell__tagline {
-    display: block;
+  /* Main follows its content, so the footer comes right after the timelines. */
+  .shell__main {
+    flex: none;
+    padding-block-end: var(--space-4);
+  }
+
+  /* Text content keeps the shorter measure, start-aligned with the grid. */
+  .shell__main > :not(.timelines),
+  .shell__footer > * {
+    max-width: var(--content-max-width);
   }
 
   .shell__footer {
@@ -149,6 +161,7 @@
 
   .toolbar {
     position: static;
+    margin-inline-start: auto;
     align-items: center;
     gap: var(--space-2);
     min-height: auto;
@@ -161,6 +174,32 @@
     min-width: auto;
     padding-inline: var(--space-4);
     font-size: inherit;
+  }
+}
+
+/* The tagline beside the title on one line: it takes no room of its own, so
+   it never wraps the bar; it fills what the toolbar leaves and truncates. */
+@media (min-width: 64rem) {
+  .shell__brand {
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-width: var(--space-0);
+  }
+
+  .shell__title {
+    flex: none;
+  }
+
+  .shell__tagline {
+    display: block;
+    flex: 1 1 auto;
+    width: var(--space-0);
+    min-width: var(--space-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -781,8 +820,7 @@
 /* Each segment carries its own border, overlapping its neighbour's by one, so
    a segment is a full --control-height tall. Below --bp-md each segment takes
    its label's width plus --segment-inset, so the filter shares the toolbar's
-   one row. From --bp-md it is a line of its own at the end of the title bar
-   toolbar. */
+   one row. From --bp-md it sits in the top bar's toolbar, before the gear. */
 .segmented {
   display: flex;
   justify-content: flex-end;
@@ -855,10 +893,6 @@
 }
 
 @media (min-width: 40rem) {
-  .toolbar > .segmented {
-    flex-basis: 100%;
-  }
-
   .segmented__options {
     flex: none;
   }
