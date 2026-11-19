@@ -491,8 +491,12 @@ viewport above that line with `pointer-events: none`, and the toast sits at its
 foot (`align-items: safe flex-end`): if it were ever taller than the room left
 it would start at the top of the viewport instead and cover the toolbar's first
 row while it shows. While the Everyone row is pinned to the bottom of the
-screen, the region's foot rises to sit above it (`--everyone-pin-room`, at all
-widths). It dismisses itself after 6s
+screen, the region's foot rises to sit above it (`--everyone-toast-room`, at
+all widths), but only while the pinned row and the bars below it take at most
+half the viewport (`toastRoom()`, `TOAST_RAISE_MAX_SHARE` in
+`src/lib/scroll.js`). Past that (a very short screen with large text) the toast
+keeps its usual place and covers the pinned row while it shows, as it covers
+other content. It dismisses itself after 6s
 (pausing while hovered or focused). Use to confirm something that happened
 outside the user's view, e.g. "All data was reset." A toast with an Undo action (a deleted
 row) passes `duration` 5000 and keeps only the latest deletion undoable.
@@ -724,7 +728,8 @@ changes it, the polite announcer says "Everyone: …" once, joined to that
 action's own message ("Added Tokyo. Everyone: …"); a filter change says
 "Filter: Good. Everyone: …". While the grid runs below the visible area, the
 Everyone row is pinned to its bottom: just above the phone toolbar below
-`--bp-md`, the viewport bottom from it. It is never raised over the home row:
+`--bp-md` (above the docked selection bar while that shows), the viewport
+bottom from it. It is never raised over the home row:
 when it doesn't fit between the home row and the visible bottom (a short
 screen with large text), it isn't pinned at all and stays in its place. It
 settles back continuously, with no jump, as the grid's end scrolls into
@@ -737,8 +742,9 @@ track get a `translateY` by it (the row element itself never moves). It is the
 same single row, so its segments, the band and the now line stay aligned at
 every `scrollLeft`; there is no clone or second scroller, and no pinned-state
 shadow. While pinned, `--everyone-pin-room` on `<html>` (the room from the
-row's top to the viewport bottom) lifts toasts above it and sets the page's
-`scroll-padding-block-end`, so focus scrolling leaves it clear; a row control
+row's top to the viewport bottom) sets the page's `scroll-padding-block-end`,
+so focus scrolling leaves it clear, and `--everyone-toast-room` (the same room
+while it is at most half the viewport) lifts toasts above it; a row control
 focused while it would sit under the row (on `focusin` in the grid, or in the
 first frame after a rebuild) is scrolled clear. The grid root itself, focused
 without scrolling by a track press or after clearing a selection, never is. From `--bp-md` "DST" is visible text in the meta line, and the

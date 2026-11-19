@@ -170,7 +170,8 @@ src/                    the app (served as-is in dev; bundled for prod)
     scroll.js           timeline scroll maths: now-line position, Now target, wheel and arrow-key steps,
                         instantAt() and CLICK_SLOP_PX for click-to-select; edgeScrollStep() (page
                         auto-scroll while dragging a row), pinLift() (the pinned Everyone row's
-                        lift) and the gesture constants (LONG_PRESS_MS, LONG_PRESS_SLOP_PX, HAPTIC_MS)
+                        lift), toastRoom() (toasts above it while that leaves half the viewport)
+                        and the gesture constants (LONG_PRESS_MS, LONG_PRESS_SLOP_PX, HAPTIC_MS)
     selection.js        selection state: snapToSlot(), createSelection(), createSelectionState()
     selection-details.js
                         describeSelection(): per-zone local times and ratings of a selection;
@@ -202,7 +203,8 @@ src/                    the app (served as-is in dev; bundled for prod)
                         (setSummary()); Edit mode (data-editing, setEditing()):
                         each user row's Delete button, focusDelete()
     pin.js              keeps the Everyone row in view at the bottom: attachPin() (rAF lift,
-                        --everyone-pin-room for toasts and focus scrolling), visibleBottom()
+                        --everyone-pin-room for focus scrolling, --everyone-toast-room for
+                        toasts), visibleBottom() (the docked selection bar's or toolbar's top)
     reorder.js          drag to reorder user rows: Pointer Events with pointer capture, handle
                         drag and touch long press, lifted row and shifts, edge auto-scroll, cancel
     settings.js         the Settings sheet: Appearance, Time format (settings.hourCycle),
