@@ -187,8 +187,13 @@ describe('pinLift', () => {
     assert.equal(pinLift({ ...home, rowTop: 780, rowBottom: 840, visibleBottom: 800 }), 40);
   });
 
-  it('never raises the row over the home row', () => {
-    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 120 }), 200);
+  it('raises the row right under the home row when it just fits', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 160 }), 200);
+  });
+
+  it('does not pin when the row cannot fit under the home row', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 159 }), 0);
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 120 }), 0);
     assert.equal(pinLift({ ...home, rowTop: 100, rowBottom: 160, visibleBottom: 50 }), 0);
   });
 

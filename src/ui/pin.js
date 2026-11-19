@@ -19,8 +19,8 @@ export function visibleBottom() {
 
 /**
  * Pin `row` (the Everyone row) to the visible bottom while the grid `root`
- * runs past it, never over `home` (the home row). Call `destroy()` before
- * dropping the grid.
+ * runs past it, never over `home` (the home row): when it can't fit below
+ * `home`, it isn't pinned. Call `destroy()` before dropping the grid.
  * @param {{ root: HTMLElement, row: HTMLElement, home: HTMLElement }} options
  */
 export function attachPin({ root, row, home }) {

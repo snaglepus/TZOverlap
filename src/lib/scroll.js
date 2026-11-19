@@ -114,10 +114,12 @@ export function edgeScrollStep(y, top, bottom) {
 
 /**
  * How many px the Everyone row is raised so it stays in view: by as much as it
- * runs past `visibleBottom`, but never over the home row. All arguments are
- * viewport px; 0 when the row's natural place is in view.
+ * runs past `visibleBottom`. All arguments are viewport px; 0 when the row's
+ * natural place is in view, and 0 when the row doesn't fit between the home row
+ * and `visibleBottom`, so it never rises over the home row.
  * @param {{ rowTop: number, rowBottom: number, homeBottom: number, visibleBottom: number }} rects
  */
 export function pinLift({ rowTop, rowBottom, homeBottom, visibleBottom }) {
-  return Math.max(0, Math.min(rowBottom - visibleBottom, rowTop - homeBottom));
+  const lift = rowBottom - visibleBottom;
+  return lift > 0 && lift <= rowTop - homeBottom ? lift : 0;
 }
