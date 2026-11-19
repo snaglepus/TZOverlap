@@ -9,7 +9,7 @@
 // runs past the 1440x900 viewport.
 
 import { expect, test } from '@playwright/test';
-import { expectNoA11yViolations } from './helpers.js';
+import { expectNoA11yViolations, setRootFontSize } from './helpers.js';
 
 /** Thursday 29 Oct 2026, 12:00 in Sydney (AEDT). */
 const SYDNEY_NOON = new Date('2026-10-29T01:00:00Z');
@@ -27,6 +27,8 @@ const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
 /** A shorter phone: at 390x844 seven zones fit, so nothing pins there. */
 const SHORT_PHONE = { width: 375, height: 667 };
+/** A small phone with 200% text: the Everyone row is taller than the room under the home row. */
+const TINY_PHONE = { width: 320, height: 568 };
 const PINNED = [
   ['desktop', DESKTOP],
   ['short phone', SHORT_PHONE],
@@ -247,6 +249,34 @@ test.describe('short phone', () => {
     expect(Math.abs(extent.trackBottom - toolbar.top)).toBeLessThanOrEqual(1);
     expect(disjoint(extent, toolbar)).toBe(true);
     await expectSettledAtEnd(page);
+  });
+});
+
+test.describe('tiny phone, 200% text', () => {
+  test.use({ viewport: TINY_PHONE });
+
+  test('no pin when the row can’t fit under the home row', async ({ page }) => {
+    await open(page);
+    await setRootFontSize(page, '200%');
+    await frames(page);
+    await frames(page);
+    const toolbar = await rectOf(page, '.toolbar');
+    const home = await rectOf(page, `[data-zone="${HOME}"]`);
+    const natural = await rectOf(page, '[data-zone="everyone"]');
+    // Precondition: the grid runs past the toolbar, and the row would only
+    // reach the toolbar top by rising over the home row.
+    expect(await gridBottom(page)).toBeGreaterThan(toolbar.top);
+    expect(natural.bottom - natural.top).toBeGreaterThan(toolbar.top - home.bottom);
+    expect(await lift(page)).toBe(0);
+    expect(
+      await page.evaluate(() =>
+        document.documentElement.style.getPropertyValue('--everyone-pin-room'),
+      ),
+    ).toBe('');
+    // In its natural place, so never over the home row.
+    const extent = await rendered(page);
+    expect(Math.abs(extent.top - natural.top)).toBeLessThanOrEqual(1);
+    expect(extent.top).toBeGreaterThanOrEqual(home.bottom);
   });
 });
 
