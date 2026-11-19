@@ -197,7 +197,7 @@ export function dateField({ label, name, value, min, max }) {
     },
     /**
      * The short date shown below --bp-md. When it already says the label
-     * ("Today · Wed 18 Nov"), the label word is left out there; otherwise it
+     * (today: "Today" and the date), the label word is left out there; otherwise it
      * stays visually hidden, for the accessible name.
      * @param {string} text
      * @param {boolean} [replacesLabel]
