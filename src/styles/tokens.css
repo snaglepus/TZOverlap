@@ -107,6 +107,9 @@
   /* A user row header's trigger before it grows: room for "10:30 pm" at any text size. */
   --row-header-trigger-basis: 4.5rem;
   --sheet-max-width: 32rem;
+  /* The phone no-overlap message's minimum width beside Edit / Done: room at
+     default text on 320px, so it shares Edit's line; at 200% it wraps above. */
+  --no-overlap-min-width: 12rem;
   /* The phone toolbar's one control row, its block padding and the top border. */
   --toolbar-height: calc(var(--control-height) + 2 * var(--space-1) + var(--border-width));
   --min-viewport-height: 100dvh;
