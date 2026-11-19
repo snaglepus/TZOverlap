@@ -1,9 +1,11 @@
 // E2E: the phone grid (TZO-33): below --bp-md the Timelines card has no card
-// look, the heading is visually hidden, Edit / Done sits alone above the grid,
-// the legend follows the grid, headers are 112 px and the drag handles show in
-// Edit mode only; focus leaves a handle that hides. From --bp-md (and a phone
-// in landscape) nothing changes. Device in Sydney, clock fixed at 12:00 on
-// Wed 18 Nov 2026, four zones seeded, install hint dismissed.
+// look, the heading is visually hidden, Edit / Done sits above the grid (with
+// the no-overlap message on its line, TZO-36), the legend follows the grid,
+// headers are 112 px and the drag handles show in Edit mode only; focus leaves
+// a handle that hides. The grid limits hold with and without the message. From
+// --bp-md (and a phone in landscape) nothing changes. Device in Sydney, clock
+// fixed at 12:00 on Wed 18 Nov 2026, four zones that share no hours seeded (so
+// the no-overlap message shows), install hint dismissed.
 
 import { expect, test } from '@playwright/test';
 import { expectNoA11yViolations, setRootFontSize } from './helpers.js';
@@ -45,8 +47,9 @@ test.beforeEach(async ({ page }) => {
 
 /**
  * Seed four zones that share hours with Sydney, so the no-overlap message stays
- * empty and the layout checks measure the grid alone. Runs after the default
- * seed above and replaces its zones.
+ * empty and the layout checks measure the grid alone; the grid limit tests run
+ * once with it and once with the default zones, where the message shows. Runs
+ * after the default seed above and replaces its zones.
  * @param {import('@playwright/test').Page} page
  */
 async function seedOverlap(page) {
@@ -82,6 +85,15 @@ const editButton = (page) => page.getByRole('button', { name: 'Edit time zones',
 /** @param {Page} page */
 const doneButton = (page) =>
   page.getByRole('button', { name: 'Done editing time zones', exact: true });
+
+/** @param {Page} page */
+const message = (page) => page.locator('.no-overlap');
+
+/** @param {Page} page */
+const nextDay = (page) => page.getByRole('button', { name: 'Show next day that works' });
+
+/** @param {Page} page */
+const dateInput = (page) => page.locator('.toolbar input[type="date"]');
 
 /** @param {Page} page */
 const handles = (page) => page.locator('.grid__handle');
@@ -122,31 +134,114 @@ async function expectBigButtons(page) {
   }
 }
 
+/**
+ * Both seeds for the grid limit tests: zones that share hours (no message), and
+ * the default zones, which share none (the message shows beside Edit).
+ * @type {{ name: string, seed: (page: Page) => Promise<void>, expectMessage: (page: Page) => Promise<void> }[]}
+ */
+const SEEDS = [
+  {
+    name: 'shared hours',
+    seed: seedOverlap,
+    expectMessage: async (page) => {
+      await expect(message(page)).toBeEmpty();
+    },
+  },
+  {
+    name: 'no overlap',
+    seed: async () => {},
+    expectMessage: async (page) => {
+      await expect(message(page)).toContainText('No time works for everyone today');
+      await expect(nextDay(page)).toBeVisible();
+    },
+  },
+];
+
+/**
+ * The no-overlap message and its button sit on Edit's line, left of it, above
+ * the grid; the button gives way to the none-found line and focuses the grid.
+ * @param {Page} page
+ */
+async function expectMessageBesideEdit(page) {
+  await page.goto('/');
+  await expect(message(page)).toContainText('No time works for everyone today');
+  await expect(nextDay(page)).toBeVisible();
+  const bar = await box(page.locator('header.shell__header'));
+  const g = await box(grid(page));
+  const b = await box(nextDay(page));
+  expect(b.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  expect(b.y + b.height).toBeLessThanOrEqual(g.y);
+  const m = await box(message(page));
+  const e = await box(editButton(page));
+  expect(m.y).toBeLessThan(e.y + e.height);
+  expect(e.y).toBeLessThan(m.y + m.height);
+  expect(m.x + m.width).toBeLessThan(e.x);
+
+  const date = await dateInput(page).inputValue();
+  await nextDay(page).click();
+  await expect(message(page)).toContainText(
+    'No time works for everyone in the next 14 days either.',
+  );
+  await expect(nextDay(page)).toHaveCount(0);
+  await expect(dateInput(page)).toHaveValue(date);
+  await expect(grid(page)).toBeFocused();
+  expect(await noSidewaysScroll(page)).toBe(true);
+}
+
+/**
+ * At 200% text the message takes its own line above Edit, spanning the grid's width.
+ * @param {Page} page
+ */
+async function expectMessageAboveEdit(page) {
+  await page.goto('/');
+  await setRootFontSize(page, '200%');
+  await expect(nextDay(page)).toBeVisible();
+  const m = await box(message(page));
+  const e = await box(editButton(page));
+  const g = await box(grid(page));
+  expect(m.y + m.height).toBeLessThanOrEqual(e.y);
+  expect(Math.abs(m.x - g.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.x + m.width - (g.x + g.width))).toBeLessThanOrEqual(1);
+  expect(e.y + e.height).toBeLessThanOrEqual(g.y);
+  expect((await box(nextDay(page))).height).toBeGreaterThanOrEqual(44);
+  expect(await noSidewaysScroll(page)).toBe(true);
+}
+
 test.describe('phone, 390×844', () => {
-  test('AC-1, AC-2: six hour columns beside the header; the home row near the top', async ({
-    page,
-  }) => {
-    await seedOverlap(page);
-    await page.goto('/');
-    const home = row(page, HOME);
-    await expect(home).toBeVisible();
-    await expect(page.locator('.no-overlap')).toBeEmpty();
-    expect(await page.evaluate(() => window.scrollY)).toBe(0);
-    const g = await box(grid(page));
-    const header = await box(home.locator('[role="rowheader"]'));
-    expect(g.width - header.width).toBeGreaterThanOrEqual(PHONE.width * 0.45);
-    const shown = await grid(page).evaluate((root, zone) => {
-      const rect = root.getBoundingClientRect();
-      const inner = rect.left + root.clientLeft + root.clientWidth;
-      const head = /** @type {Element} */ (
-        root.querySelector(`[role="row"][data-zone="${zone}"] [role="rowheader"]`)
-      ).getBoundingClientRect();
-      return [...root.querySelectorAll(`[role="row"][data-zone="${zone}"] [role="gridcell"]`)]
-        .map((cell) => cell.getBoundingClientRect())
-        .filter((r) => r.right > head.right && r.left < inner).length;
-    }, HOME);
-    expect(shown).toBeGreaterThanOrEqual(6);
-    expect((await box(home)).y).toBeLessThanOrEqual(120);
+  for (const { name, seed, expectMessage } of SEEDS) {
+    test(`AC-1, AC-2: six hour columns beside the header; the home row near the top (${name})`, async ({
+      page,
+    }) => {
+      await seed(page);
+      await page.goto('/');
+      const home = row(page, HOME);
+      await expect(home).toBeVisible();
+      await expectMessage(page);
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      const g = await box(grid(page));
+      const header = await box(home.locator('[role="rowheader"]'));
+      expect(g.width - header.width).toBeGreaterThanOrEqual(PHONE.width * 0.45);
+      const shown = await grid(page).evaluate((root, zone) => {
+        const rect = root.getBoundingClientRect();
+        const inner = rect.left + root.clientLeft + root.clientWidth;
+        const head = /** @type {Element} */ (
+          root.querySelector(`[role="row"][data-zone="${zone}"] [role="rowheader"]`)
+        ).getBoundingClientRect();
+        return [...root.querySelectorAll(`[role="row"][data-zone="${zone}"] [role="gridcell"]`)]
+          .map((cell) => cell.getBoundingClientRect())
+          .filter((r) => r.right > head.right && r.left < inner).length;
+      }, HOME);
+      expect(shown).toBeGreaterThanOrEqual(6);
+      expect((await box(home)).y).toBeLessThanOrEqual(120);
+    });
+  }
+
+  test("TZO-36: the no-overlap message and its button share Edit's line", async ({ page }) => {
+    await expectMessageBesideEdit(page);
+  });
+
+  test('TZO-36: at 200% text the message takes its own line above Edit', async ({ page }) => {
+    await expectMessageAboveEdit(page);
   });
 
   test('AC-6: the region has no card look; the heading is hidden but names it', async ({
@@ -286,20 +381,32 @@ test('AC-18: at 1440×900 Esc out of Edit mode leaves focus on the handle', asyn
 test.describe('320×568', () => {
   test.use({ viewport: SMALL });
 
-  test('AC-3, AC-4: 300 px of grid between the bars; Edit on one line', async ({ page }) => {
-    await seedOverlap(page);
-    await page.goto('/');
-    await expect(row(page, HOME)).toBeVisible();
-    await expect(page.locator('.no-overlap')).toBeEmpty();
-    const g = await box(grid(page));
-    const bar = await box(page.locator('header.shell__header'));
-    const toolbar = await box(page.getByRole('group', { name: 'Toolbar' }));
-    const shown = Math.min(g.y + g.height, toolbar.y) - Math.max(g.y, bar.y + bar.height);
-    expect(shown).toBeGreaterThanOrEqual(300);
-    const e = await box(editButton(page));
-    expect(e.height).toBeLessThanOrEqual(44);
-    expect(e.height).toBeGreaterThanOrEqual(44);
-    expect(e.width).toBeGreaterThanOrEqual(44);
+  for (const { name, seed, expectMessage } of SEEDS) {
+    test(`AC-3, AC-4: 300 px of grid between the bars; Edit on one line (${name})`, async ({
+      page,
+    }) => {
+      await seed(page);
+      await page.goto('/');
+      await expect(row(page, HOME)).toBeVisible();
+      await expectMessage(page);
+      const g = await box(grid(page));
+      const bar = await box(page.locator('header.shell__header'));
+      const toolbar = await box(page.getByRole('group', { name: 'Toolbar' }));
+      const shown = Math.min(g.y + g.height, toolbar.y) - Math.max(g.y, bar.y + bar.height);
+      expect(shown).toBeGreaterThanOrEqual(300);
+      const e = await box(editButton(page));
+      expect(e.height).toBeLessThanOrEqual(44);
+      expect(e.height).toBeGreaterThanOrEqual(44);
+      expect(e.width).toBeGreaterThanOrEqual(44);
+    });
+  }
+
+  test("TZO-36: the no-overlap message and its button share Edit's line", async ({ page }) => {
+    await expectMessageBesideEdit(page);
+  });
+
+  test('TZO-36: at 200% text the message takes its own line above Edit', async ({ page }) => {
+    await expectMessageAboveEdit(page);
   });
 });
 
@@ -355,6 +462,24 @@ test('AC-12: 1440×900 keeps the card look, the heading, the legend above and th
     .locator('[role="rowheader"]')
     .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
   for (const width of widths) expect(Math.abs(width - 220)).toBeLessThanOrEqual(2);
+});
+
+test('TZO-36: at 1440×900 the no-overlap message keeps its box between the header and the grid', async ({
+  page,
+}) => {
+  await page.setViewportSize(DESKTOP);
+  await page.goto('/');
+  await expect(message(page)).toContainText('No time works for everyone today');
+  const m = await box(message(page));
+  const header = await box(region(page).locator('.card__header'));
+  expect(m.y).toBeGreaterThanOrEqual(header.y + header.height);
+  expect(m.y + m.height).toBeLessThanOrEqual((await box(grid(page))).y);
+  const style = await message(page).evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { border: s.borderTopWidth, background: s.backgroundColor };
+  });
+  expect(style.border).toBe('1px');
+  expect(style.background).not.toBe('rgba(0, 0, 0, 0)');
 });
 
 test.describe('landscape, 844×390', () => {
