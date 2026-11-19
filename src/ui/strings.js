@@ -218,8 +218,9 @@ export const strings = /** @satisfies {Strings} */ ({
     },
     /** @param {string} option @param {string} summary the long Everyone summary */
     changed: (option, summary) => `Filter: ${option}. Everyone: ${summary}.`,
-    noOverlap: 'No time works for everyone today',
-    nextDay: 'Show next day that works',
+    /** `short` is the visible text below --bp-md; `long` stays the accessible text. */
+    noOverlap: { long: 'No time works for everyone today', short: 'No time works today' },
+    nextDay: { long: 'Show next day that works', short: 'Next day' },
     /** @param {number} days */
     noneFound: (days) => `No time works for everyone in the next ${days} days either.`,
   },
