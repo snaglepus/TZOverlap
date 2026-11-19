@@ -121,6 +121,15 @@ const rectOf = (page, selector) =>
 /** @param {Extent} a @param {Extent} b */
 const disjoint = (a, b) => a.bottom <= b.top || b.bottom <= a.top;
 
+/**
+ * pinLift() rounds the lift down to whole px, so the pinned track tucks under
+ * the visible bottom (a bottom bar or the viewport's edge) by less than this.
+ */
+const TUCK = 1;
+
+/** The Everyone row's extent is clear of a bar below it, give or take the tuck. @param {Extent} extent @param {Extent} bar */
+const clearOf = (extent, bar) => extent.bottom < bar.top + TUCK || bar.bottom <= extent.top;
+
 /** @param {Page} page */
 async function gridBottom(page) {
   return (await rectOf(page, '.grid')).bottom;
@@ -139,7 +148,7 @@ async function expectPinned(page) {
   const extent = await rendered(page);
   const height = await page.evaluate(() => innerHeight);
   expect(extent.top).toBeGreaterThanOrEqual(0);
-  expect(extent.bottom).toBeLessThanOrEqual(height);
+  expect(extent.bottom).toBeLessThan(height + TUCK);
   return extent;
 }
 
@@ -235,8 +244,8 @@ test.describe('phone', () => {
     else await expectPinned(page);
     const extent = await rendered(page);
     expect(extent.top).toBeGreaterThanOrEqual(0);
-    expect(extent.bottom).toBeLessThanOrEqual(PHONE.height);
-    expect(extent.bottom).toBeLessThanOrEqual(toolbar.top);
+    expect(extent.bottom).toBeLessThan(PHONE.height);
+    expect(extent.bottom).toBeLessThan(toolbar.top + TUCK);
     await expectSettledAtEnd(page);
   });
 });
@@ -250,8 +259,32 @@ test.describe('short phone', () => {
     expect(await gridBottom(page)).toBeGreaterThan(toolbar.top);
     const extent = await expectPinned(page);
     expect(Math.abs(extent.trackBottom - toolbar.top)).toBeLessThanOrEqual(1);
-    expect(disjoint(extent, toolbar)).toBe(true);
+    expect(clearOf(extent, toolbar)).toBe(true);
     await expectSettledAtEnd(page);
+  });
+
+  test('the lift is whole px, so no sliver of the next row shows under the track', async ({
+    page,
+  }) => {
+    await open(page);
+    const extent = await expectPinned(page);
+    expect(Number.isInteger(await lift(page))).toBe(true);
+    // The track reaches the toolbar (tucked under it by under 1 px), leaving no gap.
+    const toolbar = await rectOf(page, '.toolbar');
+    expect(extent.trackBottom).toBeGreaterThanOrEqual(toolbar.top);
+    expect(extent.trackBottom).toBeLessThan(toolbar.top + TUCK);
+    // In the px row just above the toolbar, the pinned track is on top, not a user row.
+    const hit = await page.evaluate(
+      ({ y }) => {
+        const header = /** @type {HTMLElement} */ (
+          document.querySelector('[data-zone="everyone"] > .grid__header')
+        ).getBoundingClientRect();
+        const el = document.elementFromPoint(header.right + 40, y);
+        return el?.closest('[role="row"]')?.getAttribute('data-zone') ?? null;
+      },
+      { y: toolbar.top - 1 },
+    );
+    expect(hit).toBe('everyone');
   });
 });
 
@@ -531,8 +564,8 @@ for (const [name, viewport] of /** @type {[string, {width: number, height: numbe
       await frames(page);
       const check = async () => {
         const extent = await rendered(page);
-        expect(disjoint(extent, await rectOf(page, '.toolbar'))).toBe(true);
-        expect(disjoint(extent, await rectOf(page, '.selection-bar'))).toBe(true);
+        expect(clearOf(extent, await rectOf(page, '.toolbar'))).toBe(true);
+        expect(clearOf(extent, await rectOf(page, '.selection-bar'))).toBe(true);
       };
       await check();
       await bar.scrollIntoViewIfNeeded();
@@ -585,7 +618,7 @@ test.describe('short phone with a selection', () => {
         const bar = await rectOf(page, '.selection-bar');
         const extent = await rendered(page);
         return (
-          disjoint(extent, bar) &&
+          clearOf(extent, bar) &&
           disjoint(t, extent) &&
           disjoint(t, bar) &&
           disjoint(t, await rectOf(page, '.toolbar')) &&
