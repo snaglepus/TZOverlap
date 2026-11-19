@@ -1,6 +1,6 @@
 // Timeline scroll maths: where the now line sits, where to scroll to bring it
-// back, how wheel and arrow-key input map to horizontal scrolling, and the
-// page auto-scroll while a row is dragged. Pure: the caller measures the DOM
+// back, how wheel and arrow-key input map to horizontal scrolling, the page
+// auto-scroll while a row is dragged and the pinned Everyone row's lift. Pure: the caller measures the DOM
 // and passes pixel sizes in.
 
 const HOUR = 3600000;
@@ -110,4 +110,14 @@ export function edgeScrollStep(y, top, bottom) {
   if (y < top + EDGE_SCROLL_ZONE_PX) return -step(top + EDGE_SCROLL_ZONE_PX - y);
   if (y > bottom - EDGE_SCROLL_ZONE_PX) return step(y - (bottom - EDGE_SCROLL_ZONE_PX));
   return 0;
+}
+
+/**
+ * How many px the Everyone row is raised so it stays in view: by as much as it
+ * runs past `visibleBottom`, but never over the home row. All arguments are
+ * viewport px; 0 when the row's natural place is in view.
+ * @param {{ rowTop: number, rowBottom: number, homeBottom: number, visibleBottom: number }} rects
+ */
+export function pinLift({ rowTop, rowBottom, homeBottom, visibleBottom }) {
+  return Math.max(0, Math.min(rowBottom - visibleBottom, rowTop - homeBottom));
 }

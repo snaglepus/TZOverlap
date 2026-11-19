@@ -10,6 +10,7 @@ import {
   isLineVisible,
   keyStep,
   nowScrollLeft,
+  pinLift,
   wheelToHorizontal,
 } from '../../src/lib/scroll.js';
 
@@ -172,5 +173,26 @@ describe('edgeScrollStep', () => {
 
   it('measures from the given top, such as a toolbar edge', () => {
     assert.equal(edgeScrollStep(400, 0, 420), edgeScrollStep(580, 0, 600));
+  });
+});
+
+describe('pinLift', () => {
+  const home = { homeBottom: 100 };
+
+  it('is 0 when the row is in view', () => {
+    assert.equal(pinLift({ ...home, rowTop: 400, rowBottom: 460, visibleBottom: 800 }), 0);
+  });
+
+  it('raises the row by as much as it runs past the visible bottom', () => {
+    assert.equal(pinLift({ ...home, rowTop: 780, rowBottom: 840, visibleBottom: 800 }), 40);
+  });
+
+  it('never raises the row over the home row', () => {
+    assert.equal(pinLift({ ...home, rowTop: 300, rowBottom: 360, visibleBottom: 120 }), 200);
+    assert.equal(pinLift({ ...home, rowTop: 100, rowBottom: 160, visibleBottom: 50 }), 0);
+  });
+
+  it('is 0 with the row exactly at the visible bottom', () => {
+    assert.equal(pinLift({ ...home, rowTop: 740, rowBottom: 800, visibleBottom: 800 }), 0);
   });
 });
