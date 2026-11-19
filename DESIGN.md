@@ -346,21 +346,22 @@ the error text is in a polite live region. Use for every text entry. Supports a
 
 A visible `<label>` and a native `<input type="date">` (value "YYYY-MM-DD",
 optional `min` / `max`), styled with `.input`. `setLabel()` changes the label
-word; `setShortDate(text, replacesLabel)` sets the short date inside the label,
-shown only below `--bp-md`. From `--bp-md` the label word sits beside the input
-in `--font-size-sm`; when both don't fit (large text) the input wraps under the
-label and may shrink to the field's width.
+word; `setShortDate(text, wordOnly)` sets the short date inside the label,
+shown only below `--bp-md` unless `wordOnly`. From `--bp-md` the label word
+sits beside the input in `--font-size-sm`; when both don't fit (large text) the
+input wraps under the label and may shrink to the field's width.
 
 Below `--bp-md` the field is one compact button: the label, at least 44×44px
 with a `--color-border-strong` border, `--radius-md` and `--font-size-sm` text
-centred, shows the short date. When the short date already says the label
-("Today · Wed 18 Nov", `replacesLabel`) the word is left out; otherwise ("Wed
-18 Nov") the word stays visually hidden, so the accessible name is "Date Wed 18
-Nov". The date's spaces are no-break spaces, so in a narrow toolbar the text
-wraps after "Today ·" and never inside the date, and the button is never
-narrower than the date (`min-width: min-content`): if the row can't hold it,
-the toolbar wraps instead of the text running out of the button. The native
-input stays in the DOM with its value, `min` / `max` and handlers, laid over the
+centred, shows one short line. On today (`wordOnly`,
+`.date-field--word-only`) it shows just "Today" and the short date is visually
+hidden, so the accessible name is "Today Wed 18 Nov"; on other dates it shows
+the short date ("Wed 15 July") and the word stays visually hidden, so the
+accessible name is "Date Wed 15 July". At default text the label is one line
+down to 320px. The date's spaces are no-break spaces, so large text never wraps
+inside the date, and the button is never narrower than its text
+(`min-width: min-content`): if the row can't hold it, the toolbar wraps instead
+of the text running out of the button. The native input stays in the DOM with its value, `min` / `max` and handlers, laid over the
 whole button at `opacity: 0`, so a tap focuses it; its click handler also calls
 `showPicker()` (feature-checked, in `try`/`catch`) while the phone layout is
 active, since desktop browsers open the picker only from its icon. The button
@@ -539,8 +540,8 @@ never relies on colour alone. A focused radio puts the standard focus ring on
 its segment (`:has(:focus-visible)`). Below `--bp-md` each segment takes its
 label's width plus `--segment-inset` on each side, and at least
 `--control-height` wide; in the toolbar the padding is `--space-1` and the text
-`--font-size-sm`, so the filter shares the one toolbar row with the date button
-and Now and leaves the date room for one line at 320px.
+`--font-size-sm`, so at default text the filter shares the one toolbar row
+with the one-line date button and Now, down to 320px.
 From `--bp-md` they size as a flex row with `--space-3` padding, and in the
 toolbar the filter takes its own line. Arrow keys move the choice natively and
 assistive tech gets a named group of radios. Options may set
@@ -626,11 +627,11 @@ Mobile first. Breakpoints are fixed values because `@media` cannot read custom
 properties; `tokens.css` records them as `--bp-md` and `--bp-lg` for reference
 and `scripts/lint-tokens.js` rejects any other width in a media query.
 
-| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 112px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows in Edit mode only), a cardless Timelines region (hidden heading, Edit above the grid, the legend after it), 56px rows, one-row toolbar fixed to the bottom (date button, Now, filter), shorter footer, sheets are full-width bottom sheets |
-| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                                                                                                                            |
-| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Name      | Min width | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| base      | 0         | Single column, `--phone-gutter` gutters (16px; 8px at 200% text), slim app bar (name and Settings gear, no tagline), compact 112px row headers (a button: name, then time and day badge; details in a popover; a drag handle on user rows in Edit mode only), a cardless Timelines region (hidden heading, Edit above the grid, the legend after it), 56px rows, one-row toolbar fixed to the bottom (date button: "Today" or the short date; Now; filter), shorter footer, sheets are full-width bottom sheets |
+| `--bp-md` | `40rem`   | `--space-6` gutters, title bar with tagline, 180px row headers with every detail inline (a button on user rows, static on home), 64px rows, toolbar in the title bar (with Today and Settings), sheets are centred modals                                                                                                                                                                                                                                                                                       |
+| `--bp-lg` | `64rem`   | Content capped at `--content-max-width` and centred, 220px row headers                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Short viewports keep the phone row header. The wide row header (its inline
 details, the 64px rows, the wider header padding) needs height as well as
