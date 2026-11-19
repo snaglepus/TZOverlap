@@ -231,7 +231,7 @@ describe('buildGrid Everyone segments', () => {
     });
   });
 
-  it('use the reddest step among the zones (Sydney 19:00, Tokyo 17:00 -> step 2)', () => {
+  it('use the farthest step among the zones (Sydney 19:00, Tokyo 17:00 -> step 2)', () => {
     const instant = at('2026-11-18T08:00:00Z'); // Sydney 19:00, Tokyo 17:00
     const seg = grid.everyone.find((s) => s.start <= instant && instant < s.end);
     assert.ok(seg);
